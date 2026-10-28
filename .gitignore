@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environments
+env/
+venv/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Database dumps / SQLite / Local data
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Mosquitto Broker logs & persistence
+mosquitto/data/
+mosquitto/log/
+
+# Environment files & Secrets
+.env
+.env.*
+*.env
+
+# Whitelist environment template
+!.env.example
+!*.env.example
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.pem
+*.key
