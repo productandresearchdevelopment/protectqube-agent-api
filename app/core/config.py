@@ -16,13 +16,12 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+psycopg2://postgres:Dysaputra1701@localhost:5433/agent_pqube"
 
-    MQTT_BROKER_HOST: str = "localhost"
+    MQTT_BROKER_HOST: str = "72.60.78.162"
     MQTT_BROKER_PORT: int = 1883
-    MQTT_USERNAME: Optional[str] = None
-    MQTT_PASSWORD: Optional[str] = None
-    MQTT_CLIENT_ID: str = "smartbox-agent-01"
-    MQTT_TOPIC_TELEMETRY: str = "gateway/smartbox/telemetry"
-    MQTT_TOPIC_ALERTS: str = "gateway/smartbox/alerts"
+    MQTT_USERNAME: Optional[str] = "protequbeai"
+    MQTT_PASSWORD: Optional[str] = "@Qualita2025"
+    MQTT_CLIENT_ID: str = "smartbox-backend-sub"
+    MQTT_TOPIC_TELEMETRY: str = "pqube/nms/#"
     MQTT_PUBLISH_INTERVAL_SECONDS: int = 30
 
     GATEWAY_TYPE: int = 1

@@ -5,11 +5,13 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
+    Float,
     Boolean,
     DateTime,
     ForeignKey,
     Enum,
     Text,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -187,3 +189,39 @@ class UserOtp(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="otps")
+
+
+class GatewayTelemetryHistory(Base):
+    __tablename__ = "gateway_telemetry_history"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    device_id = Column(String(50), nullable=False, index=True)
+    recorded_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    overall_status = Column(String(20), nullable=True)
+    location = Column(String(100), nullable=True)
+    hardware_model = Column(String(100), nullable=True)
+
+    # CPU & RAM & Storage
+    cpu_percent = Column(Float, nullable=True)
+    temperature_c = Column(Float, nullable=True)
+    ram_used_mb = Column(Float, nullable=True)
+    ram_total_mb = Column(Float, nullable=True)
+    disk_used_percent = Column(Float, nullable=True)
+
+    # Cellular & Network
+    operator = Column(String(50), nullable=True)
+    sim_status = Column(String(50), nullable=True)
+    signal_csq = Column(Integer, nullable=True)
+    signal_rsrp = Column(Integer, nullable=True)
+    phone_number = Column(String(50), nullable=True)
+    cellular_ip = Column(String(50), nullable=True)
+
+    # NVR & CCTV
+    nvr_status = Column(String(50), nullable=True)
+    nvr_recording = Column(Boolean, nullable=True)
+    cameras_online = Column(Integer, nullable=True)
+    cameras_total = Column(Integer, nullable=True)
+
+    # Raw Full JSON Payload
+    raw_payload = Column(JSON, nullable=True)

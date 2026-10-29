@@ -9,6 +9,7 @@ from app.models.base_models import (
     Module,
     RoleModule,
     EmailVerificationStatus,
+    GatewayTelemetryHistory,
 )
 
 logger = logging.getLogger(__name__)
