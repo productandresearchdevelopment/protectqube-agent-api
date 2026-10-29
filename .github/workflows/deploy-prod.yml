@@ -1,0 +1,63 @@
+name: CI/CD ProtectQube Agent API - Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build & Push Image
+        id: build
+        run: |
+          IMAGE=ghcr.io/${{ secrets.REGISTRY_OWNER }}/protectqube-agent-api:prod-${{ github.sha }}
+          CACHE_IMAGE=ghcr.io/${{ secrets.REGISTRY_OWNER }}/protectqube-agent-api:cache-prod
+
+          docker buildx build \
+            --cache-from type=registry,ref=${CACHE_IMAGE} \
+            --cache-to type=registry,ref=${CACHE_IMAGE},mode=max \
+            --tag $IMAGE \
+            --push \
+            .
+
+          echo "IMAGE=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Deploy API Production (Blue-Green)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+              -u ${{ secrets.GHCR_USER }} \
+              --password-stdin
+
+            IMAGE="${{ steps.build.outputs.IMAGE }}"
+
+            docker pull "$IMAGE"
+
+            export IMAGE="$IMAGE"
+
+            /var/www/protectqube-agent/api/deploy/deploy_prod_bluegreen.sh
