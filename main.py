@@ -1,7 +1,14 @@
+import sys
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from app.core.config import settings
 from app.core.init_db import init_db
 from app.agents.agent_manager import agent_manager
@@ -14,19 +21,38 @@ logging.basicConfig(
 logger = logging.getLogger("agent-pqube")
 
 
+def start_worker():
+    logger.info("==================================================")
+    logger.info("Starting Agent PQube MQTT Ingestion Worker")
+    logger.info(f"Broker: {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
+    logger.info(f"Topic:  {settings.MQTT_TOPIC_TELEMETRY}")
+    logger.info("==================================================")
+    agent_manager.start()
+    logger.info("MQTT Worker is actively listening and ingesting telemetry...")
+
+
+def stop_worker():
+    logger.info("Stopping MQTT Worker & Gateway Monitoring Agents...")
+    agent_manager.stop()
+    logger.info("MQTT Worker stopped cleanly.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing Agent PQube SmartBox Backend...")
-    init_db()
-    if settings.ENABLE_EMBEDDED_MQTT:
-        agent_manager.start()
-        logger.info("Gateway Monitoring Agents (Connectivity, DVR, System Health) are running.")
-    else:
-        logger.info("Embedded MQTT subscriber disabled (running via standalone worker).")
+    try:
+        init_db()
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+    try:
+        start_worker()
+    except Exception as e:
+        logger.error(f"Worker start error: {e}")
     yield
-    if settings.ENABLE_EMBEDDED_MQTT:
-        logger.info("Stopping Gateway Monitoring Agents...")
-        agent_manager.stop()
+    try:
+        stop_worker()
+    except Exception as e:
+        logger.error(f"Worker stop error: {e}")
 
 
 app = FastAPI(
@@ -70,4 +96,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG, app_dir=str(BASE_DIR))

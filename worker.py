@@ -1,7 +1,13 @@
+import sys
 import time
 import signal
-import sys
 import logging
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from app.core.config import settings
 from app.core.init_db import init_db
 from app.agents.agent_manager import agent_manager
@@ -34,10 +40,16 @@ def main():
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
 
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
 
-    agent_manager.start()
-    logger.info("Worker is actively listening and ingesting telemetry...")
+    try:
+        agent_manager.start()
+        logger.info("Worker is actively listening and ingesting telemetry...")
+    except Exception as e:
+        logger.error(f"Worker startup error: {e}")
 
     while _is_running:
         try:
