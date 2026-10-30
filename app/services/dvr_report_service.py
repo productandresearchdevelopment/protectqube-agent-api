@@ -18,7 +18,6 @@ class DVRReportService:
     """
 
     def __init__(self):
-        # Keyed by device_id (e.g. gw-3a53d2ff, gw-dccdec07)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -57,7 +56,6 @@ class DVRReportService:
         dev_info = nvr.get("device_info", {})
         dvr_model = dev_info.get("model") or ("Hikvision DS-7204HUHI-K2" if nvr_reachable else "NVR Offline")
 
-        # Camera parsing (supports both list and cameras dict)
         cameras_info = nvr.get("cameras", {})
         if isinstance(cameras_info, dict) and "total_cameras" in cameras_info:
             total_cam = cameras_info.get("total_cameras", 0)
@@ -74,7 +72,6 @@ class DVRReportService:
         rec_status = nvr.get("recording", {}) or nvr.get("recording_status", {})
         is_recording = rec_status.get("is_recording", False) or rec_status.get("record_status") == "recording" or online_cam > 0
 
-        # Storage calculation (supports total_capacity_gb or storage_hdd list)
         cap_gb = float(nvr.get("total_capacity_gb", 0.0))
         used_gb = float(nvr.get("total_used_gb", 0.0))
         if cap_gb > 0:
@@ -106,19 +103,17 @@ class DVRReportService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
-        # Location name prioritised from new MQTT payload
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("RO KALIBATA" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
 
-        # Real Hybrid SLA Calculation from Database Logs & Kernel Uptime
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
 
         up_str = sla["gateway_uptime_str"]
@@ -153,7 +148,6 @@ class DVRReportService:
             "terakhir_offline": clean_update,
         }
 
-        # Real Drill-down detail from database
         detail = {
             "id": device_id,
             "status": "Online" if nvr_reachable else "Offline",
@@ -268,7 +262,6 @@ class DVRReportService:
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Headers
         writer.writerow([
             "No",
             "Gateway ID",
@@ -335,7 +328,6 @@ class DVRReportService:
                     detail["period"] = date_range
                 return detail
 
-        # Fallback to first available live gateway
         if self._live_gateways:
             first_data = next(iter(self._live_gateways.values()))
             detail = dict(first_data["detail"])
@@ -343,7 +335,6 @@ class DVRReportService:
                 detail["period"] = date_range
             return detail
 
-        # Empty fallback
         return {
             "id": gateway_id,
             "status": "Offline",
@@ -377,5 +368,4 @@ class DVRReportService:
         }
 
 
-# Singleton service instance
 dvr_report_service = DVRReportService()

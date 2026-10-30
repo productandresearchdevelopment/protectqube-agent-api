@@ -46,7 +46,6 @@ class SystemHealthAgent:
             "issues": [],
         }
 
-        # 1. CPU
         try:
             result["cpu"]["usage_percent"] = psutil.cpu_percent(interval=0.5)
             if hasattr(os, "getloadavg"):
@@ -57,7 +56,6 @@ class SystemHealthAgent:
         except Exception as e:
             logger.warning(f"Error fetching CPU stats: {e}")
 
-        # 2. RAM
         try:
             mem = psutil.virtual_memory()
             result["ram"]["total_mb"] = round(mem.total / (1024 * 1024), 2)
@@ -67,7 +65,6 @@ class SystemHealthAgent:
         except Exception as e:
             logger.warning(f"Error fetching RAM stats: {e}")
 
-        # 3. SD Card / Storage Disk
         try:
             disk = psutil.disk_usage(self.mount_point)
             result["sd_card"]["total_gb"] = round(disk.total / (1024 * 1024 * 1024), 2)
@@ -75,7 +72,6 @@ class SystemHealthAgent:
             result["sd_card"]["free_gb"] = round(disk.free / (1024 * 1024 * 1024), 2)
             result["sd_card"]["usage_percent"] = disk.percent
 
-            # Check if filesystem has flipped to read-only (classic SD card corruption symptom)
             test_path = os.path.join(self.mount_point, ".sd_write_test_tmp")
             try:
                 with open(test_path, "w") as f:
@@ -90,7 +86,6 @@ class SystemHealthAgent:
         except Exception as e:
             logger.warning(f"Error fetching disk stats: {e}")
 
-        # Overall System Status calculation
         if result["sd_card"]["is_readonly"]:
             result["status"] = "CRITICAL"
         elif result["ram"]["usage_percent"] > 90 or result["sd_card"]["usage_percent"] > 90:

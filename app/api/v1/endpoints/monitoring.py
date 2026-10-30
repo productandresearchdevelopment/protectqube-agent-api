@@ -20,7 +20,6 @@ from app.schemas.health_report import HealthReportResponse, HealthReportGatewayD
 router = APIRouter(prefix="/monitoring", tags=["Monitoring & Diagnostics"])
 
 
-
 @router.get("/health")
 def get_gateway_health():
     """
@@ -120,7 +119,6 @@ def get_gateway_detail(gateway_id: str):
         "status": True,
         "data": detail,
     }
-
 
 
 @router.get("/cellular-dashboard", response_model=CellularDashboardResponse)
@@ -270,7 +268,6 @@ def get_cellular_report_gateway_detail(
     }
 
 
-
 @router.get("/reports/dvr", response_model=DVRReportResponse)
 def get_dvr_report(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
@@ -339,7 +336,6 @@ def get_dvr_report_gateway_detail(
     }
 
 
-
 @router.get("/reports/health", response_model=HealthReportResponse)
 def get_health_report(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
@@ -402,9 +398,5 @@ def get_health_report_gateway_detail(
         "status": True,
         "data": detail_data,
     }
-
-
-
-
 
 

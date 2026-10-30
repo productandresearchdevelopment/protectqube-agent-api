@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Agent PQube Gateway"
+    PROJECT_NAME: str = "ProtectQube AIOps"
     API_V1_STR: str = "/api/v1"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     MQTT_CLIENT_ID: str = "smartbox-backend-sub"
     MQTT_TOPIC_TELEMETRY: str = "pqube/nms/#"
     MQTT_PUBLISH_INTERVAL_SECONDS: int = 30
+    ENABLE_EMBEDDED_MQTT: bool = True
 
     GATEWAY_TYPE: int = 1
     GATEWAY_ID: str = "smartbox-gateway-01"

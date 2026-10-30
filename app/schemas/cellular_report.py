@@ -6,27 +6,24 @@ class CellularReportItem(BaseModel):
     no: int
     id: str
     location: str
-    type: str                  # "SmartBox Hitam" | "SmartBox Putih"
-    modem: str                 # "Quectel EC200E" | "Quectel EC25-E" | "SIM7600"
-    provider: str              # "Telkomsel" | "Indosat" | "XL Axiata" | "Smartfren"
-    sim_number: str            # e.g. "6281212345678"
+    type: str
+    modem: str
+    provider: str
+    sim_number: str
     
-    # Komunikasi CPU - Modem
-    cpu_modem_uptime: str      # e.g. "728h 15m"
-    cpu_modem_offline: str     # e.g. "15h 45m"
-    cpu_modem_success_rate: float # e.g. 98.5
-    cpu_modem_avg_resp_ms: int # e.g. 220
+    cpu_modem_uptime: str
+    cpu_modem_offline: str
+    cpu_modem_success_rate: float
+    cpu_modem_avg_resp_ms: int
     
-    # Koneksi Jaringan
-    network_uptime: str        # e.g. "720h 30m"
-    network_offline: str       # e.g. "23h 30m"
-    network_success_rate: Optional[float] = 98.2 # e.g. 98.2
-    network_avg_rsrp: int      # e.g. -78
-    network_avg_temp: int      # e.g. 45
+    network_uptime: str
+    network_offline: str
+    network_success_rate: Optional[float] = 98.2
+    network_avg_rsrp: int
+    network_avg_temp: int
     
-    # Periode Gangguan
-    trouble_events_count: int  # e.g. 3
-    trouble_last_offline: str  # e.g. "26 Oct 2026 14:32"
+    trouble_events_count: int
+    trouble_last_offline: str
 
 
 class ReportPaginationInfo(BaseModel):
@@ -57,7 +54,7 @@ class TroubleEventItem(BaseModel):
 
 
 class TimelineSegment(BaseModel):
-    status: str       # "online" | "degraded" | "offline" | "no_data"
+    status: str
     start_pct: float
     width_pct: float
     label: str

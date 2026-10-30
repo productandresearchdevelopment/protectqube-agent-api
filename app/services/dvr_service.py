@@ -19,7 +19,6 @@ class DVRService:
     """
 
     def __init__(self):
-        # Live gateways keyed by device_id (e.g. gw-3a53d2ff, gw-dccdec07)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -43,6 +42,24 @@ class DVRService:
                 logger.info(f"DVRService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
             except Exception as e:
                 logger.warning(f"Could not load telemetry cache for DVR service: {e}")
+        if len(self._live_gateways) == 0:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.base_models import GatewayTelemetryHistory
+                from sqlalchemy import distinct
+                db = SessionLocal()
+                try:
+                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                    for dev_id in dev_ids:
+                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                        if latest and latest.raw_payload:
+                            self.update_from_telemetry(latest.raw_payload, save_cache=False)
+                    if self._live_gateways:
+                        logger.info(f"DVRService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+                finally:
+                    db.close()
+            except Exception as dbe:
+                logger.debug(f"Could not hydrate gateways from database: {dbe}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates DVR fleet item & detailed diagnostics."""
@@ -63,33 +80,28 @@ class DVRService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
-        # Location: ambil dari payload baru location_name, jika tidak ada ambil site_name
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("RO KALIBATA" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
-        # Model & endpoints
         dvr_model = dev_info.get("model") or "Hikvision/HiLook NVR"
         nvr_endpoint = nvr.get("nvr_endpoint", "172.16.37.130:80")
         ip_addr = nvr_endpoint.split(":")[0] if ":" in nvr_endpoint else nvr_endpoint
         port_num = nvr_endpoint.split(":")[1] if ":" in nvr_endpoint else "80"
 
-        # Camera counts
         total_kamera = cameras_info.get("total_cameras", 0)
         kamera_online = cameras_info.get("online_count", 0)
         kamera_offline_raw = cameras_info.get("offline_count", 0)
 
-        # Storage capacity
         cap_gb = float(nvr.get("total_capacity_gb", 0.0))
         used_gb = float(nvr.get("total_used_gb", 0.0))
         free_gb = float(nvr.get("total_free_gb", 0.0))
         storage_pct = int(round((used_gb / cap_gb) * 100)) if cap_gb > 0 else 0
 
-        # Health & recording evaluation
         is_rec = recording_info.get("is_recording", False)
         if is_connected:
             cpu_dvr_status = "Connected"
@@ -109,7 +121,6 @@ class DVRService:
             rec_status = "Not Recording"
             health = "Critical"
 
-        # Timestamp formatting
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
 
@@ -130,7 +141,6 @@ class DVRService:
             "last_update": clean_update,
         }
 
-        # Build detailed camera list from real probe
         raw_cam_list = cameras_info.get("camera_list", [])
         cam_previews = []
         if raw_cam_list:
@@ -147,7 +157,6 @@ class DVRService:
                     "timestamp": clean_update,
                 })
         else:
-            # Fallback for gateways without detected cameras
             fallback_count = max(4, total_kamera)
             for idx in range(fallback_count):
                 cam_previews.append({
@@ -161,7 +170,6 @@ class DVRService:
                     "timestamp": clean_update,
                 })
 
-        # Disk health detail
         primary_disk = disks[0] if disks else {}
         disk_health_info = primary_disk.get("health_info", {})
         disk_smart_status = primary_disk.get("status_raw", "ok").upper() if is_connected else "NO DISK"
@@ -386,7 +394,6 @@ class DVRService:
         """Filters & paginates real gateway records for the table"""
         items = [g["table_item"] for g in self._live_gateways.values()]
 
-        # Re-index sequence number
         for idx, it in enumerate(items, 1):
             it["no"] = idx
 
@@ -459,7 +466,6 @@ class DVRService:
 
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:
         """Detailed telemetry for a specific gateway DVR and real Camera recording channels"""
-        # Look up by exact ID or substring match
         matched_gw = None
         for gid, gdata in self._live_gateways.items():
             if gid.lower() == gateway_id.lower() or gateway_id.lower() in gid.lower():
@@ -467,17 +473,16 @@ class DVRService:
                 break
 
         if not matched_gw:
-            # Fallback to the first live gateway or default structure
             if self._live_gateways:
                 matched_gw = list(self._live_gateways.values())[0]["detail_item"]
             else:
                 return {
                     "id": gateway_id,
-                    "location": f"SmartBox {gateway_id}",
-                    "type": "SmartBox Hitam",
-                    "model": "Dusun DSGW-210",
-                    "dvr_model": "Hikvision NVR",
-                    "ip_address": "172.16.37.130",
+                    "location": f"Gateway {gateway_id}",
+                    "type": "SmartBox",
+                    "model": "-",
+                    "dvr_model": "-",
+                    "ip_address": "-",
                     "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "service_status": "Stopped",
                     "cpu_dvr": {
@@ -497,5 +502,4 @@ class DVRService:
         return matched_gw
 
 
-# Singleton service instance
 dvr_service = DVRService()

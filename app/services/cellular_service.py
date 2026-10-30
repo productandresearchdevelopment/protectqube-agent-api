@@ -14,7 +14,6 @@ class CellularService:
     """
 
     def __init__(self):
-        # Live gateways keyed by device_id (gw-3a53d2ff, gw-dccdec07, etc.)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -38,6 +37,24 @@ class CellularService:
                 logger.info(f"Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
             except Exception as e:
                 logger.warning(f"Could not load telemetry cache: {e}")
+        if len(self._live_gateways) == 0:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.base_models import GatewayTelemetryHistory
+                from sqlalchemy import distinct
+                db = SessionLocal()
+                try:
+                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                    for dev_id in dev_ids:
+                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                        if latest and latest.raw_payload:
+                            self.update_from_telemetry(latest.raw_payload, save_cache=False)
+                    if self._live_gateways:
+                        logger.info(f"Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+                finally:
+                    db.close()
+            except Exception as dbe:
+                logger.debug(f"Could not hydrate gateways from database: {dbe}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates cellular fleet item & detailed diagnostics."""
@@ -55,7 +72,6 @@ class CellularService:
         operator = sim.get("operator", "N/A")
         csq = sim.get("signal", {}).get("csq", 0)
         
-        # Calculate RSRP estimate from CSQ (CSQ 0-31 -> -113 dBm to -51 dBm)
         if csq > 0:
             rsrp_val = -(113 - 2 * csq)
         else:
@@ -68,13 +84,12 @@ class CellularService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
-        # Location: ambil dari payload baru location_name, jika tidak ada ambil site_name
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("RO KALIBATA" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
         modem_connected = modem.get("connected", True)
@@ -85,7 +100,6 @@ class CellularService:
         else:
             status = "Offline"
 
-        # Timestamp formatting
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
 
@@ -94,8 +108,8 @@ class CellularService:
             "id": device_id,
             "location": loc_name,
             "type": box_type,
-            "model": hw.get("model", "Dusun DSGW-210"),
-            "modem": modem.get("model", "Quectel EG95 LTE Cat 4"),
+            "model": hw.get("model") or hw.get("type") or "-",
+            "modem": modem.get("model") or "-",
             "provider": operator if operator != "N/A" else "Tanpa SIM",
             "sim_status": "Aktif" if sim_inserted else "Tidak Terdeteksi",
             "cpu_modem": "Connected" if modem_connected else "No Response",
@@ -107,7 +121,6 @@ class CellularService:
             "last_update": clean_update,
         }
 
-        # Detailed view for bottom card
         ports = modem.get("serial_ports", [])
         active_port = ports[0].get("port", "/dev/ttyUSB3") if ports else "/dev/ttyUSB3"
         port_range = f"{ports[0].get('port')} - {ports[-1].get('port')}" if len(ports) > 1 else active_port
@@ -172,7 +185,6 @@ class CellularService:
             "raw": nms_payload,
         }
 
-        # Save to disk cache if requested
         if save_cache:
             try:
                 cache_file = self._cache_path()
@@ -257,7 +269,6 @@ class CellularService:
                 "modem_temperature": {"avg": "0°C", "max": "0°C", "min": "0°C", "timeline": []},
             }
 
-        # 1. CPU-Modem Comm Slices
         comm_counts: Dict[str, int] = {}
         for g in gateways:
             c = g.get("cpu_modem", "Connected")
@@ -275,7 +286,6 @@ class CellularService:
         ]
         connected_count = comm_counts.get("Connected", 0)
 
-        # 2. Modem Network Status Slices
         net_counts: Dict[str, int] = {}
         for g in gateways:
             s = g.get("status", "Online")
@@ -292,7 +302,6 @@ class CellularService:
         ]
         online_count = net_counts.get("Online", 0)
 
-        # 3. Real Signals & Temperatures
         rsrp_nums = []
         temps = []
         for g in gateways:
@@ -318,7 +327,6 @@ class CellularService:
         max_temp = max(temps) if temps else 80
         min_temp = min(temps) if temps else 35
 
-        # Timeline charts
         now_h = datetime.now().hour
         timeline_rsrp = [
             {"time": f"{(now_h - 4 + i) % 24:02d}:00", "value": float(avg_rsrp + (i % 3) - 1)}
@@ -367,7 +375,6 @@ class CellularService:
         """Filters, sorts, and paginates ONLY real gateways from MQTT"""
         items_list = [g["item"] for g in self._live_gateways.values()]
 
-        # Re-number 1, 2, ...
         for idx, g in enumerate(items_list, start=1):
             g["no"] = idx
 
@@ -440,16 +447,15 @@ class CellularService:
             if dev_id.lower() == gateway_id.lower():
                 return data["detail"]
 
-        # If not found, return first available or empty structure
         if self._live_gateways:
             return next(iter(self._live_gateways.values()))["detail"]
 
         return {
             "id": gateway_id,
-            "location": "Unknown Location",
-            "type": "SmartBox Putih",
-            "model": "Dusun DSGW-210",
-            "modem": "Quectel EG95 LTE Cat 4",
+            "location": f"Gateway {gateway_id}",
+            "type": "SmartBox",
+            "model": "-",
+            "modem": "-",
             "provider": "N/A",
             "sim_card": "Tidak Terdeteksi",
             "ip_address": "N/A",
@@ -494,5 +500,4 @@ class CellularService:
         }
 
 
-# Global singleton instance
 cellular_service = CellularService()

@@ -15,7 +15,6 @@ class SystemHealthService:
     """
 
     def __init__(self):
-        # Live gateways keyed by device_id (e.g. gw-3a53d2ff, gw-dccdec07)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -39,6 +38,24 @@ class SystemHealthService:
                 logger.info(f"SystemHealthService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
             except Exception as e:
                 logger.warning(f"Could not load telemetry cache for system health: {e}")
+        if len(self._live_gateways) == 0:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.base_models import GatewayTelemetryHistory
+                from sqlalchemy import distinct
+                db = SessionLocal()
+                try:
+                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                    for dev_id in dev_ids:
+                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                        if latest and latest.raw_payload:
+                            self.update_from_telemetry(latest.raw_payload)
+                    if self._live_gateways:
+                        logger.info(f"SystemHealthService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+                finally:
+                    db.close()
+            except Exception as dbe:
+                logger.debug(f"Could not hydrate gateways from database: {dbe}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any]):
         """Ingests live MQTT telemetry and updates system health item & detailed diagnostic structures."""
@@ -55,18 +72,21 @@ class SystemHealthService:
         p0 = parts[0] if parts else {}
         net_gw = gw_sys.get("network_gateway", {})
 
-        from app.services.sla_calculator_service import sla_calculator_service
-        box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
-        is_hitam = "hitam" in box_type.lower()
-        model_name = hw.get("model") or ("Raspberry Pi 3B+" if is_hitam else "Dusun DSGW-210")
+        variant = (
+            nms_payload.get("variant")
+            or nms_payload.get("site_info", {}).get("variant")
+            or gw_sys.get("variant")
+            or hw.get("variant")
+        )
+        box_type = f"SmartBox {str(variant).capitalize()}" if variant else "SmartBox"
+        model_name = hw.get("model") or hw.get("type") or "-"
 
-        # Location name prioritised from new MQTT payload
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("RO KALIBATA" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
         cpu_pct = int(round(cpu.get("usage_percent", 25.0)))
@@ -77,7 +97,6 @@ class SystemHealthService:
         sd_used_gb = int(round(float(p0.get("used_gb", 4.0))))
         sd_pct = int(round(float(p0.get("used_percent", 50.0))))
 
-        # Flash health badge
         raw_badge = flash.get("health_badge") or flash.get("fs_state", {}).get("status", "GOOD")
         if raw_badge.upper() in ["OK", "GOOD"]:
             sd_health_label = "Good"
@@ -118,7 +137,6 @@ class SystemHealthService:
             "last_update": clean_update,
         }
 
-        # Detailed view structure
         uptime_pct_val = 99.8 if status_label == "Healthy" else (96.5 if status_label == "Warning" else 92.4)
         total_hours = 744
         uptime_hours_total = total_hours * (uptime_pct_val / 100.0)
@@ -195,7 +213,8 @@ class SystemHealthService:
             "ram_pct": ram_pct,
             "sd_pct": sd_pct,
             "status": status_label,
-            "is_hitam": is_hitam,
+            "type": box_type,
+            "variant": str(variant).lower(),
             "cpu_temp": cpu_temp,
         }
 
@@ -219,15 +238,13 @@ class SystemHealthService:
         warning_cnt = sum(1 for g in self._live_gateways.values() if g["status"] == "Warning")
         critical_cnt = sum(1 for g in self._live_gateways.values() if g["status"] == "Critical")
 
-        # SmartBox Hitam breakdown
-        hitam_gws = [g for g in self._live_gateways.values() if g["is_hitam"]]
+        hitam_gws = [g for g in self._live_gateways.values() if "hitam" in g["type"].lower()]
         hitam_total = len(hitam_gws)
         hitam_healthy = sum(1 for g in hitam_gws if g["status"] == "Healthy")
         hitam_warn = sum(1 for g in hitam_gws if g["status"] == "Warning")
         hitam_crit = sum(1 for g in hitam_gws if g["status"] == "Critical")
 
-        # SmartBox Putih breakdown
-        putih_gws = [g for g in self._live_gateways.values() if not g["is_hitam"]]
+        putih_gws = [g for g in self._live_gateways.values() if "putih" in g["type"].lower()]
         putih_total = len(putih_gws)
         putih_healthy = sum(1 for g in putih_gws if g["status"] == "Healthy")
         putih_warn = sum(1 for g in putih_gws if g["status"] == "Warning")
@@ -328,7 +345,6 @@ class SystemHealthService:
         """Filters, sorts, and paginates real gateway records"""
         items = [g["table_item"] for g in self._live_gateways.values()]
 
-        # Re-index sequence number
         for idx, it in enumerate(items, 1):
             it["no"] = idx
 
@@ -411,10 +427,10 @@ class SystemHealthService:
 
         return {
             "id": gateway_id,
-            "location": f"SmartBox {gateway_id}",
-            "type": "SmartBox Hitam",
-            "model": "Dusun DSGW-210",
-            "ip_address": "10.10.1.50",
+            "location": f"Gateway {gateway_id}",
+            "type": "SmartBox",
+            "model": "-",
+            "ip_address": "-",
             "uptime": "1d 0h",
             "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "service_status": "Running",
@@ -449,5 +465,4 @@ class SystemHealthService:
         }
 
 
-# Global singleton instance
 system_health_service = SystemHealthService()

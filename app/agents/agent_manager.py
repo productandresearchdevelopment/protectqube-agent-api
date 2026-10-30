@@ -43,7 +43,7 @@ class GatewayAgentManager:
         self._mqtt_client: Optional[Any] = None
         self._latest_snapshot: Dict[str, Any] = {}
         self._last_saved_to_db: Dict[str, float] = {}
-        self._db_save_interval: float = 5.0  # 5 seconds interval
+        self._db_save_interval: float = 300.0
 
     def _save_to_database(self, payload: Dict[str, Any]):
         """Persists a historical telemetry snapshot to PostgreSQL every 5 minutes per device."""
@@ -52,7 +52,6 @@ class GatewayAgentManager:
             now_ts = time.time()
             last_ts = self._last_saved_to_db.get(dev_id, 0.0)
 
-            # Enforce 5-minute (300s) interval per device
             if (now_ts - last_ts) < self._db_save_interval:
                 return
 
@@ -86,7 +85,7 @@ class GatewayAgentManager:
                 or payload.get("site_name")
                 or payload.get("site_info", {}).get("location_name")
                 or payload.get("site_info", {}).get("site_name")
-                or ("RO KALIBATA" if "3a53" in dev_id else ("SmartBox Store 01" if "dccd" in dev_id else f"SmartBox {dev_id}"))
+                or f"Gateway {dev_id}"
             )
 
             db = SessionLocal()
@@ -96,7 +95,7 @@ class GatewayAgentManager:
                     recorded_at=datetime.utcnow(),
                     overall_status=payload.get("overall_status"),
                     location=loc_name,
-                    hardware_model=hw.get("model", "Dusun DSGW-210"),
+                    hardware_model=hw.get("model") or hw.get("type") or "-",
                     cpu_percent=cpu.get("usage_percent"),
                     temperature_c=cpu.get("temperature_c"),
                     ram_used_mb=mem.get("used_mb"),
@@ -126,7 +125,6 @@ class GatewayAgentManager:
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             logger.info(f"Connected to MQTT Broker {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
-            # Subscribe to the configured telemetry topic
             client.subscribe(settings.MQTT_TOPIC_TELEMETRY)
             logger.info(f"Subscribed to MQTT Topic: '{settings.MQTT_TOPIC_TELEMETRY}'")
         else:
@@ -138,7 +136,6 @@ class GatewayAgentManager:
             payload = json.loads(payload_str)
             logger.info(f"Received MQTT Telemetry from topic: '{msg.topic}' (Device: {payload.get('device_id')})")
             
-            # Check if payload is from Gateway NMS format
             if "gateway_system" in payload or "cellular_sim" in payload:
                 mapped = self._map_nms_payload(payload)
                 self._latest_snapshot = mapped
@@ -178,7 +175,6 @@ class GatewayAgentManager:
                 except Exception as hre:
                     logger.warning(f"Could not update health report service: {hre}")
                 
-                # Persist to database at 5-minute interval
                 self._save_to_database(payload)
             else:
                 self._latest_snapshot = payload
@@ -270,7 +266,7 @@ class GatewayAgentManager:
         
         return {
             "gateway_id": nms.get("device_id", settings.GATEWAY_ID),
-            "gateway_type": f"{hw.get('type', 'Gateway')} {hw.get('model', '')}".strip() or "Dusun DSGW-210",
+            "gateway_type": f"{hw.get('type', 'Gateway')} {hw.get('model', '')}".strip() or "-",
             "timestamp": nms.get("timestamp", time.time()),
             "overall_status": nms.get("overall_status", "HEALTHY"),
             "has_critical_issue": nms.get("overall_status") == "CRITICAL" or len(issues) > 0,
@@ -288,7 +284,6 @@ class GatewayAgentManager:
             return
 
         try:
-            # Use CallbackAPIVersion.VERSION2 if available
             if hasattr(mqtt, "CallbackAPIVersion"):
                 self._mqtt_client = mqtt.Client(
                     mqtt.CallbackAPIVersion.VERSION2,
@@ -321,7 +316,6 @@ class GatewayAgentManager:
         dvr_data = self.dvr_agent.inspect()
         sys_data = self.system_agent.inspect()
 
-        # Overall Gateway Health
         is_healthy = (
             conn_data.get("status") in ("HEALTHY", "SIMULATED")
             and dvr_data.get("status") in ("HEALTHY", "WARNING")
@@ -353,8 +347,6 @@ class GatewayAgentManager:
     def _loop(self):
         logger.info("Gateway Monitoring Agent loop started.")
         while self._running:
-            # If we are subscribed to remote MQTT, we receive data in _on_message.
-            # Local agent inspection can optionally run if configured.
             time.sleep(settings.MQTT_PUBLISH_INTERVAL_SECONDS)
 
     def start(self):

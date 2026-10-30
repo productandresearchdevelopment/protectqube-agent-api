@@ -1,12 +1,11 @@
 """
-Standalone seed script for ProtectQube AI Ops database.
+Standalone seed script for ProtectQube AIOps database.
 Usage:
     python seed.py
 """
 import sys
 import os
 
-# Ensure backend root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import SessionLocal, engine
@@ -33,7 +32,7 @@ def seed():
                 name="Super Admin",
                 alias="super-admin",
                 color="#2563eb",
-                description="Full access to ProtectQube AI Ops Gateway and Telemetry",
+                description="Full access to ProtectQube AIOps Gateway and Telemetry",
             )
             db.add(admin_role)
             print("[+] Seeded Role: Super Admin")

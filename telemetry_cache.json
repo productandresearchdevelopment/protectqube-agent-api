@@ -9,8 +9,8 @@
     "hardware_type": "dusun",
     "location_name": "RO KALIBATA",
     "site_name": "RO KALIBATA",
-    "timestamp": 1793272878000,
-    "datetime_utc7": "2026-10-29 18:21:18 (UTC+7 / WIB)",
+    "timestamp": 1793345800073,
+    "datetime_utc7": "2026-10-30 14:36:40 (UTC+7 / WIB)",
     "overall_status": "CRITICAL",
     "site_info": {
       "location_name": "RO KALIBATA",
@@ -41,36 +41,36 @@
         "pqube_variant": "putih",
         "label": "PUTIH (Dusun IoT Gateway)"
       },
-      "uptime": "11h 19m",
+      "uptime": "7h 34m",
       "cpu": {
-        "usage_percent": 34.2,
+        "usage_percent": 28.9,
         "cores": 4,
         "load_avg": [
-          2.1,
-          1.68,
-          1.56
+          1.4,
+          1.59,
+          1.53
         ],
-        "temperature_c": 81.5,
+        "temperature_c": 82.3,
         "status": "DANGER"
       },
       "memory": {
         "total_mb": 1958.6,
-        "used_mb": 376.4,
-        "free_mb": 1582.2,
-        "usage_percent": 19.2,
+        "used_mb": 368.3,
+        "free_mb": 1590.3,
+        "usage_percent": 18.8,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 63.1,
+        "latency_ms": 46.7,
         "tailscale_ip": "N/A",
         "interfaces": {
           "wlan0": "192.168.0.1",
           "eth0": "172.16.37.129",
-          "br-84806512a99f": "169.254.215.226",
           "docker0": "172.17.0.1",
-          "veth8d2b929": "169.254.51.220",
-          "ppp0": "10.25.44.7",
+          "br-84806512a99f": "169.254.203.8",
+          "vethc28e71d": "169.254.58.184",
+          "ppp0": "10.137.110.213",
           "ppp10": "10.1.34.201"
         }
       }
@@ -117,12 +117,12 @@
           "used_human": "4.97 GB",
           "free_human": "897 MB",
           "total_bytes": 6276579328,
-          "used_bytes": 5336432640,
-          "free_bytes": 940146688,
+          "used_bytes": 5336457216,
+          "free_bytes": 940122112,
           "used_percent": 85.0,
           "inode_total": 384000,
-          "inode_used": 125101,
-          "inode_free": 258899,
+          "inode_used": 125102,
+          "inode_free": 258898,
           "inode_percent": 32.6,
           "status": "WARN"
         },
@@ -135,24 +135,24 @@
           "used_gb": 0.58,
           "free_gb": 0.47,
           "total_human": "1.05 GB",
-          "used_human": "595 MB",
-          "free_human": "485 MB",
+          "used_human": "597 MB",
+          "free_human": "483 MB",
           "total_bytes": 1131831296,
-          "used_bytes": 623566848,
-          "free_bytes": 508264448,
-          "used_percent": 55.1,
+          "used_bytes": 625876992,
+          "free_bytes": 505954304,
+          "used_percent": 55.3,
           "inode_total": 72576,
-          "inode_used": 2255,
-          "inode_free": 70321,
+          "inode_used": 2259,
+          "inode_free": 70317,
           "inode_percent": 3.1,
           "status": "GOOD"
         }
       ],
       "io_stats": {
-        "read_mb": 1300.8,
-        "write_mb": 10440.6,
-        "read_human": "1.27 GB",
-        "write_human": "10.20 GB"
+        "read_mb": 1157.0,
+        "write_mb": 6844.7,
+        "read_human": "1.13 GB",
+        "write_human": "6.68 GB"
       }
     },
     "modem_usb": {
@@ -203,13 +203,13 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 28227)",
-          "pppd (PID 1871)",
-          "pppd (PID 541)"
+          "pppd (PID 39292)",
+          "pppd (PID 1906)",
+          "pppd (PID 523)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.25.44.7",
+        "cellular_ip": "10.137.110.213",
         "link_up": true
       }
     },
@@ -219,23 +219,32 @@
       "operator": "Telkomsel",
       "network_mode": "4G LTE",
       "iccid": "8962100090150474925",
-      "msisdn": "081119273872",
+      "msisdn": "N/A",
       "imsi": "510109015047492",
       "imei": "868361060906960",
+      "sms_quota_history": {
+        "available": false,
+        "quota_info": "N/A",
+        "quota_main_gb": null,
+        "quota_expiry": "N/A",
+        "last_updated": "N/A",
+        "age_human": "",
+        "source": "None"
+      },
       "signal": {
-        "csq": 27,
+        "csq": 28,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.25.44.7",
-        "ping_ms": 151.547,
+        "cellular_ip": "10.137.110.213",
+        "ping_ms": 124.833,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 116 B/s | TX: 200 B/s",
-        "rx_human": "17.07 MB",
-        "tx_human": "13.67 MB"
+        "throughput": "RX: 125 B/s | TX: 211 B/s",
+        "rx_human": "4.93 MB",
+        "tx_human": "3.57 MB"
       }
     },
     "wifi": {
@@ -260,9 +269,9 @@
       "nvr_endpoint": "172.16.37.130:80",
       "status": "WARNING",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 307.0,
-      "total_used_gb": 3419.02,
-      "total_free_percent": 8.2,
+      "total_free_gb": 299.0,
+      "total_used_gb": 3427.02,
+      "total_free_percent": 8.0,
       "disks": [
         {
           "id": "1",
@@ -272,17 +281,17 @@
           "status_raw": "ok",
           "health": "WARNING",
           "capacity_gb": 3726.02,
-          "free_gb": 307.0,
-          "used_gb": 3419.02,
-          "used_percent": 91.8,
-          "free_percent": 8.2,
+          "free_gb": 299.0,
+          "used_gb": 3427.02,
+          "used_percent": 92.0,
+          "free_percent": 8.0,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 35,
-            "power_on_days": 1475,
-            "power_on_hours": 35423,
+            "temperature_c": 36,
+            "power_on_days": 1476,
+            "power_on_hours": 35444,
             "power_cycles": 85,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -294,9 +303,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 35,
-          "power_on_days": 1475,
-          "power_on_hours": 35423,
+          "temperature_c": 36,
+          "power_on_days": 1476,
+          "power_on_hours": 35444,
           "power_cycles": 85,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -373,7 +382,7 @@
         ],
         "channel_count": 4,
         "today_segments_count": 4,
-        "latest_record_time": "18:21:15 WIB"
+        "latest_record_time": "14:36:37 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "RTSP Stream Script (/f/capture_image/index.js)"
@@ -382,7 +391,7 @@
       {
         "code": "WARN_CPU_HIGH_TEMP",
         "severity": "HIGH",
-        "message": "Suhu CPU gateway mencapai 81.5\u00b0C (DANGER > 80\u00b0C). Periksa sirkulasi udara gateway."
+        "message": "Suhu CPU gateway mencapai 82.3\u00b0C (DANGER > 80\u00b0C). Periksa sirkulasi udara gateway."
       },
       {
         "code": "WARN_CAMERA_OFFLINE",
@@ -648,8 +657,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "Site PQP",
     "site_name": "Site PQP",
-    "timestamp": 1793272899220,
-    "datetime_utc7": "2026-10-29 18:21:39 (UTC+7 / WIB)",
+    "timestamp": 1793345781090,
+    "datetime_utc7": "2026-10-30 14:36:21 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "site_info": {
       "location_name": "Site PQP",
@@ -680,34 +689,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "3h 26m",
+      "uptime": "19m 19s",
       "cpu": {
-        "usage_percent": 43.6,
+        "usage_percent": 25.6,
         "cores": 4,
         "load_avg": [
-          0.86,
-          0.78,
-          0.76
+          0.84,
+          0.81,
+          0.63
         ],
-        "temperature_c": 55.8,
+        "temperature_c": 32.7,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 391.9,
-        "free_mb": 574.0,
-        "usage_percent": 40.6,
+        "used_mb": 313.5,
+        "free_mb": 652.4,
+        "usage_percent": 32.5,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 64.9,
+        "latency_ms": 49.7,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.37.75",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.57.105",
-          "ppp0": "10.140.111.86"
+          "ppp0": "10.64.162.53"
         }
       }
     },
@@ -795,12 +804,12 @@
           "used_human": "249 MB",
           "free_human": "708 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261271552,
-          "free_bytes": 742446080,
+          "used_bytes": 261445632,
+          "free_bytes": 742272000,
           "used_percent": 26.0,
           "inode_total": 254000,
-          "inode_used": 13432,
-          "inode_free": 240568,
+          "inode_used": 13445,
+          "inode_free": 240555,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -811,14 +820,14 @@
           "mode": "rw",
           "total_gb": 0.53,
           "used_gb": 0.02,
-          "free_gb": 0.51,
+          "free_gb": 0.5,
           "total_human": "540 MB",
-          "used_human": "22 MB",
-          "free_human": "518 MB",
+          "used_human": "25 MB",
+          "free_human": "515 MB",
           "total_bytes": 566149120,
-          "used_bytes": 23277568,
-          "free_bytes": 542871552,
-          "used_percent": 4.1,
+          "used_bytes": 25702400,
+          "free_bytes": 540446720,
+          "used_percent": 4.5,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -827,10 +836,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 401.9,
-        "write_mb": 6.7,
-        "read_human": "401.9 MB",
-        "write_human": "6.7 MB"
+        "read_mb": 384.7,
+        "write_mb": 0.8,
+        "read_human": "384.7 MB",
+        "write_human": "0.8 MB"
       }
     },
     "modem_usb": {
@@ -905,12 +914,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 508)",
-          "pppd (PID 18397)"
+          "pppd (PID 504)",
+          "pppd (PID 753)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.140.111.86",
+        "cellular_ip": "10.64.162.53",
         "link_up": true
       }
     },
@@ -923,20 +932,29 @@
       "msisdn": "081119273872",
       "imsi": "510101115333219",
       "imei": "864714060786259",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 9.53 GB",
+        "quota_main_gb": 9.53,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "30-10-2026 07:52:47 WIB",
+        "age_human": "(6 jam lalu)",
+        "source": "SMS Balasan 3636"
+      },
       "signal": {
-        "csq": 31,
+        "csq": 29,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.140.111.86",
-        "ping_ms": 70.244,
+        "cellular_ip": "10.64.162.53",
+        "ping_ms": 71.329,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 182 B/s | TX: 224 B/s",
-        "rx_human": "22.32 MB",
-        "tx_human": "11.73 MB"
+        "throughput": "RX: 200 B/s | TX: 240 B/s",
+        "rx_human": "360.1 KB",
+        "tx_human": "4.28 MB"
       }
     },
     "wifi": {
@@ -946,7 +964,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:bf:8e:d0",
-      "ip_address": "10.140.111.86",
+      "ip_address": "10.64.162.53",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -961,9 +979,9 @@
       "nvr_endpoint": "172.16.57.106:80",
       "status": "HEALTHY",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 2116.0,
-      "total_used_gb": 1610.02,
-      "total_free_percent": 56.8,
+      "total_free_gb": 2107.0,
+      "total_used_gb": 1619.02,
+      "total_free_percent": 56.5,
       "disks": [
         {
           "id": "1",
@@ -973,17 +991,17 @@
           "status_raw": "ok",
           "health": "HEALTHY",
           "capacity_gb": 3726.02,
-          "free_gb": 2116.0,
-          "used_gb": 1610.02,
-          "used_percent": 43.2,
-          "free_percent": 56.8,
+          "free_gb": 2107.0,
+          "used_gb": 1619.02,
+          "used_percent": 43.5,
+          "free_percent": 56.5,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 34,
-            "power_on_days": 358,
-            "power_on_hours": 8614,
+            "temperature_c": 35,
+            "power_on_days": 359,
+            "power_on_hours": 8634,
             "power_cycles": 69,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -995,9 +1013,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 34,
-          "power_on_days": 358,
-          "power_on_hours": 8614,
+          "temperature_c": 35,
+          "power_on_days": 359,
+          "power_on_hours": 8634,
           "power_cycles": 69,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -1074,7 +1092,7 @@
         ],
         "channel_count": 4,
         "today_segments_count": 3,
-        "latest_record_time": "18:21:38 WIB"
+        "latest_record_time": "14:36:20 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -1085,6 +1103,433 @@
         "severity": "MEDIUM",
         "message": "Kamera #2 (Camera 02) terputus / NO VIDEO."
       },
+      {
+        "code": "WARN_CAMERA_OFFLINE",
+        "severity": "MEDIUM",
+        "message": "Kamera #3 (Camera 03) terputus / NO VIDEO."
+      },
+      {
+        "code": "WARN_CAMERA_OFFLINE",
+        "severity": "MEDIUM",
+        "message": "Kamera #4 (Camera 04) terputus / NO VIDEO."
+      }
+    ]
+  },
+  {
+    "device_id": "gw-0218098c",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM JKT ALFAMIDI PENGGILINGAN",
+    "site_name": "CRM JKT ALFAMIDI PENGGILINGAN",
+    "timestamp": 1793345819139,
+    "datetime_utc7": "2026-10-30 14:36:59 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "site_info": {
+      "location_name": "CRM JKT ALFAMIDI PENGGILINGAN",
+      "site_name": "CRM JKT ALFAMIDI PENGGILINGAN",
+      "device_code": "PQD01545",
+      "merchant_id": "80000790",
+      "cluster_id": "00059036",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "-6.2009911, 106.9355304",
+      "latitude": -6.2009911,
+      "longitude": 106.9355304,
+      "operating_hours": "00:00:00 - 00:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "000000000218098c",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "3d 5h 19m",
+      "cpu": {
+        "usage_percent": 40.0,
+        "cores": 4,
+        "load_avg": [
+          0.89,
+          0.92,
+          0.97
+        ],
+        "temperature_c": 55.8,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 464.3,
+        "free_mb": 501.6,
+        "usage_percent": 48.1,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 30.2,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.37",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.48.73",
+          "ppp0": "10.177.145.163"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SD32G",
+        "serial": "0xfe3ac76e",
+        "manufacture_date": "04/2023",
+        "total_disk_gb": 29.73,
+        "cid_register": "035344534433324785fe3ac76e017433"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "558 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504574464,
+          "free_bytes": 585330688,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159578,
+          "inode_free": 93862,
+          "inode_percent": 63.0,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261302272,
+          "free_bytes": 742415360,
+          "used_percent": 26.0,
+          "inode_total": 254000,
+          "inode_used": 13432,
+          "inode_free": 240568,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 0.49,
+          "used_gb": 0.06,
+          "free_gb": 0.43,
+          "total_human": "506 MB",
+          "used_human": "65 MB",
+          "free_human": "441 MB",
+          "total_bytes": 530577408,
+          "used_bytes": 67766272,
+          "free_bytes": 462811136,
+          "used_percent": 12.8,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 466.4,
+        "write_mb": 335.4,
+        "read_human": "466.4 MB",
+        "write_human": "335.4 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 17844)",
+          "pppd (PID 2100)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.177.145.163",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019151856830",
+      "msisdn": "N/A",
+      "imsi": "510101915185683",
+      "imei": "868089056062700",
+      "sms_quota_history": {
+        "available": false,
+        "quota_info": "N/A",
+        "quota_main_gb": null,
+        "quota_expiry": "N/A",
+        "last_updated": "N/A",
+        "age_human": "",
+        "source": "None"
+      },
+      "signal": {
+        "csq": 31,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.177.145.163",
+        "ping_ms": 49.113,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 17 B/s | TX: 164 B/s",
+        "rx_human": "188.16 MB",
+        "tx_human": "108.12 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:4d:5c:d9",
+      "ip_address": "10.177.145.163",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.48.74:80",
+      "status": "CRITICAL",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 90,
+            "health_label": "Baik (Kondisi Sangat Sehat)",
+            "health_badge": "OK",
+            "temperature_c": 48,
+            "power_on_days": 1554,
+            "power_on_hours": 37317,
+            "power_cycles": 73,
+            "bad_sectors": 1,
+            "reallocated_sectors": 0,
+            "pending_sectors": 1,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 90,
+          "health_label": "Baik (Kondisi Sangat Sehat)",
+          "health_badge": "OK",
+          "temperature_c": 48,
+          "power_on_days": 1554,
+          "power_on_hours": 37317,
+          "power_cycles": 73,
+          "bad_sectors": 1,
+          "reallocated_sectors": 0,
+          "pending_sectors": 1,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420210129CCWRB85622545WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000790_ALFAMIDI PENGGILINGAN",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000790_ALFAMIDI PENGGILINGAN",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 5,
+        "latest_record_time": "14:36:57 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": [
       {
         "code": "WARN_CAMERA_OFFLINE",
         "severity": "MEDIUM",

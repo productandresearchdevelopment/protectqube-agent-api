@@ -62,7 +62,6 @@ class DVRHealthAgent:
             "issues": [],
         }
 
-        # Check connectivity
         ping_ok = self._ping()
         result["ping_ok"] = ping_ok
 
@@ -84,7 +83,6 @@ class DVRHealthAgent:
         result["recording_active"] = True
         result["hdd_status"] = "NORMAL"
 
-        # Check for channel issues
         non_recording = [ch["name"] for ch in result["channels"] if not ch["recording"]]
         if non_recording:
             result["issues"].append(f"CCTV not recording on: {', '.join(non_recording)}")

@@ -18,7 +18,6 @@ class CellularReportService:
     """
 
     def __init__(self):
-        # Keyed by device_id (e.g. gw-3a53d2ff, gw-dccdec07)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -69,26 +68,24 @@ class CellularReportService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
-        # Location name prioritised from new MQTT payload
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("Warehouse Kalibata" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
-        sim_num = sim.get("msisdn") or sim.get("iccid") or ("081119273872" if "3a53" in device_id else "-")
+        sim_num = sim.get("msisdn") or sim.get("iccid") or "-"
         if sim_num == "N/A" or not sim_inserted:
             sim_num = "-"
 
-        modem_model = modem.get("model") or "Quectel EG95 LTE Cat 4"
+        modem_model = modem.get("model") or "-"
         provider_label = operator if (operator != "N/A" and sim_inserted) else "Tanpa SIM"
 
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
 
-        # Real Hybrid SLA Calculation from Database Logs & Kernel Uptime
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
 
         up_str = sla["gateway_uptime_str"]
@@ -121,8 +118,6 @@ class CellularReportService:
             "trouble_last_offline": clean_update,
         }
 
-        # Real Detail structure for drill-down modal
-        # Format trouble events matching TroubleEventItem schema (cause field required)
         formatted_trouble_events = []
         for idx, te in enumerate(sla["trouble_events"], 1):
             formatted_trouble_events.append({
@@ -142,7 +137,6 @@ class CellularReportService:
                 "cause": "Operasi Normal (Tidak ada insiden)",
             })
 
-        # Real Detail structure matching CellularReportGatewayDetail schema
         detail_obj = {
             "id": device_id,
             "status": "Online" if sim_inserted else "Offline",
@@ -281,11 +275,11 @@ class CellularReportService:
 
         return {
             "id": gateway_id,
-            "location": f"SmartBox {gateway_id}",
-            "type": "SmartBox Hitam",
-            "model": "Dusun DSGW-210",
-            "modem": "Quectel EG95",
-            "provider": "Telkomsel",
+            "location": f"Gateway {gateway_id}",
+            "type": "SmartBox",
+            "model": "-",
+            "modem": "-",
+            "provider": "-",
             "sim_number": "-",
             "period": "01 Oct 2026 - 31 Oct 2026",
             "kpis": {},
@@ -294,5 +288,4 @@ class CellularReportService:
         }
 
 
-# Singleton service instance
 cellular_report_service = CellularReportService()

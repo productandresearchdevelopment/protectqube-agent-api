@@ -30,7 +30,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user.last_login = datetime.utcnow()
     db.commit()
 
-    access_token = create_access_token(user.id)
+    import uuid
+    session_id = str(uuid.uuid4())
+    access_token = create_access_token(user.id, session_id=session_id)
     refresh_token = create_refresh_token(user.id)
 
     return {
@@ -39,6 +41,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "data": {
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "session_id": session_id,
             "token_type": "bearer",
             "user": {
                 "id": user.id,

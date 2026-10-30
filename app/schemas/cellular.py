@@ -64,13 +64,13 @@ class CellularGatewayItem(BaseModel):
     model: str
     modem: str
     provider: str
-    sim_status: str  # "Aktif" | "Tidak Terdeteksi"
-    cpu_modem: str   # "Connected" | "No Response" | "Not Detected" | "Driver Error"
-    network: str     # "4G (LTE)" | "3G" | "No Service"
-    signal_rsrp: str # "-78 dBm" | "-"
-    signal_bars: int # 1 to 5
-    modem_temp: str  # "45°C" | "-"
-    status: str      # "Online" | "Degraded" | "Offline"
+    sim_status: str
+    cpu_modem: str
+    network: str
+    signal_rsrp: str
+    signal_bars: int
+    modem_temp: str
+    status: str
     last_update: str
 
 

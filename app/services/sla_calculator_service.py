@@ -6,7 +6,7 @@ from app.models.base_models import GatewayTelemetryHistory
 
 logger = logging.getLogger("sla-calculator-service")
 
-GAP_THRESHOLD_SECONDS = 180  # Jeda di atas 3 menit tanpa log = Gateway terputus / Offline
+GAP_THRESHOLD_SECONDS = 180
 WIB = timezone(timedelta(hours=7))
 
 
@@ -102,14 +102,12 @@ class SLACalculatorService:
         finally:
             db.close()
 
-        # Extract kernel uptime if available
         kernel_uptime_sec = 0
         if live_payload:
             gw_sys = live_payload.get("gateway_system", {})
             kernel_uptime_sec = gw_sys.get("uptime_seconds", 0)
             if not kernel_uptime_sec:
                 raw_up = gw_sys.get("uptime", "")
-                # Parse e.g. "10h 16m"
                 try:
                     parts = raw_up.split()
                     h = 0
@@ -125,7 +123,6 @@ class SLACalculatorService:
                 except Exception:
                     kernel_uptime_sec = 3600
 
-        # If no DB rows exist yet, use live kernel snapshot
         if not rows:
             obs_sec = max(3600, kernel_uptime_sec)
             sim_ok = bool(live_payload and live_payload.get("cellular_sim", {}).get("sim_inserted"))
@@ -154,12 +151,10 @@ class SLACalculatorService:
                 "sd_trend": [],
             }
 
-        # Analyze historical timeline
         first_time = rows[0].recorded_at
         last_time = rows[-1].recorded_at
         delta_span = max(60.0, (last_time - first_time).total_seconds())
 
-        # Observation window is at least kernel uptime or span
         total_obs_sec = max(delta_span, float(kernel_uptime_sec), 3600.0)
 
         gw_downtime_sec = 0.0
@@ -178,7 +173,6 @@ class SLACalculatorService:
             next_time_str = _to_wib_str(next_r.recorded_at)
 
             if gap_sec > GAP_THRESHOLD_SECONDS:
-                # Gateway loss detected
                 gw_downtime_sec += gap_sec
                 cellular_downtime_sec += gap_sec
                 dvr_downtime_sec += gap_sec
@@ -197,7 +191,6 @@ class SLACalculatorService:
             else:
                 raw_gw_segments.append({"status": "online", "duration": gap_sec, "label": "Online Normal", "period": f"{curr_time_str} - {next_time_str}"})
 
-                # Check Cellular status
                 sim_active = curr_r.sim_status == "Aktif" and (curr_r.signal_csq or 0) > 0
                 if not sim_active:
                     cellular_downtime_sec += gap_sec
@@ -212,7 +205,6 @@ class SLACalculatorService:
                         "value": "No SIM",
                     })
 
-                # Check DVR status
                 nvr_active = curr_r.nvr_status in ["HEALTHY", "WARNING", "GOOD"] or bool(curr_r.nvr_recording)
                 if not nvr_active:
                     dvr_downtime_sec += gap_sec
@@ -227,7 +219,6 @@ class SLACalculatorService:
                         "value": "Not Recording",
                     })
 
-                # Check High Temp / High CPU
                 if (curr_r.temperature_c or 0) >= 80.0:
                     trouble_events.append({
                         "no": len(trouble_events) + 1,
@@ -240,7 +231,6 @@ class SLACalculatorService:
                         "value": f"{int(curr_r.temperature_c)}°C",
                     })
 
-        # Calculate final uptimes & percentages
         gw_uptime_sec = max(0.0, total_obs_sec - gw_downtime_sec)
         cellular_uptime_sec = max(0.0, total_obs_sec - cellular_downtime_sec)
         dvr_uptime_sec = max(0.0, total_obs_sec - dvr_downtime_sec)
@@ -249,12 +239,11 @@ class SLACalculatorService:
         cellular_sla = round(min(100.0, (cellular_uptime_sec / total_obs_sec) * 100.0), 1)
         dvr_sla = round(min(100.0, (dvr_uptime_sec / total_obs_sec) * 100.0), 1)
 
-        # Generate real timeline bars (0 - 100% width)
         timeline_segments = []
         if raw_gw_segments:
             tot_seg_dur = sum(s["duration"] for s in raw_gw_segments)
             curr_pct = 0.0
-            for s in raw_gw_segments[:12]:  # Top 12 segments for clean rendering
+            for s in raw_gw_segments[:12]:
                 w = round((s["duration"] / tot_seg_dur) * 100.0, 1) if tot_seg_dur > 0 else 100.0
                 timeline_segments.append({
                     "status": s["status"],
@@ -269,7 +258,6 @@ class SLACalculatorService:
                 {"status": "online", "start_pct": 0, "width_pct": 100.0, "label": "Online Normal", "period": f"{_to_wib_str(first_time)} - Sekarang"}
             ]
 
-        # Multi-track structure
         timeline_tracks = [
             {"track_name": "Gateway", "segments": timeline_segments},
             {"track_name": "Cellular", "segments": [
@@ -280,7 +268,6 @@ class SLACalculatorService:
             ]},
         ]
 
-        # Sample rows for clean historical trend charts (max 15 points)
         step = max(1, len(rows) // 15)
         sampled = rows[::step]
         if rows[-1] not in sampled:
@@ -296,7 +283,6 @@ class SLACalculatorService:
             ram_trend.append({"date": dt_label, "value": ram_pct})
             sd_trend.append({"date": dt_label, "value": int(round(r.disk_used_percent or 50))})
 
-        # Urutkan trouble_events DESC (terbaru di atas) dan batasi maksimal 10 kejadian terakhir
         trouble_events.reverse()
         latest_trouble_events = trouble_events[:10]
         for idx, ev in enumerate(latest_trouble_events, 1):
@@ -322,5 +308,4 @@ class SLACalculatorService:
         }
 
 
-# Singleton instance
 sla_calculator_service = SLACalculatorService()

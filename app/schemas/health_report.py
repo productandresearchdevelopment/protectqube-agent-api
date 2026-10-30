@@ -6,36 +6,30 @@ class HealthReportItem(BaseModel):
     no: int
     id: str
     location: str
-    type: str                  # "SmartBox Hitam" | "SmartBox Putih"
+    type: str
     
-    # CPU
-    cpu_avg: int               # e.g. 32
-    cpu_max: int               # e.g. 78
-    cpu_gt_80_duration: str    # e.g. "5h 20m"
+    cpu_avg: int
+    cpu_max: int
+    cpu_gt_80_duration: str
     
-    # RAM
-    ram_avg: int               # e.g. 43
-    ram_max: int               # e.g. 81
-    ram_gt_80_duration: str    # e.g. "2h 10m"
+    ram_avg: int
+    ram_max: int
+    ram_gt_80_duration: str
     
-    # SD Card Usage
-    sd_avg: int                # e.g. 68
-    sd_max: int                # e.g. 82
-    sd_gt_90_duration: str     # e.g. "-" | "18h 45m"
+    sd_avg: int
+    sd_max: int
+    sd_gt_90_duration: str
     
-    # SD Card Health
-    sd_health_status: str      # "Good" | "Caution" | "Poor"
-    sd_life_pct: int           # e.g. 92
+    sd_health_status: str
+    sd_life_pct: int
     
-    # Suhu Sistem
-    temp_avg: int              # e.g. 45
-    temp_max: int              # e.g. 62 (highlight red if >= 80)
+    temp_avg: int
+    temp_max: int
     
-    # Uptime
-    uptime_duration: str       # e.g. "720h 15m"
-    uptime_pct: float          # e.g. 96.8
+    uptime_duration: str
+    uptime_pct: float
     
-    jumlah_event: int          # e.g. 12, 28, 6
+    jumlah_event: int
 
 
 class ReportPaginationInfo(BaseModel):
@@ -73,7 +67,7 @@ class HealthReportEvent(BaseModel):
 
 
 class HealthTimelineSegment(BaseModel):
-    status: str       # "normal" | "cpu_high" | "ram_high" | "sd_high" | "suhu_high" | "no_data"
+    status: str
     start_pct: float
     width_pct: float
     label: str
@@ -81,7 +75,7 @@ class HealthTimelineSegment(BaseModel):
 
 
 class HealthTimelineTrack(BaseModel):
-    track_name: str   # "CPU" | "RAM" | "SD Card" | "Suhu"
+    track_name: str
     segments: List[HealthTimelineSegment]
 
 

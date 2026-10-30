@@ -56,16 +56,16 @@ class DVRGatewayItem(BaseModel):
     no: int
     id: str
     location: str
-    type: str          # "SmartBox Hitam" | "SmartBox Putih"
-    dvr_model: str     # e.g. "Hikvision DS-7608NI-K2"
-    cpu_dvr: str       # "Connected" | "No Response" | "Not Detected" | "Driver Error"
-    total_kamera: int  # 8 | 16
+    type: str
+    dvr_model: str
+    cpu_dvr: str
+    total_kamera: int
     kamera_online: int
     kamera_no_video: int
     kamera_offline: int
-    recording_status: str # "Normal" | "Not Recording" | "Recording Error"
+    recording_status: str
     storage_usage_percent: int
-    dvr_health: str    # "Good" | "Warning" | "Critical"
+    dvr_health: str
     last_update: str
 
 

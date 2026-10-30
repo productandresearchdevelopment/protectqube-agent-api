@@ -202,14 +202,12 @@ class GatewayTelemetryHistory(Base):
     location = Column(String(100), nullable=True)
     hardware_model = Column(String(100), nullable=True)
 
-    # CPU & RAM & Storage
     cpu_percent = Column(Float, nullable=True)
     temperature_c = Column(Float, nullable=True)
     ram_used_mb = Column(Float, nullable=True)
     ram_total_mb = Column(Float, nullable=True)
     disk_used_percent = Column(Float, nullable=True)
 
-    # Cellular & Network
     operator = Column(String(50), nullable=True)
     sim_status = Column(String(50), nullable=True)
     signal_csq = Column(Integer, nullable=True)
@@ -217,11 +215,9 @@ class GatewayTelemetryHistory(Base):
     phone_number = Column(String(50), nullable=True)
     cellular_ip = Column(String(50), nullable=True)
 
-    # NVR & CCTV
     nvr_status = Column(String(50), nullable=True)
     nvr_recording = Column(Boolean, nullable=True)
     cameras_online = Column(Integer, nullable=True)
     cameras_total = Column(Integer, nullable=True)
 
-    # Raw Full JSON Payload
     raw_payload = Column(JSON, nullable=True)

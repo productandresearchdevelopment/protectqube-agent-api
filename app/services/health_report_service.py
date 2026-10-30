@@ -18,7 +18,6 @@ class HealthReportService:
     """
 
     def __init__(self):
-        # Keyed by device_id (e.g. gw-3a53d2ff, gw-dccdec07)
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
@@ -82,7 +81,6 @@ class HealthReportService:
 
         from app.services.sla_calculator_service import sla_calculator_service
 
-        # Real Hybrid SLA Calculation from Database Logs & Kernel Uptime
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
 
         up_str = sla["gateway_uptime_str"]
@@ -93,18 +91,17 @@ class HealthReportService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
-        # Location name prioritised from new MQTT payload
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
-            or ("RO KALIBATA" if "3a53" in device_id else ("SmartBox Store 01" if "dccd" in device_id else f"SmartBox {device_id}"))
+            or f"Gateway {device_id}"
         )
 
-        modem_model = modem.get("model") or "Quectel EG95 LTE Cat 4"
-        sim_num = sim.get("msisdn") or sim.get("iccid") or ("081119273872" if "3a53" in device_id else "-")
-        operator = sim.get("operator", "Telkomsel")
+        modem_model = modem.get("model") or "-"
+        sim_num = sim.get("msisdn") or sim.get("iccid") or "-"
+        operator = sim.get("operator") or "-"
 
         report_item = {
             "no": len(self._live_gateways) + 1,
@@ -242,7 +239,6 @@ class HealthReportService:
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Headers
         writer.writerow([
             "No",
             "Gateway ID",
@@ -308,7 +304,6 @@ class HealthReportService:
                     detail["period"] = date_range
                 return detail
 
-        # Fallback to first available live gateway
         if self._live_gateways:
             first_data = next(iter(self._live_gateways.values()))
             detail = dict(first_data["detail"])
@@ -316,7 +311,6 @@ class HealthReportService:
                 detail["period"] = date_range
             return detail
 
-        # Empty fallback
         return {
             "id": gateway_id,
             "status": "Offline",
@@ -355,5 +349,4 @@ class HealthReportService:
         }
 
 
-# Singleton service instance
 health_report_service = HealthReportService()

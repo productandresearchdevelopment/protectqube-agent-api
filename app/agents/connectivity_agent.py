@@ -68,7 +68,6 @@ class ConnectivityAgent:
 
         try:
             with serial.Serial(self.port, self.baudrate, timeout=self.timeout) as ser:
-                # 1. Test AT handshake
                 at_resp = self._send_at_command(ser, "AT")
                 if "OK" not in at_resp:
                     result["error"] = f"Modem handshake failed: {at_resp}"
@@ -77,21 +76,16 @@ class ConnectivityAgent:
 
                 result["modem_connected"] = True
 
-                # 2. Operator info (AT+COPS?)
                 cops_resp = self._send_at_command(ser, "AT+COPS?")
-                # Example: +COPS: 0,0,"Telkomsel",7
                 if "+COPS:" in cops_resp and '"' in cops_resp:
                     parts = cops_resp.split('"')
                     if len(parts) >= 2:
                         result["operator"] = parts[1]
 
-                # 3. ICCID SIM Card (AT+QCCID or AT+CCID)
                 qccid_resp = self._send_at_command(ser, "AT+QCCID")
                 if "+QCCID:" in qccid_resp:
                     result["iccid"] = qccid_resp.replace("+QCCID:", "").replace("OK", "").strip()
 
-                # 4. Signal CSQ (AT+CSQ)
-                # Example: +CSQ: 21,99 -> 0 to 31
                 csq_resp = self._send_at_command(ser, "AT+CSQ")
                 if "+CSQ:" in csq_resp:
                     raw_csq = csq_resp.split("+CSQ:")[1].split(",")[0].strip()
@@ -111,11 +105,8 @@ class ConnectivityAgent:
                     except ValueError:
                         pass
 
-                # 5. Modem Temperature (AT+QTEMP for Quectel)
-                # Example: +QTEMP: "cpuss-usr",38,"mdm-core",39
                 qtemp_resp = self._send_at_command(ser, "AT+QTEMP")
                 if "+QTEMP:" in qtemp_resp:
-                    # extract first temperature value
                     try:
                         temp_tokens = qtemp_resp.split(",")
                         for token in temp_tokens:
@@ -126,7 +117,6 @@ class ConnectivityAgent:
                     except Exception:
                         pass
 
-                # 6. Network Registration (AT+CREG? / AT+CGREG?)
                 creg_resp = self._send_at_command(ser, "AT+CREG?")
                 if "+CREG:" in creg_resp:
                     if ",1" in creg_resp:

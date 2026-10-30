@@ -1,4 +1,4 @@
-# ProtectQube AI Ops - Backend API Gateway
+# ProtectQube AIOps - Backend API Gateway
 
 REST API and Telemetry Service untuk pemantauan diagnostik armada SmartBox Edge Gateway. Dibangun menggunakan FastAPI, SQLAlchemy ORM, Alembic migrations, PostgreSQL, dan MQTT Mosquitto broker.
 

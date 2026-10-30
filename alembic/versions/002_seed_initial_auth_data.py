@@ -45,7 +45,7 @@ def upgrade() -> None:
                 'name': 'Super Admin',
                 'alias': 'super-admin',
                 'color': '#2563eb',
-                'description': 'Full access to ProtectQube AI Ops Gateway and Telemetry',
+                'description': 'Full access to ProtectQube AIOps Gateway and Telemetry',
                 'created_at': now,
                 'updated_at': now,
             },

@@ -18,11 +18,15 @@ logger = logging.getLogger("agent-pqube")
 async def lifespan(app: FastAPI):
     logger.info("Initializing Agent PQube SmartBox Backend...")
     init_db()
-    agent_manager.start()
-    logger.info("Gateway Monitoring Agents (Connectivity, DVR, System Health) are running.")
+    if settings.ENABLE_EMBEDDED_MQTT:
+        agent_manager.start()
+        logger.info("Gateway Monitoring Agents (Connectivity, DVR, System Health) are running.")
+    else:
+        logger.info("Embedded MQTT subscriber disabled (running via standalone worker).")
     yield
-    logger.info("Stopping Gateway Monitoring Agents...")
-    agent_manager.stop()
+    if settings.ENABLE_EMBEDDED_MQTT:
+        logger.info("Stopping Gateway Monitoring Agents...")
+        agent_manager.stop()
 
 
 app = FastAPI(
@@ -35,7 +39,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
