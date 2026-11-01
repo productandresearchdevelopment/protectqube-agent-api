@@ -9,8 +9,8 @@
     "hardware_type": "dusun",
     "location_name": "RO KALIBATA",
     "site_name": "RO KALIBATA",
-    "timestamp": 1793345800073,
-    "datetime_utc7": "2026-10-30 14:36:40 (UTC+7 / WIB)",
+    "timestamp": 1793404756337,
+    "datetime_utc7": "2026-10-31 06:59:16 (UTC+7 / WIB)",
     "overall_status": "CRITICAL",
     "site_info": {
       "location_name": "RO KALIBATA",
@@ -41,28 +41,28 @@
         "pqube_variant": "putih",
         "label": "PUTIH (Dusun IoT Gateway)"
       },
-      "uptime": "7h 34m",
+      "uptime": "23h 57m",
       "cpu": {
-        "usage_percent": 28.9,
+        "usage_percent": 32.4,
         "cores": 4,
         "load_avg": [
-          1.4,
-          1.59,
-          1.53
+          1.21,
+          1.35,
+          1.5
         ],
-        "temperature_c": 82.3,
+        "temperature_c": 81.2,
         "status": "DANGER"
       },
       "memory": {
         "total_mb": 1958.6,
-        "used_mb": 368.3,
-        "free_mb": 1590.3,
-        "usage_percent": 18.8,
+        "used_mb": 373.3,
+        "free_mb": 1585.3,
+        "usage_percent": 19.1,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 46.7,
+        "latency_ms": 36.1,
         "tailscale_ip": "N/A",
         "interfaces": {
           "wlan0": "192.168.0.1",
@@ -117,8 +117,8 @@
           "used_human": "4.97 GB",
           "free_human": "897 MB",
           "total_bytes": 6276579328,
-          "used_bytes": 5336457216,
-          "free_bytes": 940122112,
+          "used_bytes": 5336416256,
+          "free_bytes": 940163072,
           "used_percent": 85.0,
           "inode_total": 384000,
           "inode_used": 125102,
@@ -132,27 +132,27 @@
           "fs_type": "ext4",
           "mode": "rw",
           "total_gb": 1.05,
-          "used_gb": 0.58,
+          "used_gb": 0.59,
           "free_gb": 0.47,
           "total_human": "1.05 GB",
-          "used_human": "597 MB",
-          "free_human": "483 MB",
+          "used_human": "599 MB",
+          "free_human": "480 MB",
           "total_bytes": 1131831296,
-          "used_bytes": 625876992,
-          "free_bytes": 505954304,
-          "used_percent": 55.3,
+          "used_bytes": 628301824,
+          "free_bytes": 503529472,
+          "used_percent": 55.5,
           "inode_total": 72576,
-          "inode_used": 2259,
-          "inode_free": 70317,
+          "inode_used": 2264,
+          "inode_free": 70312,
           "inode_percent": 3.1,
           "status": "GOOD"
         }
       ],
       "io_stats": {
-        "read_mb": 1157.0,
-        "write_mb": 6844.7,
-        "read_human": "1.13 GB",
-        "write_human": "6.68 GB"
+        "read_mb": 1169.0,
+        "write_mb": 21682.6,
+        "read_human": "1.14 GB",
+        "write_human": "21.17 GB"
       }
     },
     "modem_usb": {
@@ -223,13 +223,12 @@
       "imsi": "510109015047492",
       "imei": "868361060906960",
       "sms_quota_history": {
-        "available": false,
-        "quota_info": "N/A",
-        "quota_main_gb": null,
-        "quota_expiry": "N/A",
-        "last_updated": "N/A",
-        "age_human": "",
-        "source": "None"
+        "available": true,
+        "quota_info": "Kuota Internet 15.1 GB",
+        "quota_main_gb": 15.1,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:21 WIB",
+        "source": "SMS Balasan 3636"
       },
       "signal": {
         "csq": 28,
@@ -240,11 +239,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.137.110.213",
-        "ping_ms": 124.833,
+        "ping_ms": 30.86,
         "packet_loss_pct": 0.0,
         "throughput": "RX: 125 B/s | TX: 211 B/s",
-        "rx_human": "4.93 MB",
-        "tx_human": "3.57 MB"
+        "rx_human": "12.43 MB",
+        "tx_human": "18.19 MB"
       }
     },
     "wifi": {
@@ -269,9 +268,9 @@
       "nvr_endpoint": "172.16.37.130:80",
       "status": "WARNING",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 299.0,
-      "total_used_gb": 3427.02,
-      "total_free_percent": 8.0,
+      "total_free_gb": 294.0,
+      "total_used_gb": 3432.02,
+      "total_free_percent": 7.9,
       "disks": [
         {
           "id": "1",
@@ -281,17 +280,17 @@
           "status_raw": "ok",
           "health": "WARNING",
           "capacity_gb": 3726.02,
-          "free_gb": 299.0,
-          "used_gb": 3427.02,
-          "used_percent": 92.0,
-          "free_percent": 8.0,
+          "free_gb": 294.0,
+          "used_gb": 3432.02,
+          "used_percent": 92.1,
+          "free_percent": 7.9,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 36,
-            "power_on_days": 1476,
-            "power_on_hours": 35444,
+            "temperature_c": 38,
+            "power_on_days": 1477,
+            "power_on_hours": 35460,
             "power_cycles": 85,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -303,9 +302,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 36,
-          "power_on_days": 1476,
-          "power_on_hours": 35444,
+          "temperature_c": 38,
+          "power_on_days": 1477,
+          "power_on_hours": 35460,
           "power_cycles": 85,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -381,8 +380,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 4,
-        "latest_record_time": "14:36:37 WIB"
+        "today_segments_count": 6,
+        "latest_record_time": "00:00:00 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "RTSP Stream Script (/f/capture_image/index.js)"
@@ -391,7 +390,7 @@
       {
         "code": "WARN_CPU_HIGH_TEMP",
         "severity": "HIGH",
-        "message": "Suhu CPU gateway mencapai 82.3\u00b0C (DANGER > 80\u00b0C). Periksa sirkulasi udara gateway."
+        "message": "Suhu CPU gateway mencapai 81.2\u00b0C (DANGER > 80\u00b0C). Periksa sirkulasi udara gateway."
       },
       {
         "code": "WARN_CAMERA_OFFLINE",
@@ -657,8 +656,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "Site PQP",
     "site_name": "Site PQP",
-    "timestamp": 1793345781090,
-    "datetime_utc7": "2026-10-30 14:36:21 (UTC+7 / WIB)",
+    "timestamp": 1793557441917,
+    "datetime_utc7": "2026-11-02 01:24:01 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "site_info": {
       "location_name": "Site PQP",
@@ -689,28 +688,28 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "19m 19s",
+      "uptime": "2d 11h 6m",
       "cpu": {
-        "usage_percent": 25.6,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          0.84,
-          0.81,
-          0.63
+          0.92,
+          1.0,
+          0.99
         ],
-        "temperature_c": 32.7,
+        "temperature_c": 35.9,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 313.5,
-        "free_mb": 652.4,
-        "usage_percent": 32.5,
+        "used_mb": 338.1,
+        "free_mb": 627.9,
+        "usage_percent": 35.0,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 49.7,
+        "latency_ms": 43.5,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.37.75",
@@ -819,15 +818,15 @@
           "fs_type": "vfat",
           "mode": "rw",
           "total_gb": 0.53,
-          "used_gb": 0.02,
+          "used_gb": 0.03,
           "free_gb": 0.5,
           "total_human": "540 MB",
-          "used_human": "25 MB",
-          "free_human": "515 MB",
+          "used_human": "29 MB",
+          "free_human": "511 MB",
           "total_bytes": 566149120,
-          "used_bytes": 25702400,
-          "free_bytes": 540446720,
-          "used_percent": 4.5,
+          "used_bytes": 30842880,
+          "free_bytes": 535306240,
+          "used_percent": 5.4,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -836,10 +835,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 384.7,
-        "write_mb": 0.8,
-        "read_human": "384.7 MB",
-        "write_human": "0.8 MB"
+        "read_mb": 393.9,
+        "write_mb": 29.4,
+        "read_human": "393.9 MB",
+        "write_human": "29.4 MB"
       }
     },
     "modem_usb": {
@@ -915,7 +914,7 @@
       "service_status": {
         "active_daemons": [
           "pppd (PID 504)",
-          "pppd (PID 753)"
+          "pppd (PID 27550)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
@@ -938,7 +937,7 @@
         "quota_main_gb": 9.53,
         "quota_expiry": "31-10-2026 pkl 23:59",
         "last_updated": "30-10-2026 07:52:47 WIB",
-        "age_human": "(6 jam lalu)",
+        "age_human": "(2 hari lalu)",
         "source": "SMS Balasan 3636"
       },
       "signal": {
@@ -950,11 +949,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.64.162.53",
-        "ping_ms": 71.329,
+        "ping_ms": 54.007,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 200 B/s | TX: 240 B/s",
-        "rx_human": "360.1 KB",
-        "tx_human": "4.28 MB"
+        "throughput": "RX: 187 B/s | TX: 228 B/s",
+        "rx_human": "38.67 MB",
+        "tx_human": "51.14 MB"
       }
     },
     "wifi": {
@@ -979,9 +978,9 @@
       "nvr_endpoint": "172.16.57.106:80",
       "status": "HEALTHY",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 2107.0,
-      "total_used_gb": 1619.02,
-      "total_free_percent": 56.5,
+      "total_free_gb": 2076.0,
+      "total_used_gb": 1650.02,
+      "total_free_percent": 55.7,
       "disks": [
         {
           "id": "1",
@@ -991,17 +990,17 @@
           "status_raw": "ok",
           "health": "HEALTHY",
           "capacity_gb": 3726.02,
-          "free_gb": 2107.0,
-          "used_gb": 1619.02,
-          "used_percent": 43.5,
-          "free_percent": 56.5,
+          "free_gb": 2076.0,
+          "used_gb": 1650.02,
+          "used_percent": 44.3,
+          "free_percent": 55.7,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 35,
-            "power_on_days": 359,
-            "power_on_hours": 8634,
+            "temperature_c": 39,
+            "power_on_days": 362,
+            "power_on_hours": 8693,
             "power_cycles": 69,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -1013,9 +1012,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 35,
-          "power_on_days": 359,
-          "power_on_hours": 8634,
+          "temperature_c": 39,
+          "power_on_days": 362,
+          "power_on_hours": 8693,
           "power_cycles": 69,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -1091,8 +1090,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 3,
-        "latest_record_time": "14:36:20 WIB"
+        "today_segments_count": 4,
+        "latest_record_time": "00:00:00 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -1125,9 +1124,43 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM JKT ALFAMIDI PENGGILINGAN",
     "site_name": "CRM JKT ALFAMIDI PENGGILINGAN",
-    "timestamp": 1793345819139,
-    "datetime_utc7": "2026-10-30 14:36:59 (UTC+7 / WIB)",
+    "timestamp": 1793557424021,
+    "datetime_utc7": "2026-11-02 01:23:44 (UTC+7 / WIB)",
     "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.48.74:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.48.73",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
     "site_info": {
       "location_name": "CRM JKT ALFAMIDI PENGGILINGAN",
       "site_name": "CRM JKT ALFAMIDI PENGGILINGAN",
@@ -1157,28 +1190,28 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "3d 5h 19m",
+      "uptime": "5d 16h 6m",
       "cpu": {
-        "usage_percent": 40.0,
+        "usage_percent": 2.5,
         "cores": 4,
         "load_avg": [
-          0.89,
-          0.92,
-          0.97
+          1.5,
+          1.13,
+          1.07
         ],
-        "temperature_c": 55.8,
+        "temperature_c": 52.1,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 464.3,
-        "free_mb": 501.6,
-        "usage_percent": 48.1,
+        "used_mb": 433.6,
+        "free_mb": 532.4,
+        "usage_percent": 44.9,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 30.2,
+        "latency_ms": 100.7,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.37",
@@ -1264,20 +1297,20 @@
           "mount_point": "/home",
           "device": "/dev/mmcblk0p3",
           "fs_type": "ext4",
-          "mode": "ro",
+          "mode": "rw",
           "total_gb": 0.93,
           "used_gb": 0.24,
           "free_gb": 0.69,
           "total_human": "957 MB",
-          "used_human": "249 MB",
-          "free_human": "708 MB",
+          "used_human": "250 MB",
+          "free_human": "707 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261302272,
-          "free_bytes": 742415360,
-          "used_percent": 26.0,
+          "used_bytes": 262019072,
+          "free_bytes": 741698560,
+          "used_percent": 26.1,
           "inode_total": 254000,
-          "inode_used": 13432,
-          "inode_free": 240568,
+          "inode_used": 13445,
+          "inode_free": 240555,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -1287,15 +1320,15 @@
           "fs_type": "vfat",
           "mode": "rw",
           "total_gb": 0.49,
-          "used_gb": 0.06,
+          "used_gb": 0.07,
           "free_gb": 0.43,
           "total_human": "506 MB",
-          "used_human": "65 MB",
-          "free_human": "441 MB",
+          "used_human": "68 MB",
+          "free_human": "438 MB",
           "total_bytes": 530577408,
-          "used_bytes": 67766272,
-          "free_bytes": 462811136,
-          "used_percent": 12.8,
+          "used_bytes": 71526400,
+          "free_bytes": 459051008,
+          "used_percent": 13.5,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -1304,14 +1337,16 @@
         }
       ],
       "io_stats": {
-        "read_mb": 466.4,
-        "write_mb": 335.4,
-        "read_human": "466.4 MB",
-        "write_human": "335.4 MB"
+        "read_mb": 485.5,
+        "write_mb": 555.1,
+        "read_human": "485.5 MB",
+        "write_human": "555.1 MB"
       }
     },
     "modem_usb": {
       "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
       "vendor": "Quectel Wireless Solutions",
       "model": "Quectel Android",
       "firmware_revision": "N/A",
@@ -1346,7 +1381,7 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 17844)",
+          "pppd (PID 22350)",
           "pppd (PID 2100)"
         ],
         "is_daemon_running": true,
@@ -1357,6 +1392,8 @@
     },
     "cellular_sim": {
       "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
       "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
       "operator": "Telkomsel",
       "network_mode": "4G LTE",
@@ -1365,13 +1402,12 @@
       "imsi": "510101915185683",
       "imei": "868089056062700",
       "sms_quota_history": {
-        "available": false,
-        "quota_info": "N/A",
-        "quota_main_gb": null,
-        "quota_expiry": "N/A",
-        "last_updated": "N/A",
-        "age_human": "",
-        "source": "None"
+        "available": true,
+        "quota_info": "Kuota Internet 10.6 GB",
+        "quota_main_gb": 10.6,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:23:45 WIB",
+        "source": "SMS Balasan 3636"
       },
       "signal": {
         "csq": 31,
@@ -1382,11 +1418,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.177.145.163",
-        "ping_ms": 49.113,
+        "ping_ms": 38.513,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 17 B/s | TX: 164 B/s",
-        "rx_human": "188.16 MB",
-        "tx_human": "108.12 MB"
+        "throughput": "RX: 17 B/s | TX: 239 B/s",
+        "rx_human": "201.71 MB",
+        "tx_human": "167.95 MB"
       }
     },
     "wifi": {
@@ -1409,7 +1445,7 @@
     "nvr_surveillance": {
       "connected": true,
       "nvr_endpoint": "172.16.48.74:80",
-      "status": "CRITICAL",
+      "status": "WARNING",
       "total_capacity_gb": 3726.02,
       "total_free_gb": 0.0,
       "total_used_gb": 3726.02,
@@ -1428,12 +1464,12 @@
           "used_percent": 100.0,
           "free_percent": 0.0,
           "health_info": {
-            "health_percent": 90,
-            "health_label": "Baik (Kondisi Sangat Sehat)",
-            "health_badge": "OK",
-            "temperature_c": 48,
-            "power_on_days": 1554,
-            "power_on_hours": 37317,
+            "health_percent": 75,
+            "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
+            "health_badge": "WARN",
+            "temperature_c": 45,
+            "power_on_days": 1557,
+            "power_on_hours": 37376,
             "power_cycles": 73,
             "bad_sectors": 1,
             "reallocated_sectors": 0,
@@ -1442,12 +1478,12 @@
             "crc_errors": 0,
             "read_errors": 0
           },
-          "health_percent": 90,
-          "health_label": "Baik (Kondisi Sangat Sehat)",
-          "health_badge": "OK",
-          "temperature_c": 48,
-          "power_on_days": 1554,
-          "power_on_hours": 37317,
+          "health_percent": 75,
+          "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
+          "health_badge": "WARN",
+          "temperature_c": 45,
+          "power_on_days": 1557,
+          "power_on_hours": 37376,
           "power_cycles": 73,
           "bad_sectors": 1,
           "reallocated_sectors": 0,
@@ -1456,6 +1492,9 @@
           "crc_errors": 0
         }
       ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.48.74:80) ke CPU Gateway",
       "device_info": {
         "model": "DS-7204HUHI-K2",
         "serial": "DS-7204HUHI-K20420210129CCWRB85622545WCVLU",
@@ -1523,23 +1562,5101 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 5,
-        "latest_record_time": "14:36:57 WIB"
+        "today_segments_count": 9,
+        "latest_record_time": "00:00:00 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
     },
-    "active_alerts": [
-      {
-        "code": "WARN_CAMERA_OFFLINE",
-        "severity": "MEDIUM",
-        "message": "Kamera #3 (Camera 03) terputus / NO VIDEO."
+    "active_alerts": {
+      "total": 6,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 1 Bad Sector (0 Rusak / 1 Pending) pada Harddisk NVR (hdd1)!"
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 558 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 1 Bad Sector (0 Rusak / 1 Pending) pada Harddisk NVR (hdd1)!",
+          "terminal_note": "PERINGATAN: Terdeteksi 1 Bad Sector (0 Rusak / 1 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 558 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-982bb2c2",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
+    "site_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
+    "timestamp": 1793469432708,
+    "datetime_utc7": "2026-11-01 00:57:12 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.48.50:80",
+        "message": "FAIL: Gagal konek dari perangkat NVR ke CPU Gateway (Timeout koneksi ke NVR (172.16.48.50:80))"
       },
-      {
-        "code": "WARN_CAMERA_OFFLINE",
-        "severity": "MEDIUM",
-        "message": "Kamera #4 (Camera 04) terputus / NO VIDEO."
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel LTE Cellular Module (Smart/EC200)",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "INDOSATOOREDOO",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "eth0",
+        "message": "FAIL: Gagal konek kabel LAN eth0 ke CPU Gateway (Kabel terputus / NO-CARRIER)"
       }
-    ]
+    },
+    "site_info": {
+      "location_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
+      "site_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
+      "device_code": "PQD01542",
+      "merchant_id": "80000306",
+      "cluster_id": "00060389",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "-7.349409, 112.748492",
+      "latitude": -7.349409,
+      "longitude": 112.748492,
+      "operating_hours": "00:00:00 - 05:30:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Plus Rev 1.4 (BCM2835)",
+        "serial": "00000000982bb2c2",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "3d 19h 5m",
+      "cpu": {
+        "usage_percent": 0.0,
+        "cores": 4,
+        "load_avg": [
+          0.35,
+          0.32,
+          0.25
+        ],
+        "temperature_c": 63.4,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 446.0,
+        "free_mb": 520.0,
+        "usage_percent": 46.2,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 71.8,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.34",
+          "wlan0": "192.168.0.1",
+          "ppp0": "10.183.224.224"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SB16G",
+        "serial": "0x48ff0cd6",
+        "manufacture_date": "10/2024",
+        "total_disk_gb": 14.84,
+        "cid_register": "03534453423136478048ff0cd6018af7"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "559 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504226304,
+          "free_bytes": 585678848,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159492,
+          "inode_free": 93948,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261340160,
+          "free_bytes": 742377472,
+          "used_percent": 26.0,
+          "inode_total": 254000,
+          "inode_used": 13435,
+          "inode_free": 240565,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 8.99,
+          "used_gb": 0.15,
+          "free_gb": 8.84,
+          "total_human": "8.99 GB",
+          "used_human": "156 MB",
+          "free_human": "8.84 GB",
+          "total_bytes": 9654214656,
+          "used_bytes": 163586048,
+          "free_bytes": 9490628608,
+          "used_percent": 1.7,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 473.5,
+        "write_mb": 68.0,
+        "read_human": "473.5 MB",
+        "write_human": "68.0 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel LTE Cellular Module (Smart/EC200)",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "0901",
+        "usb_bus": "1-1.3",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "N/A",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 5,
+          "role": "Interface 5",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 6,
+          "role": "Interface 6",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB6",
+          "interface": 7,
+          "role": "Interface 7",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB7",
+          "interface": 8,
+          "role": "Interface 8",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 24339)",
+          "pppd (PID 1977)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.183.224.224",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "INDOSATOOREDOO",
+      "network_mode": "4G LTE",
+      "iccid": "89620100001158405122",
+      "msisdn": "N/A",
+      "imsi": "510011909873257",
+      "imei": "864714060788529",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 11.8 GB",
+        "quota_main_gb": 11.8,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:21 WIB",
+        "source": "SMS Balasan 999"
+      },
+      "signal": {
+        "csq": 25,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.183.224.224",
+        "ping_ms": 67.885,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 17 B/s | TX: 195 B/s",
+        "rx_human": "2.78 MB",
+        "tx_human": "18.54 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:7e:e7:97",
+      "ip_address": "10.183.224.224",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": false,
+      "connection_status": "FAIL",
+      "connection_to_gateway": "FAIL",
+      "connection_message": "Gagal konek dari perangkat NVR (172.16.48.50:80) ke CPU Gateway (Timeout koneksi ke NVR (172.16.48.50:80))",
+      "nvr_endpoint": "172.16.48.50:80",
+      "status": "FAIL",
+      "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+      "error_message": "Timeout koneksi ke NVR (172.16.48.50:80)",
+      "total_capacity_gb": 0.0,
+      "total_free_gb": 0.0,
+      "total_used_gb": 0.0,
+      "total_free_percent": 0.0,
+      "disks": [],
+      "recording": {
+        "is_recording": false,
+        "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+        "badge": "FAIL"
+      },
+      "device_info": {
+        "model": "Hikvision/HiLook NVR",
+        "serial": "N/A",
+        "firmware": "N/A",
+        "device_type": "NVR"
+      }
+    },
+    "active_alerts": {
+      "total": 3,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.48.50:80)."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.48.50:80).",
+          "terminal_note": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.48.50:80). Pastikan kabel LAN dan daya NVR tersambung."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-590c9399",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
+    "site_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
+    "timestamp": 1793365049722,
+    "datetime_utc7": "2026-10-30 19:57:29 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.51.10:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.51.9",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
+      "site_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
+      "device_code": "PQD01633",
+      "merchant_id": "80000558",
+      "cluster_id": "00060426",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": null,
+      "latitude": null,
+      "longitude": null,
+      "operating_hours": "01:00:00 - 05:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "00000000590c9399",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "52m 23s",
+      "cpu": {
+        "usage_percent": 0.0,
+        "cores": 4,
+        "load_avg": [
+          0.88,
+          0.97,
+          0.99
+        ],
+        "temperature_c": 49.4,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 333.3,
+        "free_mb": 632.7,
+        "usage_percent": 34.5,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 30.6,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.125",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.51.9",
+          "ppp0": "100.67.78.74"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SB16G",
+        "serial": "0x486f0bb1",
+        "manufacture_date": "10/2024",
+        "total_disk_gb": 14.84,
+        "cid_register": "035344534231364780486f0bb1018a51"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.6%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.6% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "560 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3502845952,
+          "free_bytes": 587059200,
+          "used_percent": 85.6,
+          "inode_total": 253440,
+          "inode_used": 159412,
+          "inode_free": 94028,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261435392,
+          "free_bytes": 742282240,
+          "used_percent": 26.0,
+          "inode_total": 254000,
+          "inode_used": 13445,
+          "inode_free": 240555,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 8.99,
+          "used_gb": 0.16,
+          "free_gb": 8.84,
+          "total_human": "8.99 GB",
+          "used_human": "160 MB",
+          "free_human": "8.84 GB",
+          "total_bytes": 9654214656,
+          "used_bytes": 167477248,
+          "free_bytes": 9486737408,
+          "used_percent": 1.7,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 361.2,
+        "write_mb": 3.8,
+        "read_human": "361.2 MB",
+        "write_human": "3.8 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 1636)",
+          "pppd (PID 641)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "100.67.78.74",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019157353048",
+      "msisdn": "N/A",
+      "imsi": "510101915735304",
+      "imei": "868089051642076",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 21.0 GB",
+        "quota_main_gb": 21.0,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:21 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 24,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "100.67.78.74",
+        "ping_ms": 43.918,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 26 B/s | TX: 238 B/s",
+        "rx_human": "559.6 KB",
+        "tx_human": "706.5 KB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:59:c6:cc",
+      "ip_address": "100.67.78.74",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.51.10:80",
+      "status": "WARNING",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 100,
+            "health_label": "Baik (Kondisi Sangat Sehat)",
+            "health_badge": "OK",
+            "temperature_c": 35,
+            "power_on_days": 1388,
+            "power_on_hours": 33315,
+            "power_cycles": 49,
+            "bad_sectors": 0,
+            "reallocated_sectors": 0,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 100,
+          "health_label": "Baik (Kondisi Sangat Sehat)",
+          "health_badge": "OK",
+          "temperature_c": 35,
+          "power_on_days": 1388,
+          "power_on_hours": 33315,
+          "power_cycles": 49,
+          "bad_sectors": 0,
+          "reallocated_sectors": 0,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.51.10:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420220304CCWRJ59349222WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000558-PEMATANG SIANTAR ADIRA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000558-PEMATANG SIANTAR ADIRA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 5,
+        "latest_record_time": "19:57:27 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": {
+      "total": 5,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.6% (Sisa: 560 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.6%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.6% (Sisa: 560 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.6%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.6%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.6%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-3f9eb764",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
+    "site_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
+    "timestamp": 1793557404565,
+    "datetime_utc7": "2026-11-02 01:23:24 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.50.242:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "IND TELKOMSEL",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.50.241",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
+      "site_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
+      "device_code": "PQD01630",
+      "merchant_id": "80000845",
+      "cluster_id": "00059078",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "-611, 106.81331",
+      "latitude": -611,
+      "longitude": 106.81331,
+      "operating_hours": "00:00:00 - 00:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "000000003f9eb764",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "33d 1h 29m",
+      "cpu": {
+        "usage_percent": 7.7,
+        "cores": 4,
+        "load_avg": [
+          0.78,
+          0.97,
+          0.98
+        ],
+        "temperature_c": 65.5,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 397.8,
+        "free_mb": 568.1,
+        "usage_percent": 41.2,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 25.6,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.122",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.50.241",
+          "ppp0": "10.127.3.57"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SL16G",
+        "serial": "0x58cd26ca",
+        "manufacture_date": "09/2023",
+        "total_disk_gb": 14.84,
+        "cid_register": "035344534c3136478058cd26ca01790d"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "559 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504242688,
+          "free_bytes": 585662464,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159492,
+          "inode_free": 93948,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261337088,
+          "free_bytes": 742380544,
+          "used_percent": 26.0,
+          "inode_total": 254000,
+          "inode_used": 13434,
+          "inode_free": 240566,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 8.21,
+          "used_gb": 0.19,
+          "free_gb": 8.02,
+          "total_human": "8.21 GB",
+          "used_human": "190 MB",
+          "free_human": "8.02 GB",
+          "total_bytes": 8814075904,
+          "used_bytes": 199032832,
+          "free_bytes": 8615043072,
+          "used_percent": 2.3,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 448.7,
+        "write_mb": 241.3,
+        "read_human": "448.7 MB",
+        "write_human": "241.3 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 0,
+          "role": "DM / Diagnostic Port",
+          "exists": false
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 1,
+          "role": "GPS / NMEA Port",
+          "exists": false
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 17444)",
+          "pppd (PID 9017)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.127.3.57",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "IND TELKOMSEL",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019151856889",
+      "msisdn": "N/A",
+      "imsi": "510101915185688",
+      "imei": "868089051790412",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 7.0 GB",
+        "quota_main_gb": 7.0,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:23:26 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 12,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Fair"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.127.3.57",
+        "ping_ms": 33.579,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 22 B/s | TX: 243 B/s",
+        "rx_human": "34.05 MB",
+        "tx_human": "130.62 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:cb:e2:31",
+      "ip_address": "10.127.3.57",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.50.242:80",
+      "status": "CRITICAL",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "error",
+          "health": "DANGER",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 10,
+            "health_label": "Bahaya (Terdeteksi 120 Bad Sector)",
+            "health_badge": "FAIL",
+            "temperature_c": 43,
+            "power_on_days": 1441,
+            "power_on_hours": 34600,
+            "power_cycles": 63,
+            "bad_sectors": 120,
+            "reallocated_sectors": 98,
+            "pending_sectors": 22,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 38565
+          },
+          "health_percent": 10,
+          "health_label": "Bahaya (Terdeteksi 120 Bad Sector)",
+          "health_badge": "FAIL",
+          "temperature_c": 43,
+          "power_on_days": 1441,
+          "power_on_hours": 34600,
+          "power_cycles": 63,
+          "bad_sectors": 120,
+          "reallocated_sectors": 98,
+          "pending_sectors": 22,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.50.242:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420220304CCWRJ59349255WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000845_PLAZA OLEOS",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000845_PLAZA OLEOS",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "JADWAL AKTIF (STANDBY)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 0,
+        "latest_record_time": "N/A"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": {
+      "total": 6,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)!"
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)!",
+          "terminal_note": "PERINGATAN: Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-c6acef40",
+    "variant": "putih",
+    "flag": "putih",
+    "pqube_variant": "putih",
+    "pqube_flag": "putih",
+    "pqube_type": "putih",
+    "hardware_type": "dusun",
+    "location_name": "CRM SEMARANG RS COLUMBIA ASIA",
+    "site_name": "CRM SEMARANG RS COLUMBIA ASIA",
+    "timestamp": 1793404797127,
+    "datetime_utc7": "2026-10-31 06:59:57 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.65.34:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel EG95 LTE Cat 4",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.65.33",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM SEMARANG RS COLUMBIA ASIA",
+      "site_name": "CRM SEMARANG RS COLUMBIA ASIA",
+      "device_code": "PQD02082",
+      "merchant_id": "80000568",
+      "cluster_id": "00067328",
+      "variant": "putih",
+      "flag": "putih",
+      "coordinates": null,
+      "latitude": null,
+      "longitude": null,
+      "operating_hours": "00:00:00 - 00:01:00",
+      "source": "ProtectQube Cloud API (/f/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "putih",
+      "flag": "putih",
+      "hardware": {
+        "type": "Dusun IoT Gateway",
+        "model": "Dusun DSGW-10",
+        "serial": "b12d541cc6acef40",
+        "hostname": "protectQube",
+        "platform": "linux",
+        "variant": "putih",
+        "flag": "putih",
+        "pqube_flag": "putih",
+        "pqube_variant": "putih",
+        "label": "PUTIH (Dusun IoT Gateway)"
+      },
+      "uptime": "23h 59m",
+      "cpu": {
+        "usage_percent": 0.0,
+        "cores": 4,
+        "load_avg": [
+          0.11,
+          0.3,
+          0.21
+        ],
+        "temperature_c": 62.1,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 1958.6,
+        "used_mb": 368.6,
+        "free_mb": 1590.0,
+        "usage_percent": 18.8,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 24.4,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "veth755d42a": "169.254.214.2",
+          "br-84806512a99f": "172.20.0.1",
+          "eth0": "172.16.65.33",
+          "ppp0": "10.20.119.249",
+          "ppp10": "10.1.38.68",
+          "wlan0": "192.168.0.1",
+          "docker0": "172.17.0.1"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "eMMC Flash Module",
+        "vendor": "Samsung / SanDisk",
+        "model": "8GTF4R",
+        "serial": "0x662dbe6e",
+        "manufacture_date": "11/2023",
+        "total_disk_gb": 7.28,
+        "cid_register": "15010038475446345206662dbe6ebaa3"
+      },
+      "health_percent": 97,
+      "health_label": "Sangat Sehat (Kondisi Prima)",
+      "health_badge": "OK",
+      "health_deductions": [
+        "Kapasitas Root 84.4% (-3%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 5.85,
+          "used_gb": 4.93,
+          "free_gb": 0.91,
+          "total_human": "5.85 GB",
+          "used_human": "4.93 GB",
+          "free_human": "932 MB",
+          "total_bytes": 6276579328,
+          "used_bytes": 5298892800,
+          "free_bytes": 977686528,
+          "used_percent": 84.4,
+          "inode_total": 384000,
+          "inode_used": 123892,
+          "inode_free": 260108,
+          "inode_percent": 32.3,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/f",
+          "device": "/dev/mmcblk2p8",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 1.05,
+          "used_gb": 0.24,
+          "free_gb": 0.82,
+          "total_human": "1.05 GB",
+          "used_human": "242 MB",
+          "free_human": "838 MB",
+          "total_bytes": 1131831296,
+          "used_bytes": 253644800,
+          "free_bytes": 878186496,
+          "used_percent": 22.4,
+          "inode_total": 72576,
+          "inode_used": 1518,
+          "inode_free": 71058,
+          "inode_percent": 2.1,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 415.2,
+        "write_mb": 21105.8,
+        "read_human": "415.2 MB",
+        "write_human": "20.61 GB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel EG95 LTE Cat 4",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "0195",
+        "usb_bus": "2-1.1",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "N/A",
+        "driver": "usbserial_generic"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 0,
+          "role": "DM / Diagnostic Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 1,
+          "role": "GPS / NMEA Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB6",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB7",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 2246)",
+          "pppd (PID 551)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.20.119.249",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100090150353830",
+      "msisdn": "N/A",
+      "imsi": "510109015035383",
+      "imei": "868361060907620",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 7.3 GB",
+        "quota_main_gb": 7.3,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:22 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 31,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.20.119.249",
+        "ping_ms": 34.154,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 30 B/s | TX: 227 B/s",
+        "rx_human": "21.71 MB",
+        "tx_human": "17.56 MB"
+      }
+    },
+    "wifi": {
+      "connected": true,
+      "status": "AP_MODE",
+      "interface": "wlan0",
+      "ssid": "dsgw-e67a23",
+      "bssid": "cc:64:1a:2d:d0:99",
+      "mac_address": "cc:64:1a:2d:d0:99",
+      "ip_address": "10.20.119.249",
+      "signal_pct": 100.0,
+      "signal_dbm": -30,
+      "signal_label": "Hotspot Active",
+      "channel": "Auto",
+      "frequency": "2.4 GHz",
+      "radio_type": "Access Point",
+      "mode": "Access Point (Hotspot)",
+      "description": "Gateway memancarkan Wi-Fi Hotspot: 'dsgw-e67a23'"
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.65.34:80",
+      "status": "WARNING",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 75,
+            "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
+            "health_badge": "WARN",
+            "temperature_c": 37,
+            "power_on_days": 747,
+            "power_on_hours": 17944,
+            "power_cycles": 157,
+            "bad_sectors": 1,
+            "reallocated_sectors": 1,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 75,
+          "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
+          "health_badge": "WARN",
+          "temperature_c": 37,
+          "power_on_days": 747,
+          "power_on_hours": 17944,
+          "power_cycles": 157,
+          "bad_sectors": 1,
+          "reallocated_sectors": 1,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.65.34:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420240419CCWRFC2203189WCVLU",
+        "firmware": "V4.28.000",
+        "device_type": "DVR"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000568_RS Columbia",
+            "is_online": true,
+            "resolution_raw": "1920*1080(1080P)P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000568_RS Columbia",
+            "is_online": true,
+            "resolution_raw": "1920*1080(1080P)P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 2,
+        "latest_record_time": "00:00:00 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "RTSP Stream Script (/f/capture_image/index.js)"
+    },
+    "active_alerts": {
+      "total": 4,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 1 Bad Sector (1 Rusak / 0 Pending) pada Harddisk NVR (hdd1)!"
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 1 Bad Sector (1 Rusak / 0 Pending) pada Harddisk NVR (hdd1)!",
+          "terminal_note": "PERINGATAN: Terdeteksi 1 Bad Sector (1 Rusak / 0 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-8c35ffc2",
+    "variant": "putih",
+    "flag": "putih",
+    "pqube_variant": "putih",
+    "pqube_flag": "putih",
+    "pqube_type": "putih",
+    "hardware_type": "dusun",
+    "location_name": "CRM SAMARINDA ATM CENTER JUANDA",
+    "site_name": "CRM SAMARINDA ATM CENTER JUANDA",
+    "timestamp": 1793404779485,
+    "datetime_utc7": "2026-10-31 06:59:39 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.61.122:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel EG95 LTE Cat 4",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "IND TELKOMSEL",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.61.121",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM SAMARINDA ATM CENTER JUANDA",
+      "site_name": "CRM SAMARINDA ATM CENTER JUANDA",
+      "device_code": "PQD01965",
+      "merchant_id": "80000494",
+      "cluster_id": "00067611",
+      "variant": "putih",
+      "flag": "putih",
+      "coordinates": "-0.481841, 117.133089",
+      "latitude": -0.481841,
+      "longitude": 117.133089,
+      "operating_hours": "00:00:00 - 00:01:00",
+      "source": "ProtectQube Cloud API (/f/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "putih",
+      "flag": "putih",
+      "hardware": {
+        "type": "Dusun IoT Gateway",
+        "model": "Dusun DSGW-10",
+        "serial": "3e39cc238c35ffc2",
+        "hostname": "protectQube",
+        "platform": "linux",
+        "variant": "putih",
+        "flag": "putih",
+        "pqube_flag": "putih",
+        "pqube_variant": "putih",
+        "label": "PUTIH (Dusun IoT Gateway)"
+      },
+      "uptime": "23h 57m",
+      "cpu": {
+        "usage_percent": 31.6,
+        "cores": 4,
+        "load_avg": [
+          0.01,
+          0.08,
+          0.15
+        ],
+        "temperature_c": 58.6,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 1958.6,
+        "used_mb": 367.2,
+        "free_mb": 1591.4,
+        "usage_percent": 18.8,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 94.6,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "vetha8b4438": "169.254.127.255",
+          "br-62272d88012c": "172.19.0.1",
+          "eth0": "172.16.61.121",
+          "ppp0": "10.64.55.29",
+          "ppp10": "10.1.37.205",
+          "wlan0": "192.168.0.1",
+          "docker0": "172.17.0.1"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "eMMC Flash Module",
+        "vendor": "Samsung / SanDisk",
+        "model": "8GTF4R",
+        "serial": "0x6620be23",
+        "manufacture_date": "11/2023",
+        "total_disk_gb": 7.28,
+        "cid_register": "150100384754463452066620be23baa9"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 89.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 89.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 5.85,
+          "used_gb": 5.25,
+          "free_gb": 0.6,
+          "total_human": "5.85 GB",
+          "used_human": "5.25 GB",
+          "free_human": "615 MB",
+          "total_bytes": 6276579328,
+          "used_bytes": 5631877120,
+          "free_bytes": 644702208,
+          "used_percent": 89.7,
+          "inode_total": 384000,
+          "inode_used": 140471,
+          "inode_free": 243529,
+          "inode_percent": 36.6,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/f",
+          "device": "/dev/mmcblk2p8",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 1.05,
+          "used_gb": 0.58,
+          "free_gb": 0.47,
+          "total_human": "1.05 GB",
+          "used_human": "595 MB",
+          "free_human": "485 MB",
+          "total_bytes": 1131831296,
+          "used_bytes": 623423488,
+          "free_bytes": 508407808,
+          "used_percent": 55.1,
+          "inode_total": 72576,
+          "inode_used": 3118,
+          "inode_free": 69458,
+          "inode_percent": 4.3,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 396.0,
+        "write_mb": 21161.4,
+        "read_human": "396.0 MB",
+        "write_human": "20.67 GB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel EG95 LTE Cat 4",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "0195",
+        "usb_bus": "2-1.1",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "N/A",
+        "driver": "usbserial_generic"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 0,
+          "role": "DM / Diagnostic Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 1,
+          "role": "GPS / NMEA Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB6",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB7",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 1883)",
+          "pppd (PID 499)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.64.55.29",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "IND TELKOMSEL",
+      "network_mode": "4G LTE",
+      "iccid": "8962100090150274937",
+      "msisdn": "N/A",
+      "imsi": "510109015027493",
+      "imei": "868361060907224",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 18.7 GB",
+        "quota_main_gb": 18.7,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:22 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 30,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.64.55.29",
+        "ping_ms": 89.608,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 115 B/s | TX: 279 B/s",
+        "rx_human": "12.17 MB",
+        "tx_human": "17.15 MB"
+      }
+    },
+    "wifi": {
+      "connected": true,
+      "status": "AP_MODE",
+      "interface": "wlan0",
+      "ssid": "dsgw-e67a23",
+      "bssid": "cc:64:1a:2c:86:d1",
+      "mac_address": "cc:64:1a:2c:86:d1",
+      "ip_address": "10.64.55.29",
+      "signal_pct": 100.0,
+      "signal_dbm": -30,
+      "signal_label": "Hotspot Active",
+      "channel": "Auto",
+      "frequency": "2.4 GHz",
+      "radio_type": "Access Point",
+      "mode": "Access Point (Hotspot)",
+      "description": "Gateway memancarkan Wi-Fi Hotspot: 'dsgw-e67a23'"
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.61.122:80",
+      "status": "WARNING",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 10,
+            "health_label": "Bahaya (Terdeteksi 9800 Bad Sector)",
+            "health_badge": "FAIL",
+            "temperature_c": 27,
+            "power_on_days": 658,
+            "power_on_hours": 15812,
+            "power_cycles": 3098,
+            "bad_sectors": 9800,
+            "reallocated_sectors": 9800,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 10,
+          "health_label": "Bahaya (Terdeteksi 9800 Bad Sector)",
+          "health_badge": "FAIL",
+          "temperature_c": 27,
+          "power_on_days": 658,
+          "power_on_hours": 15812,
+          "power_cycles": 3098,
+          "bad_sectors": 9800,
+          "reallocated_sectors": 9800,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.61.122:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420240425CCWRFD4042752WCVLU",
+        "firmware": "V4.28.000",
+        "device_type": "DVR"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000494_ATM CENTER JUANDA",
+            "is_online": true,
+            "resolution_raw": "1920*1080(1080P)P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000494_ATM CENTER JUANDA",
+            "is_online": true,
+            "resolution_raw": "1920*1080(1080P)P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 2,
+        "latest_record_time": "00:00:00 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "RTSP Stream Script (/f/capture_image/index.js)"
+    },
+    "active_alerts": {
+      "total": 6,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 9800 Bad Sector (9800 Rusak / 0 Pending) pada Harddisk NVR (hdd1)!"
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 89.7% (Sisa: 615 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_BAD_SECTOR",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Terdeteksi 9800 Bad Sector (9800 Rusak / 0 Pending) pada Harddisk NVR (hdd1)!",
+          "terminal_note": "PERINGATAN: Terdeteksi 9800 Bad Sector (9800 Rusak / 0 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 89.7% (Sisa: 615 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 89.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 89.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-de757ea5",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM BANDUNG WARUNG NASI AMPERA",
+    "site_name": "CRM BANDUNG WARUNG NASI AMPERA",
+    "timestamp": 1793557398837,
+    "datetime_utc7": "2026-11-02 01:23:18 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.48.2:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.48.1",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM BANDUNG WARUNG NASI AMPERA",
+      "site_name": "CRM BANDUNG WARUNG NASI AMPERA",
+      "device_code": "PQD01536",
+      "merchant_id": "80000254",
+      "cluster_id": "00059092",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "-6.963354249387895, 107.57677537809525",
+      "latitude": -6.963354249387895,
+      "longitude": 107.57677537809525,
+      "operating_hours": "01:00:00 - 05:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "00000000de757ea5",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "44d 15h 20m",
+      "cpu": {
+        "usage_percent": 47.4,
+        "cores": 4,
+        "load_avg": [
+          0.81,
+          1.05,
+          1.07
+        ],
+        "temperature_c": 65.5,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 363.6,
+        "free_mb": 602.3,
+        "usage_percent": 37.6,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 104.5,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.28",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.48.1",
+          "ppp0": "10.155.31.157"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "ID: 0x00009f",
+        "model": "SDU1",
+        "serial": "0x14a11ca8",
+        "manufacture_date": "12/2010",
+        "total_disk_gb": 14.84,
+        "cid_register": "9f544953445531201014a11ca800acf5"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "558 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504304128,
+          "free_bytes": 585601024,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159498,
+          "inode_free": 93942,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261446656,
+          "free_bytes": 742270976,
+          "used_percent": 26.0,
+          "inode_total": 254000,
+          "inode_used": 13445,
+          "inode_free": 240555,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 7.49,
+          "used_gb": 0.04,
+          "free_gb": 7.45,
+          "total_human": "7.49 GB",
+          "used_human": "38 MB",
+          "free_human": "7.45 GB",
+          "total_bytes": 8037314560,
+          "used_bytes": 39927808,
+          "free_bytes": 7997386752,
+          "used_percent": 0.5,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 488.7,
+        "write_mb": 3754.4,
+        "read_human": "488.7 MB",
+        "write_human": "3.67 GB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 0,
+          "role": "DM / Diagnostic Port",
+          "exists": false
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 1,
+          "role": "GPS / NMEA Port",
+          "exists": false
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 7545)",
+          "pppd (PID 31567)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.155.31.157",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019151856525",
+      "msisdn": "N/A",
+      "imsi": "510101915185652",
+      "imei": "868089056063914",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 25.6 GB",
+        "quota_main_gb": 25.6,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:23:19 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 19,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Good"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.155.31.157",
+        "ping_ms": 35.676,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 19 B/s | TX: 231 B/s",
+        "rx_human": "36.87 MB",
+        "tx_human": "107.30 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:20:2b:f0",
+      "ip_address": "10.155.31.157",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.48.2:80",
+      "status": "WARNING",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 100,
+            "health_label": "Baik (Kondisi Sangat Sehat)",
+            "health_badge": "OK",
+            "temperature_c": 43,
+            "power_on_days": 1572,
+            "power_on_hours": 37738,
+            "power_cycles": 35,
+            "bad_sectors": 0,
+            "reallocated_sectors": 0,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 100,
+          "health_label": "Baik (Kondisi Sangat Sehat)",
+          "health_badge": "OK",
+          "temperature_c": 43,
+          "power_on_days": 1572,
+          "power_on_hours": 37738,
+          "power_cycles": 35,
+          "bad_sectors": 0,
+          "reallocated_sectors": 0,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.48.2:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420220304CCWRJ59349251WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000254 RM AMPERA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000254 RM AMPERA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 3,
+        "latest_record_time": "00:00:00 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": {
+      "total": 5,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 558 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 558 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-3dc25578",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM BOGOR STASIUN KERETA API",
+    "site_name": "CRM BOGOR STASIUN KERETA API",
+    "timestamp": 1793371411367,
+    "datetime_utc7": "2026-10-30 21:43:31 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.48.242:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "IND TELKOMSEL",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.48.241",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM BOGOR STASIUN KERETA API",
+      "site_name": "CRM BOGOR STASIUN KERETA API",
+      "device_code": "PQD01566",
+      "merchant_id": "80000500",
+      "cluster_id": "00060374",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "-6.595431, 106.790023",
+      "latitude": -6.595431,
+      "longitude": 106.790023,
+      "operating_hours": "01:00:00 - 05:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "000000003dc25578",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "1d 15h 56m",
+      "cpu": {
+        "usage_percent": 25.0,
+        "cores": 4,
+        "load_avg": [
+          1.45,
+          1.16,
+          1.11
+        ],
+        "temperature_c": 46.2,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 431.9,
+        "free_mb": 534.0,
+        "usage_percent": 44.7,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 28.8,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.58",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.48.241",
+          "ppp0": "10.127.101.60"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SB16G",
+        "serial": "0x486f0bb7",
+        "manufacture_date": "10/2024",
+        "total_disk_gb": 14.84,
+        "cid_register": "035344534231364780486f0bb7018a87"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "559 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504242688,
+          "free_bytes": 585662464,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159492,
+          "inode_free": 93948,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.69,
+          "total_human": "957 MB",
+          "used_human": "249 MB",
+          "free_human": "708 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 261470208,
+          "free_bytes": 742247424,
+          "used_percent": 26.1,
+          "inode_total": 254000,
+          "inode_used": 13445,
+          "inode_free": 240555,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 8.99,
+          "used_gb": 0.07,
+          "free_gb": 8.93,
+          "total_human": "8.99 GB",
+          "used_human": "67 MB",
+          "free_human": "8.93 GB",
+          "total_bytes": 9654214656,
+          "used_bytes": 69910528,
+          "free_bytes": 9584304128,
+          "used_percent": 0.7,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 446.0,
+        "write_mb": 38.7,
+        "read_human": "446.0 MB",
+        "write_human": "38.7 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 2211)",
+          "pppd (PID 6765)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.127.101.60",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "IND TELKOMSEL",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019151856442",
+      "msisdn": "N/A",
+      "imsi": "510101915185644",
+      "imei": "868089051843757",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 31.6 GB",
+        "quota_main_gb": 31.6,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:22 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 25,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.127.101.60",
+        "ping_ms": 58.281,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 22 B/s | TX: 231 B/s",
+        "rx_human": "6.47 MB",
+        "tx_human": "28.91 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:97:00:2d",
+      "ip_address": "10.127.101.60",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.48.242:80",
+      "status": "WARNING",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 0.0,
+      "total_used_gb": 3726.02,
+      "total_free_percent": 0.0,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "WARNING",
+          "capacity_gb": 3726.02,
+          "free_gb": 0.0,
+          "used_gb": 3726.02,
+          "used_percent": 100.0,
+          "free_percent": 0.0,
+          "health_info": {
+            "health_percent": 100,
+            "health_label": "Baik (Kondisi Sangat Sehat)",
+            "health_badge": "OK",
+            "temperature_c": 47,
+            "power_on_days": 1506,
+            "power_on_hours": 36149,
+            "power_cycles": 66,
+            "bad_sectors": 0,
+            "reallocated_sectors": 0,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 100,
+          "health_label": "Baik (Kondisi Sangat Sehat)",
+          "health_badge": "OK",
+          "temperature_c": 47,
+          "power_on_days": 1506,
+          "power_on_hours": 36149,
+          "power_cycles": 66,
+          "bad_sectors": 0,
+          "reallocated_sectors": 0,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.48.242:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420220304CCWRJ59349249WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000500 BOGOR STATSIUN KA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000500 BOGOR STATSIUN KA",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 7,
+        "latest_record_time": "21:43:29 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": {
+      "total": 5,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 0.0%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-2832f9e1",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "CRM BALI MARSA GALLERY UBUD",
+    "site_name": "CRM BALI MARSA GALLERY UBUD",
+    "timestamp": 1793557406307,
+    "datetime_utc7": "2026-11-02 01:23:26 (UTC+7 / WIB)",
+    "overall_status": "WARNING",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.50.250:80",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel LTE Cellular Module (Smart/EC200)",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "172.16.50.249",
+        "message": "Kabel LAN terhubung aktif ke switch/NVR"
+      }
+    },
+    "site_info": {
+      "location_name": "CRM BALI MARSA GALLERY UBUD",
+      "site_name": "CRM BALI MARSA GALLERY UBUD",
+      "device_code": "PQD01631",
+      "merchant_id": "80000513",
+      "cluster_id": "00060456",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": "8.5064, 115.2612",
+      "latitude": 8.5064,
+      "longitude": 115.2612,
+      "operating_hours": "01:00:00 - 05:00:00",
+      "source": "ProtectQube Cloud API (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "000000002832f9e1",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "9d 7h 31m",
+      "cpu": {
+        "usage_percent": 0.0,
+        "cores": 4,
+        "load_avg": [
+          0.71,
+          0.9,
+          0.97
+        ],
+        "temperature_c": 42.9,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 966.0,
+        "used_mb": 416.5,
+        "free_mb": 549.4,
+        "usage_percent": 43.1,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 114.5,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.36.123",
+          "wlan0": "192.168.0.1",
+          "eth0": "172.16.50.249",
+          "ppp0": "10.79.73.201"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SB16G",
+        "serial": "0x487f0bb9",
+        "manufacture_date": "10/2024",
+        "total_disk_gb": 14.84,
+        "cid_register": "035344534231364780487f0bb9018a29"
+      },
+      "health_percent": 94,
+      "health_label": "Baik (Kapasitas Root Waspada 85.7%)",
+      "health_badge": "WARN",
+      "health_deductions": [
+        "Kapasitas Root Waspada 85.7% (-6%)"
+      ],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 3.81,
+          "used_gb": 3.26,
+          "free_gb": 0.55,
+          "total_human": "3.81 GB",
+          "used_human": "3.26 GB",
+          "free_human": "559 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3504259072,
+          "free_bytes": 585646080,
+          "used_percent": 85.7,
+          "inode_total": 253440,
+          "inode_used": 159497,
+          "inode_free": 93943,
+          "inode_percent": 62.9,
+          "status": "WARN"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27783680,
+          "free_bytes": 17497600,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "rw",
+          "total_gb": 0.93,
+          "used_gb": 0.23,
+          "free_gb": 0.7,
+          "total_human": "957 MB",
+          "used_human": "240 MB",
+          "free_human": "717 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 252068864,
+          "free_bytes": 751648768,
+          "used_percent": 25.1,
+          "inode_total": 254000,
+          "inode_used": 13445,
+          "inode_free": 240555,
+          "inode_percent": 5.3,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 8.99,
+          "used_gb": 0.06,
+          "free_gb": 8.93,
+          "total_human": "8.99 GB",
+          "used_human": "61 MB",
+          "free_human": "8.93 GB",
+          "total_bytes": 9654214656,
+          "used_bytes": 64167936,
+          "free_bytes": 9590046720,
+          "used_percent": 0.7,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 478.3,
+        "write_mb": 900.3,
+        "read_human": "478.3 MB",
+        "write_human": "900.3 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel LTE Cellular Module (Smart/EC200)",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "0901",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "N/A",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB3",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB4",
+          "interface": 5,
+          "role": "Interface 5",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB5",
+          "interface": 6,
+          "role": "Interface 6",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB6",
+          "interface": 7,
+          "role": "Interface 7",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB7",
+          "interface": 8,
+          "role": "Interface 8",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 3053)",
+          "pppd (PID 32398)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.79.73.201",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019151856327",
+      "msisdn": "N/A",
+      "imsi": "510101915185632",
+      "imei": "864714060789683",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 20.1 GB",
+        "quota_main_gb": 20.1,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:23:27 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 25,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.79.73.201",
+        "ping_ms": 48.346,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 22 B/s | TX: 255 B/s",
+        "rx_human": "33.39 MB",
+        "tx_human": "114.99 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:67:ac:b4",
+      "ip_address": "10.79.73.201",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": true,
+      "nvr_endpoint": "172.16.50.250:80",
+      "status": "HEALTHY",
+      "total_capacity_gb": 3726.02,
+      "total_free_gb": 2111.0,
+      "total_used_gb": 1615.02,
+      "total_free_percent": 56.7,
+      "disks": [
+        {
+          "id": "1",
+          "name": "hdd1",
+          "type": "SATA",
+          "property": "RW",
+          "status_raw": "ok",
+          "health": "HEALTHY",
+          "capacity_gb": 3726.02,
+          "free_gb": 2111.0,
+          "used_gb": 1615.02,
+          "used_percent": 43.3,
+          "free_percent": 56.7,
+          "health_info": {
+            "health_percent": 100,
+            "health_label": "Baik (Kondisi Sangat Sehat)",
+            "health_badge": "OK",
+            "temperature_c": 35,
+            "power_on_days": 484,
+            "power_on_hours": 11618,
+            "power_cycles": 28,
+            "bad_sectors": 0,
+            "reallocated_sectors": 0,
+            "pending_sectors": 0,
+            "uncorrectable_sectors": 0,
+            "crc_errors": 0,
+            "read_errors": 0
+          },
+          "health_percent": 100,
+          "health_label": "Baik (Kondisi Sangat Sehat)",
+          "health_badge": "OK",
+          "temperature_c": 35,
+          "power_on_days": 484,
+          "power_on_hours": 11618,
+          "power_cycles": 28,
+          "bad_sectors": 0,
+          "reallocated_sectors": 0,
+          "pending_sectors": 0,
+          "uncorrectable_sectors": 0,
+          "crc_errors": 0
+        }
+      ],
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_message": "Terhubung normal dari NVR (172.16.50.250:80) ke CPU Gateway",
+      "device_info": {
+        "model": "DS-7204HUHI-K2",
+        "serial": "DS-7204HUHI-K20420220809CCWRK41831587WCVLU",
+        "firmware": "V4.20.000",
+        "device_type": "IPC"
+      },
+      "cameras": {
+        "total_cameras": 4,
+        "online_count": 2,
+        "offline_count": 2,
+        "online_cameras": [
+          "Ch 1 (1080P)",
+          "Ch 2 (1080P)"
+        ],
+        "offline_cameras": [
+          "Ch 3",
+          "Ch 4"
+        ],
+        "badge": "WARN",
+        "summary": "2 ON CAM (Ch 1 (1080P), Ch 2 (1080P)) | 2 NO VIDEO",
+        "camera_list": [
+          {
+            "id": "1",
+            "name": "80000513 MARSA GALLERY",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "2",
+            "name": "80000513 MARSA GALLERY",
+            "is_online": true,
+            "resolution_raw": "1080P25",
+            "resolution": "1080P",
+            "enabled": true
+          },
+          {
+            "id": "3",
+            "name": "Camera 03",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          },
+          {
+            "id": "4",
+            "name": "Camera 04",
+            "is_online": false,
+            "resolution_raw": "NO VIDEO",
+            "resolution": "NO VIDEO",
+            "enabled": false
+          }
+        ]
+      },
+      "recording": {
+        "is_recording": true,
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
+        "badge": "OK",
+        "mode": "Kontinu (24/7 CMR)",
+        "active_channels": [
+          "Ch 1",
+          "Ch 2",
+          "Ch 3",
+          "Ch 4"
+        ],
+        "channel_count": 4,
+        "today_segments_count": 6,
+        "latest_record_time": "00:00:00 WIB"
+      },
+      "auto_discovered": true,
+      "discovery_source": "Database amsys.db (/media/amsys.db)"
+    },
+    "active_alerts": {
+      "total": 4,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        }
+      ],
+      "modem": [],
+      "storage": [
+        {
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB)."
+        },
+        {
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #3",
+          "message": "Kamera #3 (Camera 03) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #3 (Camera 03): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_CAMERA_OFFLINE",
+          "severity": "WARNING",
+          "component": "Kamera #4",
+          "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
+          "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_PARTITION_HIGH",
+          "severity": "WARNING",
+          "component": "Partisi /",
+          "message": "Kapasitas partisi '/' mencapai 85.7% (Sisa: 559 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 85.7%. Segera bersihkan file sementara atau log."
+        },
+        {
+          "category": "storage",
+          "category_label": "Storage Flash Gateway",
+          "code": "WARN_STORAGE_HEALTH_DEGRADED",
+          "severity": "WARNING",
+          "component": "Kesehatan Flash",
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 85.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 85.7%))."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-43618515",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "Site PQB00164",
+    "site_name": "Site PQB00164",
+    "timestamp": 1793369946166,
+    "datetime_utc7": "2026-10-30 21:19:06 (UTC+7 / WIB)",
+    "overall_status": "HEALTHY",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.57.106:80",
+        "message": "FAIL: Gagal konek dari perangkat NVR ke CPU Gateway (Koneksi ditolak / Host NVR tidak terjangkau (172.16.57.106:80))"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "INDOSATOOREDOO",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "eth0",
+        "message": "FAIL: Gagal konek kabel LAN eth0 ke CPU Gateway (Kabel terputus / NO-CARRIER)"
+      }
+    },
+    "site_info": {
+      "location_name": "Site PQB00164",
+      "site_name": "Site PQB00164",
+      "device_code": "PQB00164",
+      "merchant_id": "",
+      "cluster_id": "N/A",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": null,
+      "latitude": null,
+      "longitude": null,
+      "operating_hours": null,
+      "source": "Offline amsys.db (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "0000000043618515",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "23h 59m",
+      "cpu": {
+        "usage_percent": 5.0,
+        "cores": 4,
+        "load_avg": [
+          0.06,
+          0.12,
+          0.09
+        ],
+        "temperature_c": 53.2,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 870.8,
+        "used_mb": 278.1,
+        "free_mb": 592.7,
+        "usage_percent": 31.9,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 141.6,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.0.32",
+          "ppp0": "10.15.125.169"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "ID: 0x00009f",
+        "model": "SDU1",
+        "serial": "0x14a11bf3",
+        "manufacture_date": "01/2021",
+        "total_disk_gb": 14.84,
+        "cid_register": "9f544953445531201014a11bf3015167"
+      },
+      "health_percent": 100,
+      "health_label": "Sangat Sehat (Kondisi Prima)",
+      "health_badge": "OK",
+      "health_deductions": [],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 2.89,
+          "free_gb": 0.92,
+          "total_human": "3.81 GB",
+          "used_human": "2.89 GB",
+          "free_human": "940 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3103895552,
+          "free_bytes": 986009600,
+          "used_percent": 75.9,
+          "inode_total": 253440,
+          "inode_used": 103011,
+          "inode_free": 150429,
+          "inode_percent": 40.6,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27782144,
+          "free_bytes": 17499136,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.7,
+          "total_human": "957 MB",
+          "used_human": "245 MB",
+          "free_human": "712 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 257266688,
+          "free_bytes": 746450944,
+          "used_percent": 25.6,
+          "inode_total": 254000,
+          "inode_used": 14368,
+          "inode_free": 239632,
+          "inode_percent": 5.7,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 0.49,
+          "used_gb": 0.01,
+          "free_gb": 0.48,
+          "total_human": "498 MB",
+          "used_human": "9.1 MB",
+          "free_human": "489 MB",
+          "total_bytes": 522221568,
+          "used_bytes": 9541632,
+          "free_bytes": 512679936,
+          "used_percent": 1.8,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 452.6,
+        "write_mb": 5.9,
+        "read_human": "452.6 MB",
+        "write_human": "5.9 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB0",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 616)",
+          "pppd (PID 1230)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.15.125.169",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "INDOSATOOREDOO",
+      "network_mode": "4G LTE",
+      "iccid": "89620100001974489961",
+      "msisdn": "N/A",
+      "imsi": "510011019901406",
+      "imei": "868089051642209",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 16.7 GB",
+        "quota_main_gb": 16.7,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:22 WIB",
+        "source": "SMS Balasan 999"
+      },
+      "signal": {
+        "csq": 20,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Excellent"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.15.125.169",
+        "ping_ms": 43.73,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 241 B/s | TX: 215 B/s",
+        "rx_human": "8.70 MB",
+        "tx_human": "5.49 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:34:d0:40",
+      "ip_address": "10.15.125.169",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": false,
+      "connection_status": "FAIL",
+      "connection_to_gateway": "FAIL",
+      "connection_message": "Gagal konek dari perangkat NVR (172.16.57.106:80) ke CPU Gateway (Koneksi ditolak / Host NVR tidak terjangkau (172.16.57.106:80))",
+      "nvr_endpoint": "172.16.57.106:80",
+      "status": "FAIL",
+      "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+      "error_message": "Koneksi ditolak / Host NVR tidak terjangkau (172.16.57.106:80)",
+      "total_capacity_gb": 0.0,
+      "total_free_gb": 0.0,
+      "total_used_gb": 0.0,
+      "total_free_percent": 0.0,
+      "disks": [],
+      "recording": {
+        "is_recording": false,
+        "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+        "badge": "FAIL"
+      },
+      "device_info": {
+        "model": "Hikvision/HiLook NVR",
+        "serial": "N/A",
+        "firmware": "N/A",
+        "device_type": "NVR"
+      }
+    },
+    "active_alerts": {
+      "total": 1,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80)."
+        }
+      ],
+      "modem": [],
+      "storage": [],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80).",
+          "terminal_note": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80). Pastikan kabel LAN dan daya NVR tersambung."
+        }
+      ]
+    }
+  },
+  {
+    "device_id": "gw-f580ec12",
+    "variant": "hitam",
+    "flag": "hitam",
+    "pqube_variant": "hitam",
+    "pqube_flag": "hitam",
+    "pqube_type": "hitam",
+    "hardware_type": "raspberry_pi",
+    "location_name": "Site PQB00618",
+    "site_name": "Site PQB00618",
+    "timestamp": 1793361656166,
+    "datetime_utc7": "2026-10-30 19:00:56 (UTC+7 / WIB)",
+    "overall_status": "HEALTHY",
+    "hardware_connections": {
+      "nvr_surveillance": {
+        "name": "NVR / DVR Surveillance",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "Ethernet LAN (Port 80/ISAPI)",
+        "target_endpoint": "172.16.57.106:80",
+        "message": "FAIL: Gagal konek dari perangkat NVR ke CPU Gateway (HTTPConnectionPool(host='172.16.57.106', port=80): Read timed out. (read timeout=3.0))"
+      },
+      "modem_usb": {
+        "name": "Quectel 4G LTE Modem",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "USB Serial Bus (/dev/ttyUSB)",
+        "target_endpoint": "Quectel Android",
+        "message": "Terhubung normal ke CPU Gateway"
+      },
+      "cellular_sim": {
+        "name": "SIM Card Seluler",
+        "status": "CONNECTED",
+        "connected": true,
+        "link_type": "SIM Tray Hardware",
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem"
+      },
+      "ethernet_lan": {
+        "name": "Kabel LAN Ethernet (eth0)",
+        "status": "FAIL",
+        "connected": false,
+        "link_type": "RJ45 Physical Cable",
+        "target_endpoint": "eth0",
+        "message": "FAIL: Gagal konek kabel LAN eth0 ke CPU Gateway (Kabel terputus / NO-CARRIER)"
+      }
+    },
+    "site_info": {
+      "location_name": "Site PQB00618",
+      "site_name": "Site PQB00618",
+      "device_code": "PQB00618",
+      "merchant_id": "",
+      "cluster_id": "N/A",
+      "variant": "hitam",
+      "flag": "hitam",
+      "coordinates": null,
+      "latitude": null,
+      "longitude": null,
+      "operating_hours": null,
+      "source": "Offline amsys.db (/media/amsys.db)"
+    },
+    "gateway_system": {
+      "variant": "hitam",
+      "flag": "hitam",
+      "hardware": {
+        "type": "Raspberry Pi Gateway",
+        "model": "Raspberry Pi 3 Model B Rev 1.2 (BCM2835)",
+        "serial": "00000000f580ec12",
+        "hostname": "protectqube",
+        "platform": "linux",
+        "variant": "hitam",
+        "flag": "hitam",
+        "pqube_flag": "hitam",
+        "pqube_variant": "hitam",
+        "label": "HITAM (Raspberry Pi)"
+      },
+      "uptime": "2h 17m",
+      "cpu": {
+        "usage_percent": 0.0,
+        "cores": 4,
+        "load_avg": [
+          0.18,
+          0.29,
+          0.18
+        ],
+        "temperature_c": 63.4,
+        "status": "GOOD"
+      },
+      "memory": {
+        "total_mb": 870.8,
+        "used_mb": 267.1,
+        "free_mb": 603.7,
+        "usage_percent": 30.7,
+        "status": "GOOD"
+      },
+      "network_gateway": {
+        "internet": "ONLINE",
+        "latency_ms": 75.9,
+        "tailscale_ip": "N/A",
+        "interfaces": {
+          "ppp1": "10.1.0.31",
+          "wlan0": "192.168.0.1",
+          "ppp0": "10.126.52.2"
+        }
+      }
+    },
+    "flash_storage": {
+      "hardware": {
+        "type": "MicroSD Card",
+        "vendor": "SanDisk",
+        "model": "SC16G",
+        "serial": "0x56fc3186",
+        "manufacture_date": "04/2024",
+        "total_disk_gb": 14.84,
+        "cid_register": "03534453433136478056fc3186018415"
+      },
+      "health_percent": 100,
+      "health_label": "Sangat Sehat (Kondisi Prima)",
+      "health_badge": "OK",
+      "health_deductions": [],
+      "hw_write_lock": "Normal (Writable)",
+      "bad_sectors": {
+        "has_bad_sectors": false,
+        "error_count": 0,
+        "status_text": "Clean (0 Bad Blocks / 0 I/O Error)",
+        "badge": "OK",
+        "recent_errors": []
+      },
+      "fs_state": {
+        "state": "clean",
+        "is_clean": true,
+        "status": "GOOD"
+      },
+      "partitions": [
+        {
+          "mount_point": "/",
+          "device": "/dev/root",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 3.81,
+          "used_gb": 2.89,
+          "free_gb": 0.92,
+          "total_human": "3.81 GB",
+          "used_human": "2.89 GB",
+          "free_human": "940 MB",
+          "total_bytes": 4089905152,
+          "used_bytes": 3103891456,
+          "free_bytes": 986013696,
+          "used_percent": 75.9,
+          "inode_total": 253440,
+          "inode_used": 103010,
+          "inode_free": 150430,
+          "inode_percent": 40.6,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/boot",
+          "device": "/dev/mmcblk0p1",
+          "fs_type": "vfat",
+          "mode": "ro",
+          "total_gb": 0.04,
+          "used_gb": 0.03,
+          "free_gb": 0.02,
+          "total_human": "43 MB",
+          "used_human": "26 MB",
+          "free_human": "17 MB",
+          "total_bytes": 45281280,
+          "used_bytes": 27782144,
+          "free_bytes": 17499136,
+          "used_percent": 61.4,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/home",
+          "device": "/dev/mmcblk0p3",
+          "fs_type": "ext4",
+          "mode": "ro",
+          "total_gb": 0.93,
+          "used_gb": 0.24,
+          "free_gb": 0.7,
+          "total_human": "957 MB",
+          "used_human": "245 MB",
+          "free_human": "712 MB",
+          "total_bytes": 1003717632,
+          "used_bytes": 257221632,
+          "free_bytes": 746496000,
+          "used_percent": 25.6,
+          "inode_total": 254000,
+          "inode_used": 14348,
+          "inode_free": 239652,
+          "inode_percent": 5.6,
+          "status": "GOOD"
+        },
+        {
+          "mount_point": "/media",
+          "device": "/dev/mmcblk0p4",
+          "fs_type": "vfat",
+          "mode": "rw",
+          "total_gb": 0.49,
+          "used_gb": 0.01,
+          "free_gb": 0.48,
+          "total_human": "498 MB",
+          "used_human": "11 MB",
+          "free_human": "487 MB",
+          "total_bytes": 522221568,
+          "used_bytes": 11194368,
+          "free_bytes": 511027200,
+          "used_percent": 2.1,
+          "inode_total": 0,
+          "inode_used": 0,
+          "inode_free": 0,
+          "inode_percent": 0.0,
+          "status": "GOOD"
+        }
+      ],
+      "io_stats": {
+        "read_mb": 271.4,
+        "write_mb": 2.1,
+        "read_human": "271.4 MB",
+        "write_human": "2.1 MB"
+      }
+    },
+    "modem_usb": {
+      "connected": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "vendor": "Quectel Wireless Solutions",
+      "model": "Quectel Android",
+      "firmware_revision": "N/A",
+      "imei": "N/A",
+      "usb_hardware": {
+        "vendor_id": "2c7c",
+        "product_id": "6002",
+        "usb_bus": "1-1.4",
+        "usb_speed": "480 Mbps (High-Speed USB)",
+        "serial_number": "0000",
+        "driver": "cdc_ether, option"
+      },
+      "serial_ports": [
+        {
+          "port": "/dev/ttyUSB0",
+          "interface": 2,
+          "role": "AT Command Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB1",
+          "interface": 3,
+          "role": "PPP / Modem Data Port",
+          "exists": true
+        },
+        {
+          "port": "/dev/ttyUSB2",
+          "interface": 4,
+          "role": "Audio / Voice Port",
+          "exists": true
+        }
+      ],
+      "service_status": {
+        "active_daemons": [
+          "pppd (PID 618)",
+          "pppd (PID 735)"
+        ],
+        "is_daemon_running": true,
+        "cellular_interface": "ppp0",
+        "cellular_ip": "10.126.52.2",
+        "link_up": true
+      }
+    },
+    "cellular_sim": {
+      "sim_inserted": true,
+      "connection_status": "CONNECTED",
+      "connection_to_gateway": "CONNECTED",
+      "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
+      "operator": "Telkomsel",
+      "network_mode": "4G LTE",
+      "iccid": "8962100019152362507",
+      "msisdn": "N/A",
+      "imsi": "510101915236250",
+      "imei": "868089051791907",
+      "sms_quota_history": {
+        "available": true,
+        "quota_info": "Kuota Internet 27.7 GB",
+        "quota_main_gb": 27.7,
+        "quota_expiry": "31-10-2026 pkl 23:59",
+        "last_updated": "02-11-2026 01:17:22 WIB",
+        "source": "SMS Balasan 3636"
+      },
+      "signal": {
+        "csq": 19,
+        "rssi_dbm": null,
+        "quality_percent": 0.0,
+        "status": "Good"
+      },
+      "data_traffic": {
+        "interface": "ppp0",
+        "cellular_ip": "10.126.52.2",
+        "ping_ms": 54.051,
+        "packet_loss_pct": 0.0,
+        "throughput": "RX: 446 B/s | TX: 471 B/s",
+        "rx_human": "2.49 MB",
+        "tx_human": "1.09 MB"
+      }
+    },
+    "wifi": {
+      "connected": false,
+      "status": "DISCONNECTED",
+      "interface": "wlan0",
+      "ssid": "N/A",
+      "bssid": "N/A",
+      "mac_address": "b8:27:eb:d5:b9:47",
+      "ip_address": "10.126.52.2",
+      "signal_pct": 0.0,
+      "signal_dbm": null,
+      "signal_label": "No Signal",
+      "channel": "N/A",
+      "frequency": "N/A",
+      "radio_type": "N/A",
+      "mode": "Station (Disconnected)",
+      "description": "Antarmuka wlan0 aktif, tetapi belum tersambung ke router Wi-Fi."
+    },
+    "nvr_surveillance": {
+      "connected": false,
+      "connection_status": "FAIL",
+      "connection_to_gateway": "FAIL",
+      "connection_message": "Gagal konek dari perangkat NVR (172.16.57.106:80) ke CPU Gateway (HTTPConnectionPool(host='172.16.57.106', port=80): Read timed out. (read timeout=3.0))",
+      "nvr_endpoint": "172.16.57.106:80",
+      "status": "FAIL",
+      "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+      "error_message": "HTTPConnectionPool(host='172.16.57.106', port=80): Read timed out. (read timeout=3.0)",
+      "total_capacity_gb": 0.0,
+      "total_free_gb": 0.0,
+      "total_used_gb": 0.0,
+      "total_free_percent": 0.0,
+      "disks": [],
+      "recording": {
+        "is_recording": false,
+        "status_label": "FAIL (Gagal Konek ke CPU Gateway)",
+        "badge": "FAIL"
+      },
+      "device_info": {
+        "model": "Hikvision/HiLook NVR",
+        "serial": "N/A",
+        "firmware": "N/A",
+        "device_type": "NVR"
+      }
+    },
+    "active_alerts": {
+      "total": 1,
+      "has_critical": false,
+      "has_warning": true,
+      "nvr": [
+        {
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80)."
+        }
+      ],
+      "modem": [],
+      "storage": [],
+      "system": [],
+      "all": [
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "FAIL_NVR_DISCONNECTED",
+          "severity": "HIGH",
+          "component": "NVR Surveillance",
+          "message": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80).",
+          "terminal_note": "Perangkat NVR belum terhubung ke CPU Gateway (172.16.57.106:80). Pastikan kabel LAN dan daya NVR tersambung."
+        }
+      ]
+    }
   }
 ]

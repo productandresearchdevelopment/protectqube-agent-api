@@ -1,5 +1,5 @@
 """
-Standalone seed script for ProtectQube AIOps database.
+Standalone seed script for ProtectQube AIOPS database.
 Usage:
     python seed.py
 """
@@ -32,7 +32,7 @@ def seed():
                 name="Super Admin",
                 alias="super-admin",
                 color="#2563eb",
-                description="Full access to ProtectQube AIOps Gateway and Telemetry",
+                description="Full access to ProtectQube AIOPS Gateway and Telemetry",
             )
             db.add(admin_role)
             print("[+] Seeded Role: Super Admin")

@@ -166,6 +166,7 @@ class HealthReportService:
         self._live_gateways[device_id] = {
             "report_item": report_item,
             "detail": detail,
+            "raw_payload": nms_payload,
         }
 
     def _get_all_rows(self) -> List[Dict[str, Any]]:
@@ -302,13 +303,41 @@ class HealthReportService:
                 detail = dict(data["detail"])
                 if date_range:
                     detail["period"] = date_range
+                    from app.services.sla_calculator_service import sla_calculator_service
+                    sla = sla_calculator_service.calculate_device_sla(gid, live_payload=data.get("raw_payload"), date_range=date_range)
+                    uptime_pct = sla["gateway_sla_pct"]
+                    detail["period_hours"] = sla["period_hours_str"]
+                    detail["uptime_duration"] = sla["gateway_uptime_str"]
+                    detail["uptime_pct"] = f"{uptime_pct}%"
+                    detail["downtime_duration"] = sla["gateway_offline_str"]
+                    detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
+                    detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
+                    detail["cpu_trend"] = sla.get("cpu_trend", [])
+                    detail["ram_trend"] = sla.get("ram_trend", [])
+                    detail["sd_trend"] = sla.get("sd_trend", [])
+                    detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+                    detail["events"] = sla.get("trouble_events", [])
                 return detail
 
         if self._live_gateways:
-            first_data = next(iter(self._live_gateways.values()))
+            first_gid, first_data = next(iter(self._live_gateways.items()))
             detail = dict(first_data["detail"])
             if date_range:
                 detail["period"] = date_range
+                from app.services.sla_calculator_service import sla_calculator_service
+                sla = sla_calculator_service.calculate_device_sla(first_gid, live_payload=first_data.get("raw_payload"), date_range=date_range)
+                uptime_pct = sla["gateway_sla_pct"]
+                detail["period_hours"] = sla["period_hours_str"]
+                detail["uptime_duration"] = sla["gateway_uptime_str"]
+                detail["uptime_pct"] = f"{uptime_pct}%"
+                detail["downtime_duration"] = sla["gateway_offline_str"]
+                detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
+                detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
+                detail["cpu_trend"] = sla.get("cpu_trend", [])
+                detail["ram_trend"] = sla.get("ram_trend", [])
+                detail["sd_trend"] = sla.get("sd_trend", [])
+                detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+                detail["events"] = sla.get("trouble_events", [])
             return detail
 
         return {

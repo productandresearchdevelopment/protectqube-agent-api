@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 from app.core.database import SessionLocal
 from app.models.base_models import GatewayTelemetryHistory
@@ -25,6 +25,29 @@ class SLACalculatorService:
     Computes 100% real Uptime, Downtime, SLA % and Incident Trouble Events
     from PostgreSQL table 'gateway_telemetry_history' combined with kernel uptime.
     """
+
+    @staticmethod
+    def _parse_date_range(date_range_str: Optional[str]) -> Tuple[Optional[datetime], Optional[datetime]]:
+        """Parses '01 Oct 2026 - 31 Oct 2026' or '2026-10-01 - 2026-10-31' into start and end datetimes."""
+        if not date_range_str:
+            return None, None
+        try:
+            parts = [p.strip() for p in date_range_str.split(" - ")]
+            if len(parts) != 2:
+                return None, None
+            start_str, end_str = parts[0], parts[1]
+            start_dt = None
+            end_dt = None
+            for fmt in ["%d %b %Y", "%Y-%m-%d", "%d/%m/%Y", "%d %B %Y"]:
+                try:
+                    start_dt = datetime.strptime(start_str, fmt)
+                    end_dt = datetime.strptime(end_str, fmt).replace(hour=23, minute=59, second=59)
+                    break
+                except ValueError:
+                    continue
+            return start_dt, end_dt
+        except Exception:
+            return None, None
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -81,7 +104,10 @@ class SLACalculatorService:
         device_id: str,
         live_payload: Optional[Dict[str, Any]] = None,
         date_range_str: Optional[str] = None,
+        date_range: Optional[str] = None,
     ) -> Dict[str, Any]:
+        if not date_range_str and date_range:
+            date_range_str = date_range
         """
         Analyzes historical records in database for the given device_id.
         Returns:
@@ -94,8 +120,14 @@ class SLACalculatorService:
         """
         db = SessionLocal()
         rows: List[GatewayTelemetryHistory] = []
+        start_dt, end_dt = self._parse_date_range(date_range_str)
         try:
             query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
+            if start_dt and end_dt:
+                query = query.filter(
+                    GatewayTelemetryHistory.recorded_at >= start_dt,
+                    GatewayTelemetryHistory.recorded_at <= end_dt
+                )
             rows = query.order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
         except Exception as e:
             logger.error(f"Error querying telemetry history for {device_id}: {e}")
@@ -146,6 +178,8 @@ class SLACalculatorService:
                     {"track_name": "Cellular", "segments": [{"status": "online" if sim_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Online" if sim_ok else "No SIM", "period": "Live"}]},
                     {"track_name": "DVR", "segments": [{"status": "online" if nvr_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Connected" if nvr_ok else "Offline", "period": "Live"}]},
                 ],
+                "avg_temp": 42,
+                "avg_rsrp": -85,
                 "cpu_trend": [],
                 "ram_trend": [],
                 "sd_trend": [],
@@ -284,9 +318,20 @@ class SLACalculatorService:
             sd_trend.append({"date": dt_label, "value": int(round(r.disk_used_percent or 50))})
 
         trouble_events.reverse()
-        latest_trouble_events = trouble_events[:10]
-        for idx, ev in enumerate(latest_trouble_events, 1):
+        for idx, ev in enumerate(trouble_events, 1):
             ev["no"] = idx
+
+        valid_temps = [r.temperature_c for r in rows if r.temperature_c is not None]
+        avg_temp_val = int(round(sum(valid_temps) / len(valid_temps))) if valid_temps else 42
+        min_temp_val = round(min(valid_temps), 1) if valid_temps else None
+        max_temp_val = round(max(valid_temps), 1) if valid_temps else None
+
+        valid_csqs = [r.signal_csq for r in rows if r.signal_csq is not None and r.signal_csq > 0]
+        if valid_csqs:
+            avg_csq_val = sum(valid_csqs) / len(valid_csqs)
+            avg_rsrp_val = int(round(-(113 - 2 * avg_csq_val)))
+        else:
+            avg_rsrp_val = -85
 
         return {
             "period_hours_str": f"({round(total_obs_sec / 3600, 1)} jam)",
@@ -300,7 +345,11 @@ class SLACalculatorService:
             "dvr_uptime_str": self._format_duration(dvr_uptime_sec),
             "dvr_offline_str": self._format_duration(dvr_downtime_sec),
             "dvr_sla_pct": dvr_sla,
-            "trouble_events": latest_trouble_events,
+            "avg_temp": avg_temp_val,
+            "min_temp": min_temp_val,
+            "max_temp": max_temp_val,
+            "avg_rsrp": avg_rsrp_val,
+            "trouble_events": trouble_events,
             "timeline_tracks": timeline_tracks,
             "cpu_trend": cpu_trend,
             "ram_trend": ram_trend,

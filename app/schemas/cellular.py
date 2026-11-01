@@ -111,6 +111,9 @@ class SignalStrengthDetail(BaseModel):
     min_rsrp: str
     avg_rsrp: str
     sparkline: List[float]
+    max_time: Optional[str] = None
+    min_time: Optional[str] = None
+    csq: Optional[int] = None
 
 
 class NetworkSIMDetail(BaseModel):
@@ -120,6 +123,9 @@ class NetworkSIMDetail(BaseModel):
     sim_status: str
     imsi: str
     iccid: str
+    phone_number: Optional[str] = None
+    quota_info: Optional[str] = None
+    quota_main_gb: Optional[float] = None
     data_upload: str
     data_download: str
     roaming: str
@@ -132,6 +138,15 @@ class ModemTempDetail(BaseModel):
     min_temp: str
     avg_temp: str
     sparkline: List[float]
+    max_time: Optional[str] = None
+    min_time: Optional[str] = None
+
+
+class CellularEventItem(BaseModel):
+    id: Optional[str] = None
+    title: str
+    time: str
+    status: str = "success"
 
 
 class CellularGatewayDetailData(BaseModel):
@@ -149,6 +164,7 @@ class CellularGatewayDetailData(BaseModel):
     signal_strength: SignalStrengthDetail
     network_sim: NetworkSIMDetail
     modem_temperature: ModemTempDetail
+    events: Optional[List[CellularEventItem]] = None
 
 
 class CellularGatewayDetailResponse(BaseModel):

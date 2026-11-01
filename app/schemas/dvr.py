@@ -123,6 +123,9 @@ class DVRHealthDetail(BaseModel):
     temperature: str
     fan_status: str
     bad_sector: int
+    power_on_hours: Optional[int] = None
+    health_percent: Optional[int] = None
+    health_label: Optional[str] = None
 
 
 class CameraChannelPreview(BaseModel):
@@ -134,6 +137,13 @@ class CameraChannelPreview(BaseModel):
     resolution: str
     bitrate: str
     timestamp: str
+
+
+class DVREventItem(BaseModel):
+    id: Optional[str] = None
+    title: str
+    time: str
+    status: str = "success"
 
 
 class DVRGatewayDetailData(BaseModel):
@@ -150,6 +160,10 @@ class DVRGatewayDetailData(BaseModel):
     recording_storage: RecordingStorageDetail
     dvr_health: DVRHealthDetail
     cameras: List[CameraChannelPreview]
+    firmware: Optional[str] = None
+    serial_number: Optional[str] = None
+    device_type: Optional[str] = None
+    events: Optional[List[DVREventItem]] = None
 
 
 class DVRGatewayDetailResponse(BaseModel):

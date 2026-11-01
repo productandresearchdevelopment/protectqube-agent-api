@@ -441,14 +441,195 @@ class CellularService:
             "pagination": paged_gateways["pagination"],
         }
 
+    def _enrich_detail_with_history(
+        self,
+        base_detail: Dict[str, Any],
+        dev_id: str,
+        raw_payload: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Calculates 100% REAL historical min, max, avg, sparkline, and real event logs from DB."""
+        detail = dict(base_detail)
+        from app.core.database import SessionLocal
+        from app.models.base_models import GatewayTelemetryHistory
+        from datetime import timezone, timedelta
+
+        WIB = timezone(timedelta(hours=7))
+
+        db = SessionLocal()
+        rows: List[GatewayTelemetryHistory] = []
+        try:
+            rows = (
+                db.query(GatewayTelemetryHistory)
+                .filter(GatewayTelemetryHistory.device_id == dev_id)
+                .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                .all()
+            )
+        except Exception as e:
+            logger.error(f"Error querying telemetry history for {dev_id}: {e}")
+        finally:
+            db.close()
+
+        # 1. Real Temperature Min / Max / Avg Calculation
+        temp_records = []
+        for r in rows:
+            if r.temperature_c is not None and r.temperature_c > 0:
+                dt_wib = (
+                    r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                    if r.recorded_at.tzinfo is None
+                    else r.recorded_at.astimezone(WIB)
+                )
+                temp_records.append((dt_wib, round(r.temperature_c, 1)))
+
+        curr_temp = detail.get("modem_temperature", {}).get("temperature", 45)
+        if temp_records:
+            min_t = min(temp_records, key=lambda x: x[1])
+            max_t = max(temp_records, key=lambda x: x[1])
+            avg_t = round(sum(t[1] for t in temp_records) / len(temp_records), 1)
+
+            step = max(1, len(temp_records) // 12)
+            spark_t = [t[1] for t in temp_records[::step]]
+            if temp_records[-1][1] != spark_t[-1]:
+                spark_t.append(temp_records[-1][1])
+
+            detail["modem_temperature"] = {
+                "temperature": curr_temp,
+                "unit": "°C",
+                "max_temp": f"{max_t[1]}°C",
+                "min_temp": f"{min_t[1]}°C",
+                "avg_temp": f"{avg_t}°C",
+                "max_time": f"Puncak Jam {max_t[0].strftime('%H:%M')}",
+                "min_time": f"Terendah Jam {min_t[0].strftime('%H:%M')}",
+                "sparkline": spark_t,
+            }
+        else:
+            detail["modem_temperature"] = {
+                "temperature": curr_temp,
+                "unit": "°C",
+                "max_temp": f"{curr_temp}°C",
+                "min_temp": f"{curr_temp}°C",
+                "avg_temp": f"{curr_temp}°C",
+                "max_time": "Data saat ini",
+                "min_time": "Data saat ini",
+                "sparkline": [curr_temp],
+            }
+
+        # 2. Real RSRP / Signal Strength Calculation
+        rsrp_records = []
+        for r in rows:
+            if r.signal_rsrp is not None and -140 <= r.signal_rsrp <= -40:
+                dt_wib = (
+                    r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                    if r.recorded_at.tzinfo is None
+                    else r.recorded_at.astimezone(WIB)
+                )
+                rsrp_records.append((dt_wib, r.signal_rsrp))
+
+        curr_rsrp = detail.get("signal_strength", {}).get("rsrp", -85)
+        latest_csq = None
+        for r in reversed(rows):
+            if r.signal_csq is not None:
+                latest_csq = r.signal_csq
+                break
+        if latest_csq is None and raw_payload:
+            latest_csq = raw_payload.get("cellular_sim", {}).get("signal_csq")
+
+        if rsrp_records:
+            worst_r = min(rsrp_records, key=lambda x: x[1])
+            best_r = max(rsrp_records, key=lambda x: x[1])
+            avg_r = round(sum(t[1] for t in rsrp_records) / len(rsrp_records))
+
+            step_r = max(1, len(rsrp_records) // 12)
+            spark_r = [float(t[1]) for t in rsrp_records[::step_r]]
+            if rsrp_records[-1][1] != spark_r[-1]:
+                spark_r.append(float(rsrp_records[-1][1]))
+
+            detail["signal_strength"] = {
+                "rsrp": curr_rsrp,
+                "unit": "dBm",
+                "max_rsrp": f"{best_r[1]} dBm",
+                "min_rsrp": f"{worst_r[1]} dBm",
+                "avg_rsrp": f"{avg_r} dBm",
+                "max_time": f"Terbaik Jam {best_r[0].strftime('%H:%M')}",
+                "min_time": f"Terendah Jam {worst_r[0].strftime('%H:%M')}",
+                "csq": latest_csq,
+                "sparkline": spark_r,
+            }
+        else:
+            detail["signal_strength"] = {
+                "rsrp": curr_rsrp,
+                "unit": "dBm",
+                "max_rsrp": f"{curr_rsrp} dBm",
+                "min_rsrp": f"{curr_rsrp} dBm",
+                "avg_rsrp": f"{curr_rsrp} dBm",
+                "max_time": "Data saat ini",
+                "min_time": "Data saat ini",
+                "csq": latest_csq,
+                "sparkline": [float(curr_rsrp)],
+            }
+
+        # 3. Real SIM Quota & Traffic Info
+        if raw_payload:
+            sim = raw_payload.get("cellular_sim", {})
+            quota_hist = sim.get("sms_quota_history", {})
+            quota_main_gb = quota_hist.get("quota_main_gb")
+            quota_info = quota_hist.get("quota_info")
+            phone = sim.get("msisdn") or sim.get("phone_number")
+            if "network_sim" not in detail:
+                detail["network_sim"] = {}
+            if quota_main_gb is not None:
+                detail["network_sim"]["quota_main_gb"] = quota_main_gb
+            if quota_info:
+                detail["network_sim"]["quota_info"] = quota_info
+            if phone:
+                detail["network_sim"]["phone_number"] = phone
+
+        # 4. Real Event Log from History
+        real_events = []
+        for idx, r in enumerate(reversed(rows[-15:]), start=1):
+            dt_wib = (
+                r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if r.recorded_at.tzinfo is None
+                else r.recorded_at.astimezone(WIB)
+            )
+            time_str = dt_wib.strftime("%d %b %Y, %H:%M:%S WIB")
+
+            if r.signal_rsrp is not None:
+                csq_txt = f" (CSQ {r.signal_csq})" if r.signal_csq else ""
+                real_events.append({
+                    "id": f"evt-{idx}-sig",
+                    "title": f"Pemeriksaan berkala sinyal: RSRP {r.signal_rsrp} dBm{csq_txt}",
+                    "time": time_str,
+                    "status": "success" if r.signal_rsrp > -85 else ("warning" if r.signal_rsrp > -100 else "error"),
+                })
+            if r.temperature_c is not None:
+                real_events.append({
+                    "id": f"evt-{idx}-temp",
+                    "title": f"Monitoring temperatur termal modem/CPU: {round(r.temperature_c, 1)}°C",
+                    "time": time_str,
+                    "status": "warning" if r.temperature_c >= 75 else "info",
+                })
+            if r.cellular_ip:
+                real_events.append({
+                    "id": f"evt-{idx}-ip",
+                    "title": f"Alokasi IP interface seluler: {r.cellular_ip} ({r.operator or 'Aktif'})",
+                    "time": time_str,
+                    "status": "success",
+                })
+            if len(real_events) >= 8:
+                break
+
+        detail["events"] = real_events
+        return detail
+
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:
         """Detailed telemetry for a specific gateway cellular connectivity"""
         for dev_id, data in self._live_gateways.items():
             if dev_id.lower() == gateway_id.lower():
-                return data["detail"]
+                return self._enrich_detail_with_history(data["detail"], dev_id, data.get("raw"))
 
         if self._live_gateways:
-            return next(iter(self._live_gateways.values()))["detail"]
+            first_dev_id, first_data = next(iter(self._live_gateways.items()))
+            return self._enrich_detail_with_history(first_data["detail"], first_dev_id, first_data.get("raw"))
 
         return {
             "id": gateway_id,

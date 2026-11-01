@@ -8,13 +8,16 @@ class CellularReportItem(BaseModel):
     location: str
     type: str
     modem: str
+    modem_name: Optional[str] = None
+    modem_temp: Optional[int] = None
     provider: str
     sim_number: str
+    quota_remaining_gb: Optional[float] = None
     
     cpu_modem_uptime: str
     cpu_modem_offline: str
     cpu_modem_success_rate: float
-    cpu_modem_avg_resp_ms: int
+    cpu_modem_avg_resp_ms: Optional[int] = None
     
     network_uptime: str
     network_offline: str
