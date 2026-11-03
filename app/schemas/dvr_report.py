@@ -29,6 +29,7 @@ class DVRReportItem(BaseModel):
     
     jumlah_event: int
     terakhir_offline: str
+    last_seen: Optional[str] = None
 
 
 class ReportPaginationInfo(BaseModel):

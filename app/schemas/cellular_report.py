@@ -17,16 +17,17 @@ class CellularReportItem(BaseModel):
     cpu_modem_uptime: str
     cpu_modem_offline: str
     cpu_modem_success_rate: float
-    cpu_modem_avg_resp_ms: Optional[int] = None
+    cpu_modem_avg_resp_ms: Optional[float] = None
     
     network_uptime: str
     network_offline: str
     network_success_rate: Optional[float] = 98.2
-    network_avg_rsrp: int
-    network_avg_temp: int
+    network_avg_rsrp: Optional[float] = None
+    network_avg_temp: Optional[float] = None
     
     trouble_events_count: int
     trouble_last_offline: str
+    last_seen: Optional[str] = None
 
 
 class ReportPaginationInfo(BaseModel):
@@ -73,6 +74,8 @@ class CellularReportGatewayDetail(BaseModel):
     provider: str
     sim_number: str
     sim_status: str
+    quota_main_gb: Optional[float] = None
+    quota_info: Optional[str] = None
     ip_address: str
     period: str
     period_hours: str

@@ -126,8 +126,9 @@ class GatewayDetailData(BaseModel):
     uptime_hours: int
     uptime_status: str
     uptime_subtext: str
-    month_period: Optional[str] = "01 Oct 2026 - 31 Oct 2026"
+    month_period: Optional[str] = None
     month_total_hours: Optional[int] = 744
+
     uptime_duration: Optional[str] = "720h 15m"
     uptime_pct: Optional[str] = "96.8%"
     downtime_duration: Optional[str] = "23h 45m"

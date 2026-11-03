@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import time
 
 logger = logging.getLogger("dvr-service")
 
@@ -27,39 +28,48 @@ class DVRService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from disk on startup"""
-        cache_file = self._cache_path()
-        if os.path.exists(cache_file):
+        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
+        loaded_from_db = False
+        try:
+            from app.core.database import SessionLocal
+            from app.models.base_models import GatewayTelemetryHistory
+            from sqlalchemy import distinct
+            db = SessionLocal()
             try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            self.update_from_telemetry(item, save_cache=False)
-                elif isinstance(data, dict):
-                    self.update_from_telemetry(data, save_cache=False)
-                logger.info(f"DVRService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
-            except Exception as e:
-                logger.warning(f"Could not load telemetry cache for DVR service: {e}")
-        if len(self._live_gateways) == 0:
-            try:
-                from app.core.database import SessionLocal
-                from app.models.base_models import GatewayTelemetryHistory
-                from sqlalchemy import distinct
-                db = SessionLocal()
+                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                for dev_id in dev_ids:
+                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload, save_cache=False)
+                if self._live_gateways:
+                    loaded_from_db = True
+                    logger.info(f"DVRService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+            finally:
+                db.close()
+        except Exception as dbe:
+            logger.debug(f"Could not hydrate gateways from database: {dbe}")
+
+        if not loaded_from_db:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
                 try:
-                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                    for dev_id in dev_ids:
-                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
-                        if latest and latest.raw_payload:
-                            self.update_from_telemetry(latest.raw_payload, save_cache=False)
-                    if self._live_gateways:
-                        logger.info(f"DVRService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-                finally:
-                    db.close()
-            except Exception as dbe:
-                logger.debug(f"Could not hydrate gateways from database: {dbe}")
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                self.update_from_telemetry(item, save_cache=False)
+                    elif isinstance(data, dict):
+                        self.update_from_telemetry(data, save_cache=False)
+                    logger.info(f"DVRService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
+                except Exception as e:
+                    logger.warning(f"Could not load telemetry cache for DVR service: {e}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates DVR fleet item & detailed diagnostics."""
@@ -121,8 +131,8 @@ class DVRService:
             rec_status = "Not Recording"
             health = "Critical"
 
-        ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
-        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
+        ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
 
         gw_item = {
             "no": len(self._live_gateways) + 1,
@@ -227,6 +237,7 @@ class DVRService:
             "device_type": dev_info.get("device_type") or "Surveillance NVR / IPC Hub",
         }
 
+        last_seen_epoch = self._parse_payload_epoch(nms_payload)
         self._live_gateways[device_id] = {
             "table_item": gw_item,
             "detail_item": detail_obj,
@@ -237,10 +248,52 @@ class DVRService:
             "is_rec": is_rec,
             "health": health,
             "raw_payload": nms_payload,
+            "last_seen_epoch": last_seen_epoch,
         }
+
+    ONLINE_TIMEOUT_SECONDS = 600
+
+    @staticmethod
+    def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
+        ts = payload.get("timestamp")
+        if ts and isinstance(ts, (int, float)) and ts > 1000000000:
+            return ts / 1000.0 if ts > 100000000000 else float(ts)
+        from datetime import timezone, timedelta
+        ts_str = payload.get("datetime_utc7") or payload.get("recorded_at")
+        if ts_str:
+            clean = str(ts_str).split(" (")[0].strip()
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d %b %Y %H:%M:%S"]:
+                try:
+                    dt_wib = datetime.strptime(clean[:19], fmt)
+                    dt_utc = dt_wib - timedelta(hours=7)
+                    return dt_utc.replace(tzinfo=timezone.utc).timestamp()
+                except Exception:
+                    pass
+        return time.time()
+
+    def _sync_freshness(self):
+        now = time.time()
+        for dev_id, g in self._live_gateways.items():
+            last_seen = g.get("last_seen_epoch")
+            if not last_seen:
+                last_seen = self._parse_payload_epoch(g.get("raw_payload", {}))
+                g["last_seen_epoch"] = last_seen
+            age_sec = now - last_seen
+            table_item = g.get("table_item", {})
+            detail_item = g.get("detail_item", {})
+            if age_sec > self.ONLINE_TIMEOUT_SECONDS:
+                table_item["cpu_dvr"] = "No Response"
+                table_item["dvr_health"] = "Critical"
+                table_item["recording_status"] = "Not Recording"
+                g["is_connected"] = False
+                g["health"] = "Critical"
+                detail_item["service_status"] = "Stopped"
+                if "cpu_dvr" in detail_item:
+                    detail_item["cpu_dvr"]["status"] = "No Response"
 
     def get_summary(self) -> Dict[str, Any]:
         """Calculates dynamic summary metrics from 100% real live gateways"""
+        self._sync_freshness()
         total_gw = len(self._live_gateways)
         if total_gw == 0:
             return {
@@ -399,6 +452,7 @@ class DVRService:
         page_size: int = 5,
     ) -> Dict[str, Any]:
         """Filters & paginates real gateway records for the table"""
+        self._sync_freshness()
         items = [g["table_item"] for g in self._live_gateways.values()]
 
         for idx, it in enumerate(items, 1):

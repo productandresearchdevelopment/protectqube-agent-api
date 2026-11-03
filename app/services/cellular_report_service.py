@@ -5,8 +5,10 @@ import io
 import csv
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from app.services.sla_calculator_service import sla_calculator_service, get_default_period_str
 
 logger = logging.getLogger("cellular-report-service")
+
 
 
 class CellularReportService:
@@ -26,21 +28,48 @@ class CellularReportService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from disk on startup"""
-        cache_file = self._cache_path()
-        if os.path.exists(cache_file):
+        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
+        loaded_from_db = False
+        try:
+            from app.core.database import SessionLocal
+            from app.models.base_models import GatewayTelemetryHistory
+            from sqlalchemy import distinct
+            db = SessionLocal()
             try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            self.update_from_telemetry(item)
-                elif isinstance(data, dict):
-                    self.update_from_telemetry(data)
-                logger.info(f"CellularReportService: Loaded {len(self._live_gateways)} live gateway(s)")
-            except Exception as e:
-                logger.warning(f"Could not load telemetry cache for cellular report: {e}")
+                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                for dev_id in dev_ids:
+                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload)
+                if self._live_gateways:
+                    loaded_from_db = True
+                    logger.info(f"CellularReportService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+            finally:
+                db.close()
+        except Exception as dbe:
+            logger.debug(f"Could not hydrate gateways from database: {dbe}")
+
+        if not loaded_from_db:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                self.update_from_telemetry(item)
+                    elif isinstance(data, dict):
+                        self.update_from_telemetry(data)
+                    logger.info(f"CellularReportService: Loaded {len(self._live_gateways)} live gateway(s)")
+                except Exception as e:
+                    logger.warning(f"Could not load telemetry cache for cellular report: {e}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any]):
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""
@@ -68,28 +97,20 @@ class CellularReportService:
         # Actual real sensor temperature of modem/hardware
         modem_temp_val = modem.get("temperature_c") or sim.get("temperature_c") or nms_payload.get("connectivity", {}).get("temperature_celsius") or temp_c
 
-        # Extract or generate sms_quota_history with quota_main_gb
-        quota_hist = sim.get("sms_quota_history", {})
+        # Extract authentic sms_quota_history with quota_main_gb
+        quota_hist = sim.get("sms_quota_history") or {}
         quota_gb = quota_hist.get("quota_main_gb")
-
-        if quota_gb is None and sim_inserted:
-            import hashlib
-            seed = int(hashlib.md5(device_id.encode()).hexdigest()[:6], 16)
-            quota_gb = round(6.0 + (seed % 340) / 10.0, 2)
-            quota_hist = {
-                "available": True,
-                "quota_info": f"Kuota Internet {quota_gb} GB",
-                "quota_main_gb": quota_gb,
-                "quota_expiry": "31-10-2026 pkl 23:59",
-                "last_updated": datetime.now().strftime("%d-%m-%Y %H:%M:%S WIB"),
-                "source": "SMS Balasan 3636" if "telkomsel" in operator.lower() else "SMS Balasan 999",
-            }
-            sim["sms_quota_history"] = quota_hist
-        elif quota_gb is not None:
+        if quota_gb is not None:
             try:
-                quota_gb = float(quota_gb)
+                quota_gb = round(float(quota_gb), 2)
             except (ValueError, TypeError):
                 quota_gb = None
+        else:
+            quota_gb = None
+
+        quota_info = quota_hist.get("quota_info")
+        if not quota_info:
+            quota_info = f"Kuota Internet {quota_gb} GB" if quota_gb is not None else "-"
 
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
@@ -107,7 +128,7 @@ class CellularReportService:
             sim_num = "-"
 
         modem_model = modem.get("model") or "Quectel EG95 LTE Cat 4"
-        provider_label = operator if (operator != "N/A" and sim_inserted) else "Tanpa SIM"
+        provider_label = operator if (operator != "N/A" and sim_inserted) else "No SIM"
 
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
@@ -117,7 +138,21 @@ class CellularReportService:
         up_str = sla["gateway_uptime_str"]
         off_str = sla["gateway_offline_str"]
         sr = sla["gateway_sla_pct"]
-        resp_ms = 18 if sim_inserted else 0
+
+        # Extract 100% real ping latency from cellular data traffic or SLA history
+        raw_ping = nms_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms")
+        sla_ping = sla.get("avg_ping")
+        if sla_ping is not None:
+            resp_ms = sla_ping
+        elif raw_ping is not None and sim_inserted:
+            try:
+                resp_ms = round(float(raw_ping), 1)
+            except (ValueError, TypeError):
+                resp_ms = None
+        else:
+            resp_ms = None
+        resp_ms_str = f"{resp_ms} ms" if resp_ms is not None else "-"
+
         net_up_str = sla["cellular_uptime_str"]
         net_off_str = sla["cellular_offline_str"]
         net_sr = sla["cellular_sla_pct"]
@@ -145,6 +180,7 @@ class CellularReportService:
             "network_avg_temp": sla.get("avg_temp", temp_c),
             "trouble_events_count": events_count,
             "trouble_last_offline": clean_update,
+            "last_seen": clean_update,
         }
 
         formatted_trouble_events = []
@@ -152,18 +188,25 @@ class CellularReportService:
             formatted_trouble_events.append({
                 "no": idx,
                 "start_time": te.get("start_time", clean_update),
-                "end_time": te.get("end_time", "Sekarang"),
+                "end_time": te.get("end_time", "Present"),
                 "duration": te.get("duration", "15m"),
+                "category": te.get("category", "Cellular"),
+                "title": te.get("title") or te.get("description", "Gangguan"),
+                "description": te.get("title") or te.get("description", "Gangguan"),
                 "cause": te.get("cause") or te.get("description") or "Gangguan Jaringan",
+                "status": te.get("status", "Resolved"),
             })
 
         if not formatted_trouble_events:
             formatted_trouble_events.append({
                 "no": 1,
                 "start_time": clean_update,
-                "end_time": "Sekarang",
+                "end_time": "Present",
                 "duration": "0m",
-                "cause": "Operasi Normal (Tidak ada insiden)",
+                "category": "Cellular",
+                "description": "Normal Operation",
+                "cause": "Normal Operation (No incidents detected)",
+                "status": "Resolved",
             })
 
         detail_obj = {
@@ -174,19 +217,20 @@ class CellularReportService:
             "modem": modem_model,
             "provider": provider_label,
             "sim_number": sim_num,
-            "sim_status": "Aktif" if sim_inserted else "Tidak Terdeteksi",
+            "sim_status": "Active" if sim_inserted else "Not Detected",
             "quota_main_gb": quota_gb,
-            "quota_info": quota_hist.get("quota_info", f"Kuota Internet {quota_gb} GB" if quota_gb else "-"),
-            "ip_address": nms_payload.get("cellular_sim", {}).get("data_traffic", {}).get("cellular_ip") or "10.25.44.7",
-            "period": "01 Oct 2026 - 31 Oct 2026",
+            "quota_info": quota_info,
+            "ip_address": nms_payload.get("cellular_sim", {}).get("data_traffic", {}).get("cellular_ip") or "-",
+            "period": get_default_period_str(),
             "period_hours": sla["period_hours_str"],
+
             "cpu_modem_uptime": up_str,
             "cpu_modem_uptime_pct": f"{sr}%",
             "cpu_modem_offline": off_str,
             "cpu_modem_offline_pct": f"{round(100.0 - sr, 1)}%",
             "success_rate": f"{sr}%",
             "success_rate_checks": f"({len(sla['cpu_trend'])} / {len(sla['cpu_trend'])} check)",
-            "avg_response_time": f"{resp_ms} ms",
+            "avg_response_time": resp_ms_str,
             "network_uptime": net_up_str,
             "network_uptime_pct": f"{net_sr}%",
             "network_offline": net_off_str,
@@ -198,7 +242,7 @@ class CellularReportService:
                 if sla.get("min_temp") is not None and sla.get("max_temp") is not None
                 else f"(Suhu {temp_c}°C)"
             ),
-            "total_gangguan": f"{events_count} event",
+            "total_gangguan": f"{events_count} events",
             "timeline_segments": sla["timeline_tracks"][0]["segments"],
             "trouble_events": formatted_trouble_events,
         }
@@ -255,13 +299,13 @@ class CellularReportService:
                 if q in g["id"].lower() or q in g["location"].lower() or q in g["sim_number"]
             ]
 
-        if gateway_type and gateway_type not in ["Semua Tipe", "All"]:
+        if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
             filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
 
-        if provider and provider not in ["Semua Provider", "All"]:
+        if provider and provider not in ["Semua Provider", "All", "All Providers", "Semua"]:
             filtered = [g for g in filtered if provider.lower() in g["provider"].lower()]
 
-        if location and location not in ["Semua Lokasi", "All"]:
+        if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
             filtered = [g for g in filtered if location.lower() in g["location"].lower()]
 
         total_items = len(filtered)
@@ -305,16 +349,18 @@ class CellularReportService:
         writer = csv.writer(output)
 
         writer.writerow([
-            "No", "Gateway ID", "Lokasi", "Tipe", "Modem", "Provider", "Nomor SIM",
-            "Uptime CPU-Modem", "Offline CPU-Modem", "Success Rate (%)", "Respon (ms)",
-            "Uptime Jaringan", "Offline Jaringan", "Success Rate Jaringan (%)",
-            "Rata-rata RSRP (dBm)", "Rata-rata Suhu (C)", "Jumlah Gangguan", "Terakhir Offline",
+            "No", "Gateway ID", "Location", "Type", "Modem", "Provider", "SIM Number", "Remaining Quota (GB)",
+            "CPU-Modem Uptime", "CPU-Modem Offline", "CPU-Modem Success Rate (%)", "CPU-Modem Response (ms)",
+            "Network Uptime", "Network Offline", "Network Success Rate (%)",
+            "Avg RSRP (dBm)", "Avg Temperature (C)", "Incident Count", "Last Seen",
         ])
 
         for g in data["gateways"]:
             writer.writerow([
                 g["no"], g["id"], g["location"], g["type"], g["modem"], g["provider"], g["sim_number"],
-                g["cpu_modem_uptime"], g["cpu_modem_offline"], g["cpu_modem_success_rate"], g["cpu_modem_avg_resp_ms"],
+                g.get("quota_remaining_gb") if g.get("quota_remaining_gb") is not None else "-",
+                g["cpu_modem_uptime"], g["cpu_modem_offline"], g["cpu_modem_success_rate"],
+                f"{g['cpu_modem_avg_resp_ms']} ms" if g.get("cpu_modem_avg_resp_ms") is not None else "-",
                 g["network_uptime"], g["network_offline"], g.get("network_success_rate", 99.0),
                 g["network_avg_rsrp"], g["network_avg_temp"], g["trouble_events_count"], g["trouble_last_offline"],
             ])
@@ -352,6 +398,8 @@ class CellularReportService:
                 detail["cpu_modem_offline"] = sla["gateway_offline_str"]
                 detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla['gateway_sla_pct'], 1)}%"
                 detail["success_rate"] = f"{sla['gateway_sla_pct']}%"
+                if sla.get("avg_ping") is not None:
+                    detail["avg_response_time"] = f"{sla['avg_ping']} ms"
                 detail["network_uptime"] = sla["cellular_uptime_str"]
                 detail["network_uptime_pct"] = f"{sla['cellular_sla_pct']}%"
                 detail["network_offline"] = sla["cellular_offline_str"]
@@ -374,7 +422,8 @@ class CellularReportService:
             "modem": "-",
             "provider": "-",
             "sim_number": "-",
-            "period": date_range or "01 Oct 2026 - 31 Oct 2026",
+            "period": date_range or get_default_period_str(),
+
             "kpis": {},
             "timeline": [],
             "trouble_events": [],

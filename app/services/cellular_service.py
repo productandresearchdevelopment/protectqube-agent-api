@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import time
 
 logger = logging.getLogger("cellular-service")
 
@@ -22,39 +23,48 @@ class CellularService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from disk on startup"""
-        cache_file = self._cache_path()
-        if os.path.exists(cache_file):
+        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
+        loaded_from_db = False
+        try:
+            from app.core.database import SessionLocal
+            from app.models.base_models import GatewayTelemetryHistory
+            from sqlalchemy import distinct
+            db = SessionLocal()
             try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            self.update_from_telemetry(item, save_cache=False)
-                elif isinstance(data, dict):
-                    self.update_from_telemetry(data, save_cache=False)
-                logger.info(f"Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
-            except Exception as e:
-                logger.warning(f"Could not load telemetry cache: {e}")
-        if len(self._live_gateways) == 0:
-            try:
-                from app.core.database import SessionLocal
-                from app.models.base_models import GatewayTelemetryHistory
-                from sqlalchemy import distinct
-                db = SessionLocal()
+                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                for dev_id in dev_ids:
+                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload, save_cache=False)
+                if self._live_gateways:
+                    loaded_from_db = True
+                    logger.info(f"CellularService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+            finally:
+                db.close()
+        except Exception as dbe:
+            logger.debug(f"Could not hydrate gateways from database: {dbe}")
+
+        if not loaded_from_db:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
                 try:
-                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                    for dev_id in dev_ids:
-                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
-                        if latest and latest.raw_payload:
-                            self.update_from_telemetry(latest.raw_payload, save_cache=False)
-                    if self._live_gateways:
-                        logger.info(f"Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-                finally:
-                    db.close()
-            except Exception as dbe:
-                logger.debug(f"Could not hydrate gateways from database: {dbe}")
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                self.update_from_telemetry(item, save_cache=False)
+                    elif isinstance(data, dict):
+                        self.update_from_telemetry(data, save_cache=False)
+                    logger.info(f"Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
+                except Exception as e:
+                    logger.warning(f"Could not load telemetry cache: {e}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates cellular fleet item & detailed diagnostics."""
@@ -95,13 +105,17 @@ class CellularService:
         modem_connected = modem.get("connected", True)
         if sim_inserted and modem_connected:
             status = "Online"
+            cpu_modem_status = "Connected"
         elif modem_connected:
             status = "Degraded"
+            cpu_modem_status = "Connected"
         else:
             status = "Offline"
+            cpu_modem_status = "No Response"
 
-        ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (WIB)")
-        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
+        # Prioritize datetime_utc7 from hardware payload, then recorded_at
+        ts_str = nms_payload.get("datetime_utc7") or nms_payload.get("recorded_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
 
         gw_item = {
             "no": len(self._live_gateways) + 1,
@@ -112,8 +126,8 @@ class CellularService:
             "modem": modem.get("model") or "-",
             "provider": operator if operator != "N/A" else "Tanpa SIM",
             "sim_status": "Aktif" if sim_inserted else "Tidak Terdeteksi",
-            "cpu_modem": "Connected" if modem_connected else "No Response",
-            "network": sim.get("network_mode", "4G (LTE)") if sim_inserted else "No Service",
+            "cpu_modem": cpu_modem_status,
+            "network": sim.get("network_mode", "4G LTE") if sim_inserted else "No Service",
             "signal_rsrp": rsrp_str,
             "signal_bars": bars,
             "modem_temp": f"{temp_c}°C",
@@ -179,10 +193,13 @@ class CellularService:
             },
         }
 
+        last_seen_epoch = self._parse_payload_epoch(nms_payload)
+
         self._live_gateways[device_id] = {
             "item": gw_item,
             "detail": detail_obj,
             "raw": nms_payload,
+            "last_seen_epoch": last_seen_epoch,
         }
 
         if save_cache:
@@ -194,8 +211,84 @@ class CellularService:
             except Exception as ce:
                 logger.debug(f"Failed to write cache file: {ce}")
 
+    ONLINE_TIMEOUT_SECONDS = 600  # 10 menit tanpa data telemetri baru -> OFFLINE (2 siklus simpan)
+
+    @staticmethod
+    def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
+        """Mengonversi timestamp telemetri ke float epoch UTC."""
+        ts = payload.get("timestamp")
+        if ts and isinstance(ts, (int, float)) and ts > 1000000000:
+            return ts / 1000.0 if ts > 100000000000 else float(ts)
+        
+        from datetime import timezone, timedelta
+        ts_str = payload.get("datetime_utc7") or payload.get("recorded_at")
+        if ts_str:
+            clean = str(ts_str).split(" (")[0].strip()
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d %b %Y %H:%M:%S"]:
+                try:
+                    dt_wib = datetime.strptime(clean[:19], fmt)
+                    dt_utc = dt_wib - timedelta(hours=7)
+                    return dt_utc.replace(tzinfo=timezone.utc).timestamp()
+                except Exception:
+                    pass
+        return time.time()
+
+    def _sync_freshness(self):
+        """
+        Secara dinamis memverifikasi kebaruan data telemetri setiap gateway.
+        Gateway hanya dinyatakan 'Online' jika berhasil menerima telemetri dalam batas
+        toleransi ONLINE_TIMEOUT_SECONDS (600 detik / 10 menit).
+        Jika data sudah terhenti > 600 detik, status otomatis beralih ke 'Offline'
+        dan CPU - Modem menjadi 'No Response'.
+        """
+        now = time.time()
+        for dev_id, gdata in self._live_gateways.items():
+            last_seen = gdata.get("last_seen_epoch")
+            if not last_seen:
+                last_seen = self._parse_payload_epoch(gdata.get("raw", {}))
+                gdata["last_seen_epoch"] = last_seen
+            
+            age_sec = now - last_seen
+            item = gdata.get("item", {})
+            detail = gdata.get("detail", {})
+            raw = gdata.get("raw", {})
+            sim = raw.get("cellular_sim", {})
+            modem = raw.get("modem_usb", {})
+            sim_inserted = sim.get("sim_inserted", False)
+            modem_connected = modem.get("connected", True)
+            
+            if age_sec > self.ONLINE_TIMEOUT_SECONDS:
+                # Gateway sudah tidak menerima data telemetri lagi -> OFFLINE
+                item["status"] = "Offline"
+                item["cpu_modem"] = "No Response"
+                detail["service_status"] = "Stopped"
+                if "cpu_modem" in detail:
+                    detail["cpu_modem"]["status"] = "No Response"
+                    detail["cpu_modem"]["message"] = f"Tidak ada telemetri masuk ({int(age_sec // 60)}m lalu)"
+            else:
+                # Masih aktif menerima telemetri secara real-time
+                if sim_inserted and modem_connected:
+                    item["status"] = "Online"
+                    item["cpu_modem"] = "Connected"
+                    detail["service_status"] = "Running"
+                    if "cpu_modem" in detail:
+                        detail["cpu_modem"]["status"] = "Connected"
+                elif modem_connected:
+                    item["status"] = "Degraded"
+                    item["cpu_modem"] = "Connected"
+                    detail["service_status"] = "Running"
+                    if "cpu_modem" in detail:
+                        detail["cpu_modem"]["status"] = "Connected"
+                else:
+                    item["status"] = "Offline"
+                    item["cpu_modem"] = "No Response"
+                    detail["service_status"] = "Stopped"
+                    if "cpu_modem" in detail:
+                        detail["cpu_modem"]["status"] = "No Response"
+
     def get_summary_metrics(self) -> Dict[str, Any]:
         """Calculates summary cards directly from real gateways"""
+        self._sync_freshness()
         gateways = [g["item"] for g in self._live_gateways.values()]
         total = len(gateways)
 
@@ -254,6 +347,7 @@ class CellularService:
 
     def get_charts(self) -> Dict[str, Any]:
         """Calculates Donut & Timeline charts directly from real gateways"""
+        self._sync_freshness()
         gateways = [g["item"] for g in self._live_gateways.values()]
         total = len(gateways)
 
@@ -373,6 +467,7 @@ class CellularService:
         page_size: int = 5,
     ) -> Dict[str, Any]:
         """Filters, sorts, and paginates ONLY real gateways from MQTT"""
+        self._sync_freshness()
         items_list = [g["item"] for g in self._live_gateways.values()]
 
         for idx, g in enumerate(items_list, start=1):
@@ -457,11 +552,20 @@ class CellularService:
 
         db = SessionLocal()
         rows: List[GatewayTelemetryHistory] = []
+        incident_alerts = []
         try:
+            from app.models.base_models import GatewayIncidentAlert
             rows = (
                 db.query(GatewayTelemetryHistory)
                 .filter(GatewayTelemetryHistory.device_id == dev_id)
                 .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                .all()
+            )
+            incident_alerts = (
+                db.query(GatewayIncidentAlert)
+                .filter(GatewayIncidentAlert.device_id == dev_id)
+                .order_by(GatewayIncidentAlert.occurred_at.desc())
+                .limit(10)
                 .all()
             )
         except Exception as e:
@@ -583,9 +687,31 @@ class CellularService:
             if phone:
                 detail["network_sim"]["phone_number"] = phone
 
-        # 4. Real Event Log from History
+        # 4. Real Event Log from History & Downtime Incident Alerts
         real_events = []
-        for idx, r in enumerate(reversed(rows[-15:]), start=1):
+
+        # 4a. Prioritaskan alert insiden downtime & masalah offline
+        for a in incident_alerts:
+            a_dt = (
+                a.occurred_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if a.occurred_at.tzinfo is None
+                else a.occurred_at.astimezone(WIB)
+            )
+            time_str = a_dt.strftime("%d %b %Y, %H:%M:%S WIB")
+            dur_txt = f"[{a.downtime_duration}] " if a.downtime_duration else ""
+            status_cls = "error" if a.severity in ("CRITICAL", "HIGH") else ("warning" if a.severity == "WARNING" else "info")
+            real_events.append({
+                "id": f"alert-{a.id}",
+                "title": f"⚠️ {dur_txt}{a.title} – {a.message}",
+                "time": time_str,
+                "status": status_cls,
+                "downtime_duration": a.downtime_duration,
+                "alert_code": a.alert_code,
+                "category": a.category
+            })
+
+        # 4b. Event telemetri operasional berkala
+        for idx, r in enumerate(reversed(rows[-10:]), start=1):
             dt_wib = (
                 r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
                 if r.recorded_at.tzinfo is None
@@ -615,14 +741,37 @@ class CellularService:
                     "time": time_str,
                     "status": "success",
                 })
-            if len(real_events) >= 8:
+            if len(real_events) >= 15:
                 break
 
         detail["events"] = real_events
+
+        # 5. Ringkasan Insiden Terakhir untuk Dashboard
+        if incident_alerts:
+            latest_inc = incident_alerts[0]
+            inc_dt = (
+                latest_inc.occurred_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if latest_inc.occurred_at.tzinfo is None
+                else latest_inc.occurred_at.astimezone(WIB)
+            )
+            detail["last_incident"] = {
+                "title": latest_inc.title,
+                "code": latest_inc.alert_code,
+                "duration": latest_inc.downtime_duration or "N/A",
+                "message": latest_inc.message,
+                "recommendation": latest_inc.recommendation,
+                "time_wib": inc_dt.strftime("%d %b %Y, %H:%M WIB"),
+                "status": latest_inc.status,
+                "severity": latest_inc.severity
+            }
+        else:
+            detail["last_incident"] = None
+
         return detail
 
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:
         """Detailed telemetry for a specific gateway cellular connectivity"""
+        self._sync_freshness()
         for dev_id, data in self._live_gateways.items():
             if dev_id.lower() == gateway_id.lower():
                 return self._enrich_detail_with_history(data["detail"], dev_id, data.get("raw"))

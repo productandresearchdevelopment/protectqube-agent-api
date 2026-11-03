@@ -1,10 +1,13 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy.orm import Session
+from app.core.database import get_db
 from app.agents.agent_manager import agent_manager
 from app.api.deps import get_current_user
 from app.models.base_models import User
 from app.services.system_health_service import system_health_service
 from app.services.cellular_service import cellular_service
+from app.services.incident_alert_service import incident_alert_service
 from app.services.dvr_service import dvr_service
 from app.services.cellular_report_service import cellular_report_service
 from app.services.dvr_report_service import dvr_report_service
@@ -397,6 +400,53 @@ def get_health_report_gateway_detail(
     return {
         "status": True,
         "data": detail_data,
+    }
+
+
+# =========================================================================
+# GATEWAY INCIDENT & DOWNTIME ALERTS
+# =========================================================================
+
+@router.get("/incident-alerts")
+def get_incident_alerts(
+    device_id: Optional[str] = Query(None, description="Filter spesifik ID Gateway (e.g. gw-590c9399)"),
+    category: Optional[str] = Query(None, description="Filter kategori: POWER, CELLULAR, CCTV_NVR, STORAGE, SYSTEM, NETWORK"),
+    severity: Optional[str] = Query(None, description="Filter tingkat keparahan: CRITICAL, HIGH, WARNING, INFO"),
+    status: Optional[str] = Query(None, description="Filter status: ACTIVE, RESOLVED"),
+    search: Optional[str] = Query(None, description="Pencarian teks bebas (ID, Lokasi, Judul, Pesan)"),
+    limit: int = Query(50, ge=1, le=200, description="Jumlah data per halaman"),
+    offset: int = Query(0, ge=0, description="Offset data untuk pagination"),
+    db: Session = Depends(get_db),
+):
+    """
+    Mengambil riwayat kejadian/incident alert gateway (drop tegangan listrik, mati mendadak,
+    kartu SIM dicabut, kabel LAN terputus, kamera offline, dsb.) dengan penjelasan dan rekomendasi yang mudah dipahami.
+    """
+    result = incident_alert_service.get_incident_alerts(
+        db=db,
+        device_id=device_id,
+        category=category,
+        severity=severity,
+        status=status,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+    return result
+
+
+@router.get("/incident-alerts/summary")
+def get_incident_alerts_summary(
+    device_id: Optional[str] = Query(None, description="Filter ringkasan untuk spesifik ID Gateway"),
+    db: Session = Depends(get_db),
+):
+    """
+    Mengambil ringkasan statistik alert dan kejadian insiden (total, active, critical, warning, power, cellular, cctv).
+    """
+    stats = incident_alert_service.get_summary_stats(db=db, device_id=device_id)
+    return {
+        "status": True,
+        "data": stats,
     }
 
 

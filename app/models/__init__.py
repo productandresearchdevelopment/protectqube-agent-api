@@ -10,6 +10,8 @@ from app.models.base_models import (
     UserOtp,
     EmailVerificationStatus,
     OtpType,
+    GatewayTelemetryHistory,
+    GatewayIncidentAlert,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "UserOtp",
     "EmailVerificationStatus",
     "OtpType",
+    "GatewayTelemetryHistory",
+    "GatewayIncidentAlert",
 ]

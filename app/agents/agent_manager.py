@@ -88,11 +88,34 @@ class GatewayAgentManager:
                 or f"Gateway {dev_id}"
             )
 
+            p_ts = payload.get("timestamp")
+            if p_ts:
+                try:
+                    ts_sec = float(p_ts) / 1000.0 if float(p_ts) > 1e11 else float(p_ts)
+                    rec_dt = datetime.utcfromtimestamp(ts_sec)
+                except Exception:
+                    rec_dt = datetime.utcnow()
+            else:
+                rec_dt = datetime.utcnow()
+
             db = SessionLocal()
             try:
+                # Avoid inserting duplicate rows for the same timestamp (e.g. retained MQTT messages from broker)
+                existing = (
+                    db.query(GatewayTelemetryHistory.id)
+                    .filter(
+                        GatewayTelemetryHistory.device_id == dev_id,
+                        GatewayTelemetryHistory.recorded_at == rec_dt
+                    )
+                    .first()
+                )
+                if existing:
+                    self._last_saved_to_db[dev_id] = now_ts
+                    return
+
                 hist_entry = GatewayTelemetryHistory(
                     device_id=dev_id,
-                    recorded_at=datetime.utcnow(),
+                    recorded_at=rec_dt,
                     overall_status=payload.get("overall_status"),
                     location=loc_name,
                     hardware_model=hw.get("model") or hw.get("type") or "-",
@@ -116,7 +139,21 @@ class GatewayAgentManager:
                 db.add(hist_entry)
                 db.commit()
                 self._last_saved_to_db[dev_id] = now_ts
-                logger.info(f"[DB] Successfully recorded 5-minute telemetry history for device '{dev_id}'")
+                logger.info(f"[DB] Successfully recorded telemetry history for device '{dev_id}' (Time: {rec_dt})")
+
+                # Ingest & record incident alerts (power, SIM, downtime, etc.)
+                try:
+                    from app.services.incident_alert_service import incident_alert_service
+                    incident_alert_service.process_telemetry_for_alerts(
+                        db=db,
+                        dev_id=dev_id,
+                        loc_name=loc_name,
+                        payload=payload,
+                        rec_dt=rec_dt,
+                        telemetry_history_id=hist_entry.id
+                    )
+                except Exception as alert_err:
+                    logger.warning(f"[AlertService] Failed to evaluate incident alerts for '{dev_id}': {alert_err}")
             finally:
                 db.close()
         except Exception as dbe:
@@ -137,6 +174,14 @@ class GatewayAgentManager:
             logger.info(f"Received MQTT Telemetry from topic: '{msg.topic}' (Device: {payload.get('device_id')})")
             
             if "gateway_system" in payload or "cellular_sim" in payload:
+                from datetime import datetime, timezone, timedelta
+                WIB = timezone(timedelta(hours=7))
+                dev_dt_str = payload.get("datetime_utc7")
+                if dev_dt_str:
+                    payload["recorded_at"] = dev_dt_str.split(" (")[0]
+                elif not payload.get("recorded_at"):
+                    payload["recorded_at"] = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
+
                 mapped = self._map_nms_payload(payload)
                 self._latest_snapshot = mapped
                 try:

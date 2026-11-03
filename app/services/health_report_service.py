@@ -5,8 +5,10 @@ import io
 import csv
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from app.services.sla_calculator_service import get_default_period_str
 
 logger = logging.getLogger("health-report-service")
+
 
 
 class HealthReportService:
@@ -26,21 +28,48 @@ class HealthReportService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from disk on startup"""
-        cache_file = self._cache_path()
-        if os.path.exists(cache_file):
+        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
+        loaded_from_db = False
+        try:
+            from app.core.database import SessionLocal
+            from app.models.base_models import GatewayTelemetryHistory
+            from sqlalchemy import distinct
+            db = SessionLocal()
             try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            self.update_from_telemetry(item)
-                elif isinstance(data, dict):
-                    self.update_from_telemetry(data)
-                logger.info(f"HealthReportService: Loaded {len(self._live_gateways)} live gateway(s)")
-            except Exception as e:
-                logger.warning(f"Could not load telemetry cache for health report: {e}")
+                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                for dev_id in dev_ids:
+                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload)
+                if self._live_gateways:
+                    loaded_from_db = True
+                    logger.info(f"HealthReportService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+            finally:
+                db.close()
+        except Exception as dbe:
+            logger.debug(f"Could not hydrate gateways from database: {dbe}")
+
+        if not loaded_from_db:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                self.update_from_telemetry(item)
+                    elif isinstance(data, dict):
+                        self.update_from_telemetry(data)
+                    logger.info(f"HealthReportService: Loaded {len(self._live_gateways)} live gateway(s)")
+                except Exception as e:
+                    logger.warning(f"Could not load telemetry cache for health report: {e}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any]):
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""
@@ -136,8 +165,9 @@ class HealthReportService:
             "sd_spec": f"{round(sd.get('total_mb', 32768) / 1024, 1)} GB Flash/eMMC",
             "modem_spec": modem_model,
             "provider_spec": f"{operator} ({sim_num})",
-            "period": "01 Oct 2026 - 31 Oct 2026",
+            "period": get_default_period_str(),
             "period_hours": sla["period_hours_str"],
+
             "uptime_duration": up_str,
             "uptime_pct": f"{uptime_pct}%",
             "downtime_duration": off_str,
@@ -196,10 +226,10 @@ class HealthReportService:
                 if q in g["id"].lower() or q in g["location"].lower()
             ]
 
-        if gateway_type and gateway_type not in ["Semua Tipe", "All"]:
+        if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
             filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
 
-        if location and location not in ["Semua Lokasi", "All"]:
+        if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
             filtered = [g for g in filtered if location.lower() in g["location"].lower()]
 
         total_items = len(filtered)
@@ -243,24 +273,24 @@ class HealthReportService:
         writer.writerow([
             "No",
             "Gateway ID",
-            "Lokasi",
-            "Tipe",
+            "Location",
+            "Type",
             "CPU Avg (%)",
             "CPU Max (%)",
-            "CPU > 80% (jam)",
+            "CPU > 80% (hrs)",
             "RAM Avg (%)",
             "RAM Max (%)",
-            "RAM > 80% (jam)",
+            "RAM > 80% (hrs)",
             "SD Card Avg (%)",
             "SD Card Max (%)",
-            "SD Card > 90% (jam)",
+            "SD Card > 90% (hrs)",
             "SD Card Status",
             "SD Card Life (%)",
-            "Suhu Sistem Avg (C)",
-            "Suhu Sistem Max (C)",
-            "Uptime Durasi",
-            "Uptime Persentase (%)",
-            "Jumlah Event",
+            "System Temp Avg (C)",
+            "System Temp Max (C)",
+            "Uptime Duration",
+            "Uptime Percentage (%)",
+            "Incident Count",
         ])
 
         for g in data["gateways"]:
@@ -350,7 +380,8 @@ class HealthReportService:
             "sd_spec": "0 GB",
             "modem_spec": "None",
             "provider_spec": "None",
-            "period": date_range or "01 Oct 2026 - 31 Oct 2026",
+            "period": date_range or get_default_period_str(),
+
             "period_hours": "(744 jam)",
             "uptime_duration": "0h 00m",
             "uptime_pct": "0%",

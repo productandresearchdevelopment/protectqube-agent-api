@@ -3,8 +3,11 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import time
+from app.services.sla_calculator_service import sla_calculator_service, get_default_period_str
 
 logger = logging.getLogger("system-health-service")
+
 
 
 class SystemHealthService:
@@ -23,39 +26,48 @@ class SystemHealthService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from disk on startup"""
-        cache_file = self._cache_path()
-        if os.path.exists(cache_file):
+        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
+        loaded_from_db = False
+        try:
+            from app.core.database import SessionLocal
+            from app.models.base_models import GatewayTelemetryHistory
+            from sqlalchemy import distinct
+            db = SessionLocal()
             try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            self.update_from_telemetry(item)
-                elif isinstance(data, dict):
-                    self.update_from_telemetry(data)
-                logger.info(f"SystemHealthService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
-            except Exception as e:
-                logger.warning(f"Could not load telemetry cache for system health: {e}")
-        if len(self._live_gateways) == 0:
-            try:
-                from app.core.database import SessionLocal
-                from app.models.base_models import GatewayTelemetryHistory
-                from sqlalchemy import distinct
-                db = SessionLocal()
+                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
+                for dev_id in dev_ids:
+                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload)
+                if self._live_gateways:
+                    loaded_from_db = True
+                    logger.info(f"SystemHealthService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
+            finally:
+                db.close()
+        except Exception as dbe:
+            logger.debug(f"Could not hydrate gateways from database: {dbe}")
+
+        if not loaded_from_db:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
                 try:
-                    dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                    for dev_id in dev_ids:
-                        latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
-                        if latest and latest.raw_payload:
-                            self.update_from_telemetry(latest.raw_payload)
-                    if self._live_gateways:
-                        logger.info(f"SystemHealthService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-                finally:
-                    db.close()
-            except Exception as dbe:
-                logger.debug(f"Could not hydrate gateways from database: {dbe}")
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                self.update_from_telemetry(item)
+                    elif isinstance(data, dict):
+                        self.update_from_telemetry(data)
+                    logger.info(f"SystemHealthService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
+                except Exception as e:
+                    logger.warning(f"Could not load telemetry cache for system health: {e}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any]):
         """Ingests live MQTT telemetry and updates system health item & detailed diagnostic structures."""
@@ -105,17 +117,19 @@ class SystemHealthService:
         else:
             sd_health_label = "Bad"
 
-        overall_status = nms_payload.get("overall_status", "HEALTHY")
-        if overall_status == "CRITICAL" or cpu_temp >= 85.0:
+        overall_status = str(nms_payload.get("overall_status", "HEALTHY")).upper()
+        if overall_status in ["CRITICAL", "BAD"] or cpu_temp >= 85.0:
             status_label = "Critical"
-        elif cpu_pct > 75 or ram_pct > 80 or cpu_temp > 75.0 or sd_pct > 85:
+        elif overall_status in ["WARNING", "WARN"] or cpu_pct > 75 or ram_pct > 80 or cpu_temp > 75.0 or sd_pct > 85:
             status_label = "Warning"
-        else:
+        elif overall_status in ["HEALTHY", "GOOD", "OK"]:
             status_label = "Healthy"
+        else:
+            status_label = overall_status.capitalize()
 
         uptime_str = gw_sys.get("uptime", "3d 12h")
-        ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
-        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
+        ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
 
         tailscale_ip = net_gw.get("tailscale_ip")
         ip_addr = tailscale_ip if tailscale_ip and tailscale_ip != "N/A" else f"10.10.{len(self._live_gateways) + 1}.50"
@@ -137,29 +151,10 @@ class SystemHealthService:
             "last_update": clean_update,
         }
 
-        uptime_pct_val = 99.8 if status_label == "Healthy" else (96.5 if status_label == "Warning" else 92.4)
-        total_hours = 744
-        uptime_hours_total = total_hours * (uptime_pct_val / 100.0)
-        downtime_hours_total = total_hours - uptime_hours_total
-        up_h = int(uptime_hours_total)
-        up_m = int(round((uptime_hours_total - up_h) * 60))
-        down_h = int(downtime_hours_total)
-        down_m = int(round((downtime_hours_total - down_h) * 60))
+        sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
+        uptime_pct_val = sla["gateway_sla_pct"]
         is_sla_met = uptime_pct_val >= 99.5
-
-        downtime_events = [
-            {
-                "no": 1,
-                "start_time": "15 Oct 2026 02:10",
-                "end_time": f"15 Oct 2026 {2 + down_h:02d}:{down_m:02d}",
-                "duration": f"{down_h}h {down_m:02d}m",
-                "accumulated_hours": f"{down_h}h {down_m:02d}m",
-                "category": "Maintenance Terjadwal" if is_sla_met else "Suhu / Thermal Throttle",
-                "reason": "Restart pemeliharaan berkala" if is_sla_met else f"Suhu CPU mencapai {cpu_temp}°C paska beban penuh",
-                "sla_impact_pct": round(100.0 - uptime_pct_val, 2),
-                "status": "Resolved",
-            }
-        ]
+        downtime_events = sla.get("trouble_events", [])
 
         detail_item = {
             "id": device_id,
@@ -193,11 +188,11 @@ class SystemHealthService:
             "uptime_hours": 8,
             "uptime_status": "Running",
             "uptime_subtext": "Normal Operation (SBC Linux)",
-            "month_period": "01 Oct 2026 - 31 Oct 2026",
+            "month_period": get_default_period_str(),
             "month_total_hours": 744,
-            "uptime_duration": f"{up_h}h {up_m:02d}m",
+            "uptime_duration": sla["gateway_uptime_str"],
             "uptime_pct": f"{uptime_pct_val:.1f}%",
-            "downtime_duration": f"{down_h}h {down_m:02d}m",
+            "downtime_duration": sla["gateway_offline_str"],
             "downtime_pct": f"{100.0 - uptime_pct_val:.1f}%",
             "sla_target": 99.5,
             "sla_target_hours": "740h 17m",
@@ -206,6 +201,8 @@ class SystemHealthService:
             "downtime_events": downtime_events,
         }
 
+
+        last_seen_epoch = self._parse_payload_epoch(nms_payload)
         self._live_gateways[device_id] = {
             "table_item": table_item,
             "detail_item": detail_item,
@@ -216,10 +213,46 @@ class SystemHealthService:
             "type": box_type,
             "variant": str(variant).lower(),
             "cpu_temp": cpu_temp,
+            "raw_payload": nms_payload,
+            "last_seen_epoch": last_seen_epoch,
         }
+
+    ONLINE_TIMEOUT_SECONDS = 600
+
+    @staticmethod
+    def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
+        ts = payload.get("timestamp")
+        if ts and isinstance(ts, (int, float)) and ts > 1000000000:
+            return ts / 1000.0 if ts > 100000000000 else float(ts)
+        from datetime import timezone, timedelta
+        ts_str = payload.get("datetime_utc7") or payload.get("recorded_at")
+        if ts_str:
+            clean = str(ts_str).split(" (")[0].strip()
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d %b %Y %H:%M:%S"]:
+                try:
+                    dt_wib = datetime.strptime(clean[:19], fmt)
+                    dt_utc = dt_wib - timedelta(hours=7)
+                    return dt_utc.replace(tzinfo=timezone.utc).timestamp()
+                except Exception:
+                    pass
+        return time.time()
+
+    def _sync_freshness(self):
+        now = time.time()
+        for dev_id, g in self._live_gateways.items():
+            last_seen = g.get("last_seen_epoch")
+            if not last_seen:
+                last_seen = self._parse_payload_epoch(g.get("raw_payload", {}))
+                g["last_seen_epoch"] = last_seen
+            age_sec = now - last_seen
+            if age_sec > self.ONLINE_TIMEOUT_SECONDS:
+                g["status"] = "Critical"
+                if "table_item" in g:
+                    g["table_item"]["status"] = "Critical"
 
     def get_summary_metrics(self) -> Dict[str, Any]:
         """Calculates dynamic fleet summary metrics from 100% real live gateways"""
+        self._sync_freshness()
         total = len(self._live_gateways)
         if total == 0:
             return {
@@ -343,6 +376,7 @@ class SystemHealthService:
         page_size: int = 5,
     ) -> Dict[str, Any]:
         """Filters, sorts, and paginates real gateway records"""
+        self._sync_freshness()
         items = [g["table_item"] for g in self._live_gateways.values()]
 
         for idx, it in enumerate(items, 1):
@@ -451,7 +485,8 @@ class SystemHealthService:
             "uptime_hours": 0,
             "uptime_status": "Running",
             "uptime_subtext": "Normal Operation",
-            "month_period": "01 Oct 2026 - 31 Oct 2026",
+            "month_period": get_default_period_str(),
+
             "month_total_hours": 744,
             "uptime_duration": "720h 00m",
             "uptime_pct": "98.5%",
