@@ -228,37 +228,14 @@ class GatewayIncidentAlert(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     device_id = Column(String(50), nullable=False, index=True)
-    location = Column(String(150), nullable=True, index=True)
-
-    # Kategori & Klasifikasi
-    category = Column(String(50), nullable=False, index=True)  # POWER, CELLULAR, CCTV_NVR, STORAGE, SYSTEM, NETWORK
-    alert_code = Column(String(100), nullable=False, index=True)
-    severity = Column(String(20), nullable=False, default="WARNING", index=True)  # CRITICAL, WARNING, INFO
-
-    # Bahasa yang mudah dipahami & solutif
-    title = Column(String(255), nullable=False)
-    message = Column(Text, nullable=False)
-    component = Column(String(100), nullable=True)
-    recommendation = Column(Text, nullable=True)
-
-    # Durasi Downtime (jika ada)
-    downtime_duration = Column(String(50), nullable=True)
-    downtime_seconds = Column(Integer, nullable=True)
-
-    # Klasifikasi Metrik & Sinkronisasi Downtime Harian SLA (Point 1-3)
-    metric = Column(String(50), nullable=True, index=True)  # cpu_modem, cellular, cpu_dvr, power
-    date_str = Column(String(20), nullable=True, index=True)  # YYYY-MM-DD
-    day_downtime_minutes = Column(Float, nullable=True)
-
-    # Timestamp Kejadian & Pemulihan
-    occurred_at = Column(DateTime, nullable=False, index=True)
-    recovered_at = Column(DateTime, nullable=True)
-    status = Column(String(20), default="RESOLVED", index=True)  # ACTIVE, RESOLVED, ACKNOWLEDGED
-
-    # Relasi ke Telemetry History
     telemetry_history_id = Column(String(36), ForeignKey("gateway_telemetry_history.id", ondelete="SET NULL"), nullable=True, index=True)
-    telemetry_history = relationship("GatewayTelemetryHistory", backref="incident_alerts")
-
-    # Metadata teknis tambahan
-    extra_data = Column(JSON, nullable=True)
+    metric = Column(String(30), nullable=False, index=True)  # cpu_modem | cellular | cpu_dvr
+    description = Column(Text, nullable=False)
+    start_time = Column(DateTime, nullable=False, index=True)
+    end_time = Column(DateTime, nullable=True)
+    duration_minutes = Column(Float, default=0.0)
+    duration_str = Column(String(50), nullable=True)
+    status = Column(String(20), default="RESOLVED", index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    telemetry_history = relationship("GatewayTelemetryHistory", backref="incident_alerts")

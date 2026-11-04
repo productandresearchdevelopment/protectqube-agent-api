@@ -156,7 +156,8 @@ class CellularReportService:
         net_up_str = sla.get("network_uptime_str", sla["cellular_uptime_str"])
         net_off_str = sla.get("network_offline_str", sla["cellular_offline_str"])
         net_sr = sla.get("network_success_rate", sla["cellular_sla_pct"])
-        events_count = len(sla["trouble_events"])
+        cell_events = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network"]]
+        events_count = len(cell_events)
 
         report_item = {
             "no": len(self._live_gateways) + 1,
@@ -184,17 +185,21 @@ class CellularReportService:
         }
 
         formatted_trouble_events = []
-        for idx, te in enumerate(sla["trouble_events"], 1):
+        for idx, te in enumerate(cell_events, 1):
             formatted_trouble_events.append({
                 "no": idx,
                 "start_time": te.get("start_time", clean_update),
                 "end_time": te.get("end_time", "Present"),
                 "duration": te.get("duration", "15m"),
                 "category": te.get("category", "Cellular"),
+                "metric": te.get("metric") or ("cpu_modem" if "modem" in te.get("category", "").lower() else "cellular"),
                 "title": te.get("title") or te.get("description", "Gangguan"),
                 "description": te.get("title") or te.get("description", "Gangguan"),
                 "cause": te.get("cause") or te.get("description") or "Gangguan Jaringan",
                 "status": te.get("status", "Resolved"),
+                "duration_minutes": te.get("duration_minutes"),
+                "date_str": te.get("date_str"),
+                "telemetry_history_id": te.get("telemetry_history_id"),
             })
 
         if not formatted_trouble_events:
@@ -284,9 +289,10 @@ class CellularReportService:
                 item["network_uptime"] = sla["cellular_uptime_str"]
                 item["network_offline"] = sla["cellular_offline_str"]
                 item["network_success_rate"] = sla["cellular_sla_pct"]
+                cell_events_r = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network"]]
                 item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp"))
                 item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp"))
-                item["trouble_events_count"] = len(sla["trouble_events"])
+                item["trouble_events_count"] = len(cell_events_r)
             items.append(item)
 
         for idx, it in enumerate(items, 1):
@@ -412,10 +418,11 @@ class CellularReportService:
                 detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
                 if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
                     detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
-                detail["total_gangguan"] = f"{len(sla['trouble_events'])} event"
+                cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network"]]
+                detail["total_gangguan"] = f"{len(cell_events_d)} event"
                 if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
                     detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]
-                detail["trouble_events"] = sla.get("trouble_events", [])
+                detail["trouble_events"] = cell_events_d
                 detail["daily_breakdown"] = sla.get("daily_breakdown", [])
                 detail["daily_summary"] = sla.get("daily_summary")
             return detail

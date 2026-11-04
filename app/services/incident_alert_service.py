@@ -1,3 +1,4 @@
+import uuid
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -259,6 +260,119 @@ class IncidentAlertService:
         return None
 
     def process_telemetry_for_alerts(
+        self,
+        db: Session,
+        dev_id: str,
+        loc_name: str,
+        payload: Dict[str, Any],
+        rec_dt: datetime,
+        telemetry_history_id: Optional[str] = None
+    ) -> List[GatewayIncidentAlert]:
+        """
+        Parses incoming MQTT payload and recent_system_logs to detect and record
+        incidents into 'gateway_incident_alerts' with 10 columns:
+        (id, device_id, telemetry_history_id, metric, description, start_time, end_time, duration_minutes, duration_str, status, created_at).
+        """
+        created = []
+        if not payload or not isinstance(payload, dict):
+            return created
+
+        logs = payload.get("recent_system_logs")
+        if not logs:
+            return created
+
+        if isinstance(logs, str):
+            logs = logs.strip().split("\n")
+
+        from app.services.sla_calculator_service import sla_calculator_service
+        wib = timezone(timedelta(hours=7))
+
+        outages = {"cpu_modem": [], "cellular": [], "cpu_dvr": []}
+
+        for line in logs:
+            ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))
+            if ts_str:
+                try:
+                    dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
+                    if dt_wib.year >= 2024:
+                        if c_down:
+                            outages["cpu_modem"].append((dt_wib, str(line)))
+                        if n_down:
+                            outages["cellular"].append((dt_wib, str(line)))
+                        if d_down:
+                            outages["cpu_dvr"].append((dt_wib, str(line)))
+                except Exception:
+                    pass
+
+        for metric, items in outages.items():
+            if not items:
+                continue
+            seen_min = set()
+            dedup_items = []
+            for dt, l in sorted(items, key=lambda x: x[0]):
+                k = dt.strftime("%Y-%m-%d %H:%M")
+                if k not in seen_min:
+                    seen_min.add(k)
+                    dedup_items.append((dt, l))
+
+            groups = []
+            curr = [dedup_items[0]]
+            for it in dedup_items[1:]:
+                if (it[0] - curr[-1][0]).total_seconds() <= 180:
+                    curr.append(it)
+                else:
+                    groups.append(curr)
+                    curr = [it]
+            if curr:
+                groups.append(curr)
+
+            for g in groups:
+                st = g[0][0]
+                et = g[-1][0] + timedelta(minutes=1)
+                dur = max(1.0, round((et - st).total_seconds() / 60.0, 1))
+                st_utc = (st - timedelta(hours=7)).replace(tzinfo=None)
+                et_utc = (et - timedelta(hours=7)).replace(tzinfo=None)
+
+                existing = db.query(GatewayIncidentAlert).filter(
+                    GatewayIncidentAlert.device_id == dev_id,
+                    GatewayIncidentAlert.metric == metric,
+                    GatewayIncidentAlert.start_time == st_utc
+                ).first()
+
+                if not existing:
+                    if metric == "cpu_modem":
+                        desc = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(dur)} Menit"
+                    elif metric == "cellular":
+                        desc = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(dur)} Menit"
+                    else:
+                        desc = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(dur)} Menit"
+
+                    new_alert = GatewayIncidentAlert(
+                        id=str(uuid.uuid4()),
+                        device_id=dev_id,
+                        telemetry_history_id=telemetry_history_id,
+                        metric=metric,
+                        description=desc,
+                        start_time=st_utc,
+                        end_time=et_utc,
+                        duration_minutes=dur,
+                        duration_str=f"{round(dur)} Menit",
+                        status="RESOLVED",
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(new_alert)
+                    created.append(new_alert)
+
+        if created:
+            try:
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to commit incident alerts: {e}")
+
+        return created
+
+    def _disabled_process_telemetry_for_alerts(
         self,
         db: Session,
         dev_id: str,
@@ -811,57 +925,48 @@ class IncidentAlertService:
         if device_id:
             query = query.filter(GatewayIncidentAlert.device_id == device_id)
         if category:
-            query = query.filter(GatewayIncidentAlert.category == category.upper())
-        if severity:
-            query = query.filter(GatewayIncidentAlert.severity == severity.upper())
+            query = query.filter(GatewayIncidentAlert.metric == category.lower())
         if status:
             query = query.filter(GatewayIncidentAlert.status == status.upper())
         if search:
             search_fmt = f"%{search}%"
             query = query.filter(
-                (GatewayIncidentAlert.title.ilike(search_fmt)) |
-                (GatewayIncidentAlert.location.ilike(search_fmt)) |
-                (GatewayIncidentAlert.device_id.ilike(search_fmt)) |
-                (GatewayIncidentAlert.component.ilike(search_fmt))
+                (GatewayIncidentAlert.description.ilike(search_fmt)) |
+                (GatewayIncidentAlert.device_id.ilike(search_fmt))
             )
 
         total_count = query.count()
-        rows = query.order_by(desc(GatewayIncidentAlert.occurred_at)).offset(offset).limit(limit).all()
+        rows = query.order_by(desc(GatewayIncidentAlert.start_time)).offset(offset).limit(limit).all()
 
-        # Statistik ringkasan insiden offline
         stats = {
             "total_offline_incidents": db.query(GatewayIncidentAlert).count(),
             "active_outages": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.status == "ACTIVE").count(),
-            "power_voltage_drop_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.category == "POWER").count(),
-            "sim_card_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.category == "CELLULAR").count(),
-            "lan_network_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.category == "NETWORK").count(),
+            "cpu_modem_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.metric == "cpu_modem").count(),
+            "cellular_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.metric == "cellular").count(),
+            "cpu_dvr_issues": db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.metric == "cpu_dvr").count(),
         }
 
         items = []
         for r in rows:
-            # Konversi ke WIB untuk tampilan
-            occurred_wib = r.occurred_at + timedelta(hours=7) if r.occurred_at else None
-            recovered_wib = r.recovered_at + timedelta(hours=7) if r.recovered_at else None
+            start_wib = r.start_time + timedelta(hours=7) if r.start_time else None
+            end_wib = r.end_time + timedelta(hours=7) if r.end_time else None
 
             items.append({
                 "id": r.id,
                 "device_id": r.device_id,
-                "location": r.location,
-                "category": r.category,
-                "alert_code": r.alert_code,
-                "severity": r.severity,
-                "title": r.title,
-                "message": r.message,
-                "component": r.component,
-                "recommendation": r.recommendation,
-                "downtime_duration": r.downtime_duration,
-                "downtime_seconds": r.downtime_seconds,
-                "occurred_at_utc": r.occurred_at.strftime("%Y-%m-%d %H:%M:%S") if r.occurred_at else None,
-                "occurred_at_wib": occurred_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if occurred_wib else None,
-                "recovered_at_wib": recovered_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if recovered_wib else None,
+                "metric": r.metric,
+                "category": r.metric,
+                "title": r.description,
+                "message": r.description,
+                "description": r.description,
+                "duration": r.duration_str,
+                "duration_minutes": r.duration_minutes,
+                "downtime_duration": r.duration_str,
+                "start_time_utc": r.start_time.strftime("%Y-%m-%d %H:%M:%S") if r.start_time else None,
+                "start_time_wib": start_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if start_wib else None,
+                "end_time_wib": end_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if end_wib else None,
                 "status": r.status,
                 "telemetry_history_id": r.telemetry_history_id,
-                "extra_data": r.extra_data
             })
 
         return {
@@ -881,9 +986,9 @@ class IncidentAlertService:
         return {
             "total_offline_incidents": query.count(),
             "active_outages": query.filter(GatewayIncidentAlert.status == "ACTIVE").count(),
-            "power_voltage_drop_issues": query.filter(GatewayIncidentAlert.category == "POWER").count(),
-            "sim_card_issues": query.filter(GatewayIncidentAlert.category == "CELLULAR").count(),
-            "lan_network_issues": query.filter(GatewayIncidentAlert.category == "NETWORK").count(),
+            "cpu_modem_issues": query.filter(GatewayIncidentAlert.metric == "cpu_modem").count(),
+            "cellular_issues": query.filter(GatewayIncidentAlert.metric == "cellular").count(),
+            "cpu_dvr_issues": query.filter(GatewayIncidentAlert.metric == "cpu_dvr").count(),
         }
 
     def backfill_from_telemetry_history(self, db: Session) -> int:

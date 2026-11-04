@@ -54,7 +54,16 @@ class TroubleEventItem(BaseModel):
     start_time: str
     end_time: str
     duration: str
-    cause: str
+    cause: Optional[str] = None
+    category: Optional[str] = None
+    metric: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    reason: Optional[str] = None
+    status: Optional[str] = "Resolved"
+    duration_minutes: Optional[float] = None
+    date_str: Optional[str] = None
+    telemetry_history_id: Optional[str] = None
 
 
 class TimelineSegment(BaseModel):

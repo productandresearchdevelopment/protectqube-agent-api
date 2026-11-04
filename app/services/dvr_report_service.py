@@ -151,7 +151,8 @@ class DVRReportService:
         resp_ms = 42 if nvr_reachable else 0
         rec_up_str = sla["dvr_uptime_str"]
         rec_off_str = sla["dvr_offline_str"]
-        events_count = len(sla["trouble_events"])
+        dvr_events = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") == "cpu_dvr" or ev.get("category") == "CPU - DVR"]
+        events_count = len(dvr_events)
 
         report_item = {
             "no": len(self._live_gateways) + 1,
@@ -208,7 +209,7 @@ class DVRReportService:
             "kamera_no_video": no_vid_cam,
             "kamera_offline": offline_cam,
             "timeline_tracks": sla["timeline_tracks"],
-            "trouble_events": sla["trouble_events"],
+            "trouble_events": dvr_events,
             "daily_breakdown": sla.get("daily_breakdown", []),
             "daily_summary": sla.get("daily_summary"),
         }
@@ -398,7 +399,9 @@ class DVRReportService:
                     detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
                     detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
                     detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-                    detail["trouble_events"] = sla.get("trouble_events", [])
+                    dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") == "cpu_dvr" or ev.get("category") == "CPU - DVR"]
+                    detail["trouble_events"] = dvr_events_d
+                    detail["jumlah_event"] = len(dvr_events_d)
                     detail["daily_breakdown"] = sla.get("daily_breakdown", [])
                     detail["daily_summary"] = sla.get("daily_summary")
                 return detail
@@ -421,7 +424,9 @@ class DVRReportService:
                 detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
                 detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
                 detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-                detail["trouble_events"] = sla.get("trouble_events", [])
+                dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") == "cpu_dvr" or ev.get("category") == "CPU - DVR"]
+                detail["trouble_events"] = dvr_events_d
+                detail["jumlah_event"] = len(dvr_events_d)
                 detail["daily_breakdown"] = sla.get("daily_breakdown", [])
                 detail["daily_summary"] = sla.get("daily_summary")
             return detail

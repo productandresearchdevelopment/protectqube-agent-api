@@ -75,6 +75,49 @@ class SLACalculatorService:
         return f"{m}m"
 
     @staticmethod
+    def parse_system_log_line(line_str: str) -> Tuple[Optional[str], Optional[bool], Optional[bool], Optional[bool], Optional[bool]]:
+        """
+        Parses a single log line from recent_system_logs:
+        Returns:
+            (ts_str, cpu_down, net_down, dvr_down, is_rec)
+        """
+        m = re.search(r'\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]', line_str)
+        if not m:
+            return None, None, None, None, None
+        ts_str = m.group(1)
+
+        # 1. CPU - Modem
+        cpu_down = None
+        if "[MODEM-CPU: TERPUTUS]" in line_str:
+            cpu_down = True
+        elif "[MODEM-CPU: OK]" in line_str:
+            cpu_down = False
+
+        # 2. Network Connection
+        net_down = None
+        if "[SIM: N/A (Modem Terputus)]" in line_str or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', line_str, re.IGNORECASE):
+            net_down = False  # Opsi E: Excluded from network downtime
+        elif re.search(r'\[SIM:\s*[^\\\]]*\(4G\s*LTE,\s*CSQ\s*([1-9]|[1-2][0-9]|3[0-1])\)', line_str, re.IGNORECASE):
+            net_down = False  # Opsi A
+        elif "[SIM:" in line_str:
+            net_down = True   # Opsi B, C, D, F
+
+        # 3. DVR & Recording
+        dvr_down = None
+        is_rec = None
+        nvr_m = re.search(r'NVR:\s*([^\|]+)', line_str)
+        if nvr_m:
+            nvr_val = nvr_m.group(1).strip().upper()
+            if "OFFLINE" in nvr_val:
+                dvr_down = True
+                is_rec = False
+            else:
+                dvr_down = False
+                is_rec = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
+
+        return ts_str, cpu_down, net_down, dvr_down, is_rec
+
+    @staticmethod
     def evaluate_record_status(
         payload: Optional[Dict[str, Any]],
         sim_status_db: Optional[str] = None,
@@ -276,12 +319,11 @@ class SLACalculatorService:
                 )
                 rows = ([prev_row] if prev_row else []) + range_rows
                 alert_q = alert_q.filter(
-                    (GatewayIncidentAlert.date_str >= s_date_str) & (GatewayIncidentAlert.date_str <= e_date_str)
-                    | ((GatewayIncidentAlert.occurred_at >= s_utc) & (GatewayIncidentAlert.occurred_at <= e_utc))
+                    (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
                 )
             else:
                 rows = query.order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
-            alerts = alert_q.order_by(GatewayIncidentAlert.occurred_at.desc()).all()
+            alerts = alert_q.order_by(GatewayIncidentAlert.start_time.desc()).all()
         except Exception as e:
             logger.error(f"Error querying telemetry/alert history for {device_id}: {e}")
         finally:
@@ -310,78 +352,32 @@ class SLACalculatorService:
 
         # Build authentic trouble events directly from GatewayIncidentAlert
         trouble_events: List[Dict[str, Any]] = []
-        alert_windows: List[Tuple[datetime, datetime]] = []
 
-        for al in alerts:
-            # Abaikan alert resolusi lama yang durasinya di bawah 1 menit (60 detik)
-            if al.status == "RESOLVED" and al.downtime_seconds and al.downtime_seconds < 60:
-                continue
-
-            st_str = _to_wib_str(al.occurred_at, fmt="%d %b %H:%M")
-            if al.recovered_at:
-                et_str = _to_wib_str(al.recovered_at, fmt="%d %b %H:%M")
-            else:
-                et_str = "Active"
-
-            dur_str = al.downtime_duration or (
-                self._format_duration(al.downtime_seconds)
-                if al.downtime_seconds
-                else ("Active" if al.status == "ACTIVE" else "1m")
-            )
-
-            cat_label = al.category
-            if al.category == "POWER":
-                cat_label = "Power / Reboot"
-            elif al.category in ["CPU_MODEM"]:
-                cat_label = "CPU - Modem"
-            elif al.category in ["CCTV_NVR", "DVR", "CPU_DVR"]:
-                cat_label = "CPU - DVR"
-            elif al.category in ["CELLULAR", "NETWORK"]:
-                cat_label = "Seluler / Network"
-            elif al.category == "STORAGE":
-                cat_label = "Storage / SD"
-            elif al.category == "SYSTEM":
-                cat_label = "System Health"
-
-            val_label = al.component or al.alert_code
-
-            resolved_metric = al.metric
-            if not resolved_metric:
-                if "REBOOT" in al.alert_code or al.category == "POWER":
-                    resolved_metric = "power"
-                elif al.category == "CPU_MODEM" or "MODEM" in al.alert_code:
-                    resolved_metric = "cpu_modem"
-                elif al.category in ["CPU_DVR", "DVR", "CCTV_NVR"] or "DVR" in al.alert_code or "NVR" in al.alert_code:
-                    resolved_metric = "cpu_dvr"
-                else:
-                    resolved_metric = "cellular"
+        for idx, al in enumerate(alerts, 1):
+            st_str = _to_wib_str(al.start_time, fmt="%d %b %H:%M")
+            et_str = _to_wib_str(al.end_time, fmt="%d %b %H:%M") if al.end_time else "Active"
+            dur_str = al.duration_str or (f"{round(al.duration_minutes or 0)} Menit" if al.duration_minutes else "1m")
+            cat_label = "CPU - Modem" if al.metric == "cpu_modem" else ("Seluler / Network" if al.metric == "cellular" else "CPU - DVR")
+            date_key = (al.start_time + timedelta(hours=7)).strftime("%Y-%m-%d") if al.start_time else None
 
             trouble_events.append({
-                "no": len(trouble_events) + 1,
+                "no": idx,
                 "start_time": st_str,
                 "end_time": et_str,
                 "duration": dur_str,
+                "duration_minutes": al.duration_minutes or 0.0,
                 "category": cat_label,
-                "metric": resolved_metric,
-                "date_str": al.date_str or (al.occurred_at.strftime("%Y-%m-%d") if al.occurred_at else None),
-                "day_downtime_minutes": al.day_downtime_minutes or (round(al.downtime_seconds / 60.0, 1) if al.downtime_seconds else 0.0),
-                "title": al.title,
-                "description": al.title,
-                "cause": al.message,
-                "reason": al.message,
+                "metric": al.metric,
+                "date_str": date_key,
+                "day_downtime_minutes": al.duration_minutes or 0.0,
+                "title": al.description,
+                "description": al.description,
+                "cause": al.description,
+                "reason": al.description,
                 "status": "Resolved" if al.status == "RESOLVED" else "Active",
-                "recommendation": al.recommendation or "-",
-                "severity": al.severity,
-                "alert_code": al.alert_code,
-                "value": val_label,
-                "accumulated_hours": dur_str,
-                "sla_impact_pct": round(min(5.0, ((al.downtime_seconds or 60) / 3600.0) * 100), 2),
-                "_raw_dt": al.occurred_at,
+                "telemetry_history_id": al.telemetry_history_id,
+                "_raw_dt": al.start_time,
             })
-
-            if al.occurred_at:
-                rec_dt = al.recovered_at or (al.occurred_at + timedelta(seconds=al.downtime_seconds or 300))
-                alert_windows.append((al.occurred_at, rec_dt))
 
 
         if not rows:
@@ -412,7 +408,7 @@ class SLACalculatorService:
                 target_sla_pct=98.0
             )
 
-            if date_range_str and daily_summary and daily_summary.get("total_obs_min"):
+            if daily_summary and daily_summary.get("total_obs_min"):
                 obs_sec = daily_summary["total_obs_min"] * 60.0
                 gw_up_str = self._format_duration(daily_summary["total_cpu_modem_uptime_min"] * 60.0)
                 gw_off_str = self._format_duration(daily_summary["total_cpu_modem_downtime_min"] * 60.0)
@@ -616,7 +612,7 @@ class SLACalculatorService:
             target_sla_pct=98.0
         )
 
-        if date_range_str and daily_summary and daily_summary.get("total_obs_min"):
+        if daily_summary and daily_summary.get("total_obs_min"):
             total_obs_sec = daily_summary["total_obs_min"] * 60.0
             gw_uptime_sec = daily_summary["total_cpu_modem_uptime_min"] * 60.0
             gw_downtime_sec = daily_summary["total_cpu_modem_downtime_min"] * 60.0
@@ -734,9 +730,28 @@ class SLACalculatorService:
         if rows and len(rows) >= 2:
             t_last_wib = rows[-1].recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if rows[-1].recorded_at.tzinfo is None else rows[-1].recorded_at.astimezone(WIB)
 
+            # Pre-parse all unique minute system logs across rows for exact outage accounting
+            unique_day_logs: Dict[str, Dict[str, Tuple[bool, bool, bool, bool]]] = {}
+            for r in rows:
+                logs = r.raw_payload.get("recent_system_logs") if r.raw_payload else None
+                if not logs:
+                    continue
+                if isinstance(logs, str):
+                    logs = logs.strip().split("\n")
+                for line in logs:
+                    ts_str, c_down, n_down, d_down, rec = self.parse_system_log_line(str(line))
+                    if ts_str:
+                        d_key = ts_str[:10]  # YYYY-MM-DD
+                        min_k = ts_str[:16]  # YYYY-MM-DD HH:MM
+                        if d_key not in unique_day_logs:
+                            unique_day_logs[d_key] = {}
+                        if min_k not in unique_day_logs[d_key]:
+                            unique_day_logs[d_key][min_k] = (bool(c_down), bool(n_down), bool(d_down), bool(rec if rec is not None else True))
+
             while cur_date <= e_date:
                 d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
                 d_end = datetime(cur_date.year, cur_date.month, cur_date.day, 23, 59, 59, tzinfo=WIB)
+                d_str = cur_date.strftime("%Y-%m-%d")
 
                 day_cpu_down_sec = 0.0
                 day_cell_down_sec = 0.0
@@ -746,7 +761,15 @@ class SLACalculatorService:
                 if cur_date > now_wib.date():
                     # Hari mendatang belum diamati
                     pass
+                elif d_str in unique_day_logs and unique_day_logs[d_str]:
+                    # Primary Path: 100% exact minute logs captured by gateway daemon buffer
+                    day_mins = unique_day_logs[d_str]
+                    day_cpu_down_sec = sum(60.0 for v in day_mins.values() if v[0])
+                    day_cell_down_sec = sum(60.0 for v in day_mins.values() if v[1])
+                    day_dvr_down_sec = sum(60.0 for v in day_mins.values() if v[2])
+                    day_rec_down_sec = sum(60.0 for v in day_mins.values() if not v[3])
                 else:
+                    # Fallback for devices/days without recent_system_logs: interval duration calculation
                     for i in range(len(rows) - 1):
                         curr_r = rows[i]
                         next_r = rows[i + 1]
@@ -758,7 +781,6 @@ class SLACalculatorService:
 
                         if overlap_e > overlap_s:
                             dur = (overlap_e - overlap_s).total_seconds()
-                            gap_sec = (t2 - t1).total_seconds()
 
                             m_up, n_up, d_up, is_rec = self.evaluate_record_status(
                                 curr_r.raw_payload,
@@ -885,28 +907,16 @@ class SLACalculatorService:
             dvr_raw: List[Tuple[datetime, datetime]] = []
 
             for a in alerts:
-                if a.occurred_at and a.recovered_at and a.recovered_at > a.occurred_at:
-                    s = a.occurred_at.astimezone(WIB) if a.occurred_at.tzinfo else a.occurred_at.replace(tzinfo=timezone.utc).astimezone(WIB)
-                    e = a.recovered_at.astimezone(WIB) if a.recovered_at.tzinfo else a.recovered_at.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if a.start_time and a.end_time and a.end_time > a.start_time:
+                    s = a.start_time.astimezone(WIB) if a.start_time.tzinfo else a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
+                    e = a.end_time.astimezone(WIB) if a.end_time.tzinfo else a.end_time.replace(tzinfo=timezone.utc).astimezone(WIB)
 
-                    is_cpu_modem = (
-                        a.category in ["POWER", "SYSTEM"]
-                        or "REBOOT" in a.alert_code
-                        or "MODEM" in a.alert_code
-                        or "UNDERVOLTAGE" in a.alert_code
-                        or a.alert_code == "TELEMETRY_GAP_WITH_REBOOT"
-                    )
-                    is_dvr = (
-                        a.category in ["CCTV_NVR", "DVR"]
-                        or "DVR" in a.alert_code
-                        or "NVR" in a.alert_code
-                    )
-
-                    if is_cpu_modem:
+                    if a.metric == "cpu_modem":
                         cpu_raw.append((s, e))
-                    if is_dvr:
+                    elif a.metric == "cellular":
+                        cell_raw.append((s, e))
+                    elif a.metric == "cpu_dvr":
                         dvr_raw.append((s, e))
-                    cell_raw.append((s, e))
 
             cpu_merged = self._merge_intervals(cpu_raw)
             cell_merged = self._merge_intervals(cell_raw)

@@ -57,8 +57,16 @@ class DVRReportTroubleEvent(BaseModel):
     start_time: str
     end_time: str
     duration: str
-    category: str
-    description: str
+    category: Optional[str] = None
+    description: Optional[str] = None
+    metric: Optional[str] = None
+    title: Optional[str] = None
+    cause: Optional[str] = None
+    reason: Optional[str] = None
+    status: Optional[str] = "Resolved"
+    duration_minutes: Optional[float] = None
+    date_str: Optional[str] = None
+    telemetry_history_id: Optional[str] = None
 
 
 class DVRTimelineSegment(BaseModel):

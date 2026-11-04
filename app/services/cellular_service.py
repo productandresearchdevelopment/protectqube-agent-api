@@ -564,7 +564,7 @@ class CellularService:
             incident_alerts = (
                 db.query(GatewayIncidentAlert)
                 .filter(GatewayIncidentAlert.device_id == dev_id)
-                .order_by(GatewayIncidentAlert.occurred_at.desc())
+                .order_by(GatewayIncidentAlert.start_time.desc())
                 .limit(10)
                 .all()
             )
@@ -693,21 +693,21 @@ class CellularService:
         # 4a. Prioritaskan alert insiden downtime & masalah offline
         for a in incident_alerts:
             a_dt = (
-                a.occurred_at.replace(tzinfo=timezone.utc).astimezone(WIB)
-                if a.occurred_at.tzinfo is None
-                else a.occurred_at.astimezone(WIB)
+                a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if a.start_time.tzinfo is None
+                else a.start_time.astimezone(WIB)
             )
             time_str = a_dt.strftime("%d %b %Y, %H:%M:%S WIB")
-            dur_txt = f"[{a.downtime_duration}] " if a.downtime_duration else ""
-            status_cls = "error" if a.severity in ("CRITICAL", "HIGH") else ("warning" if a.severity == "WARNING" else "info")
+            dur_txt = f"[{a.duration_str}] " if a.duration_str else ""
+            status_cls = "warning" if a.status == "ACTIVE" else "info"
             real_events.append({
                 "id": f"alert-{a.id}",
-                "title": f"⚠️ {dur_txt}{a.title} – {a.message}",
+                "title": f"⚠️ {dur_txt}{a.description}",
                 "time": time_str,
                 "status": status_cls,
-                "downtime_duration": a.downtime_duration,
-                "alert_code": a.alert_code,
-                "category": a.category
+                "downtime_duration": a.duration_str,
+                "category": a.metric,
+                "telemetry_history_id": a.telemetry_history_id
             })
 
         # 4b. Event telemetri operasional berkala
@@ -750,19 +750,17 @@ class CellularService:
         if incident_alerts:
             latest_inc = incident_alerts[0]
             inc_dt = (
-                latest_inc.occurred_at.replace(tzinfo=timezone.utc).astimezone(WIB)
-                if latest_inc.occurred_at.tzinfo is None
-                else latest_inc.occurred_at.astimezone(WIB)
+                latest_inc.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
+                if latest_inc.start_time.tzinfo is None
+                else latest_inc.start_time.astimezone(WIB)
             )
             detail["last_incident"] = {
-                "title": latest_inc.title,
-                "code": latest_inc.alert_code,
-                "duration": latest_inc.downtime_duration or "N/A",
-                "message": latest_inc.message,
-                "recommendation": latest_inc.recommendation,
+                "title": latest_inc.description,
+                "duration": latest_inc.duration_str or "N/A",
+                "message": latest_inc.description,
                 "time_wib": inc_dt.strftime("%d %b %Y, %H:%M WIB"),
                 "status": latest_inc.status,
-                "severity": latest_inc.severity
+                "telemetry_history_id": latest_inc.telemetry_history_id
             }
         else:
             detail["last_incident"] = None
