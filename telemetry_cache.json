@@ -416,8 +416,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
     "site_name": "CRM SIDOARJO ALFAMART BRIGJEND KATAMSO",
-    "timestamp": 1793736276917,
-    "datetime_utc7": "2026-11-04 03:04:36 (UTC+7 / WIB)",
+    "timestamp": 1793790248471,
+    "datetime_utc7": "2026-11-04 18:04:08 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -449,8 +449,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.241.153.247",
-        "message": "Aliran data seluler aktif (IP: 10.241.153.247, CSQ: 26)"
+        "target_endpoint": "10.87.69.55",
+        "message": "Aliran data seluler aktif (IP: 10.87.69.55, CSQ: 28)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -490,34 +490,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "2d 21h 17m",
+      "uptime": "3d 12h 17m",
       "cpu": {
-        "usage_percent": 5.4,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          0.29,
-          0.27,
-          0.24
+          0.37,
+          0.26,
+          0.2
         ],
-        "temperature_c": 61.2,
+        "temperature_c": 61.8,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 464.9,
-        "free_mb": 501.1,
-        "usage_percent": 48.1,
+        "used_mb": 408.4,
+        "free_mb": 557.6,
+        "usage_percent": 42.3,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 125.6,
+        "latency_ms": 124.4,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.34",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.48.49",
-          "ppp0": "10.241.153.247"
+          "ppp0": "10.87.69.55"
         }
       }
     },
@@ -605,12 +605,12 @@
           "used_human": "249 MB",
           "free_human": "708 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261372928,
-          "free_bytes": 742344704,
+          "used_bytes": 261449728,
+          "free_bytes": 742267904,
           "used_percent": 26.0,
           "inode_total": 254000,
-          "inode_used": 13436,
-          "inode_free": 240564,
+          "inode_used": 13439,
+          "inode_free": 240561,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -623,11 +623,11 @@
           "used_gb": 0.16,
           "free_gb": 8.83,
           "total_human": "8.99 GB",
-          "used_human": "162 MB",
+          "used_human": "168 MB",
           "free_human": "8.83 GB",
           "total_bytes": 9654214656,
-          "used_bytes": 170393600,
-          "free_bytes": 9483821056,
+          "used_bytes": 176553984,
+          "free_bytes": 9477660672,
           "used_percent": 1.8,
           "inode_total": 0,
           "inode_used": 0,
@@ -637,10 +637,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 415.9,
-        "write_mb": 78.0,
-        "read_human": "415.9 MB",
-        "write_human": "78.0 MB"
+        "read_mb": 424.3,
+        "write_mb": 113.3,
+        "read_human": "424.3 MB",
+        "write_human": "113.3 MB"
       }
     },
     "modem_usb": {
@@ -705,12 +705,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 2546)",
-          "pppd (PID 17937)"
+          "pppd (PID 25799)",
+          "pppd (PID 2546)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.241.153.247",
+        "cellular_ip": "10.87.69.55",
         "link_up": true
       }
     },
@@ -735,19 +735,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 26,
+        "csq": 28,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.241.153.247",
-        "ping_ms": 64.933,
+        "cellular_ip": "10.87.69.55",
+        "ping_ms": 65.847,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 19 B/s | TX: 318 B/s",
-        "rx_human": "3.25 MB",
-        "tx_human": "23.57 MB"
+        "throughput": "RX: 21 B/s | TX: 316 B/s",
+        "rx_human": "24.69 MB",
+        "tx_human": "61.04 MB"
       }
     },
     "wifi": {
@@ -757,7 +757,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:7e:e7:97",
-      "ip_address": "10.241.153.247",
+      "ip_address": "10.87.69.55",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -792,10 +792,10 @@
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 43,
-            "power_on_days": 1156,
-            "power_on_hours": 27760,
-            "power_cycles": 27,
+            "temperature_c": 44,
+            "power_on_days": 1157,
+            "power_on_hours": 27775,
+            "power_cycles": 28,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
             "pending_sectors": 0,
@@ -806,10 +806,10 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 43,
-          "power_on_days": 1156,
-          "power_on_hours": 27760,
-          "power_cycles": 27,
+          "temperature_c": 44,
+          "power_on_days": 1157,
+          "power_on_hours": 27775,
+          "power_cycles": 28,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
           "pending_sectors": 0,
@@ -847,6 +847,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -855,6 +856,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -863,6 +865,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -871,6 +874,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -887,8 +891,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 2,
-        "latest_record_time": "14:22:00 WIB"
+        "today_segments_count": 6,
+        "latest_record_time": "18:04:06 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -982,39 +986,39 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:36] [INFO ] [#2190] [MQTT OK] CPU: 4.9% (61.2\u00b0C) | RAM: 47.8% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:45:36] [INFO ] [#2191] [MQTT OK] CPU: 21.1% (61.2\u00b0C) | RAM: 48.0% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:46:36] [INFO ] [#2192] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:47:36] [INFO ] [#2193] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.2% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:48:36] [INFO ] [#2194] [MQTT OK] CPU: 17.5% (61.2\u00b0C) | RAM: 48.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:49:36] [INFO ] [#2195] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:50:36] [INFO ] [#2196] [MQTT OK] CPU: 10.0% (61.8\u00b0C) | RAM: 47.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:51:36] [INFO ] [#2197] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:52:36] [INFO ] [#2198] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 48.4% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:53:36] [INFO ] [#2199] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:54:36] [INFO ] [#2200] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 48.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:55:36] [INFO ] [#2201] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 48.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:56:36] [INFO ] [#2202] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.4% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:57:36] [INFO ] [#2203] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 48.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:58:37] [INFO ] [#2204] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 48.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:59:36] [INFO ] [#2205] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 48.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:00:36] [INFO ] [#2206] [MQTT OK] CPU: 2.4% (62.3\u00b0C) | RAM: 48.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:01:37] [INFO ] [#2207] [MQTT OK] CPU: 9.8% (61.2\u00b0C) | RAM: 48.4% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:02:37] [INFO ] [#2208] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:03:36] [INFO ] [#2209] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 48.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%"
+      "[2026-11-04 17:44:07] [INFO ] [#86] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 42.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:45:07] [INFO ] [#87] [MQTT OK] CPU: 0.0% (60.7\u00b0C) | RAM: 41.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:46:07] [INFO ] [#88] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 42.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:47:08] [INFO ] [#89] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:48:07] [INFO ] [#90] [MQTT OK] CPU: 41.0% (61.2\u00b0C) | RAM: 42.2% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:49:07] [INFO ] [#91] [MQTT OK] CPU: 30.0% (61.2\u00b0C) | RAM: 41.8% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:50:08] [INFO ] [#92] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:51:08] [INFO ] [#93] [MQTT OK] CPU: 7.5% (62.3\u00b0C) | RAM: 42.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:52:08] [INFO ] [#94] [MQTT OK] CPU: 7.5% (62.3\u00b0C) | RAM: 42.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:53:08] [INFO ] [#95] [MQTT OK] CPU: 5.0% (61.2\u00b0C) | RAM: 41.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:54:08] [INFO ] [#96] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 41.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:55:08] [INFO ] [#97] [MQTT OK] CPU: 36.6% (61.2\u00b0C) | RAM: 42.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:56:08] [INFO ] [#98] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:57:08] [INFO ] [#99] [MQTT OK] CPU: 0.0% (61.8\u00b0C) | RAM: 42.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:58:08] [INFO ] [#100] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:59:08] [INFO ] [#101] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.8% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:00:08] [INFO ] [#102] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.2% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:01:08] [INFO ] [#103] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.4% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:02:09] [INFO ] [#104] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 42.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:03:08] [INFO ] [#105] [MQTT OK] CPU: 5.1% (61.2\u00b0C) | RAM: 42.2% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%"
     ],
     "power_throttled": {
-      "raw_hex": "0xd0005",
-      "value": 851973,
+      "raw_hex": "0xd0008",
+      "value": 851976,
       "status": "UNDERVOLTAGE_DETECTED",
-      "undervoltage_now": true,
+      "undervoltage_now": false,
       "undervoltage_occurred": true,
       "thermal_throttled_now": false,
       "thermal_throttled_occurred": false,
       "has_power_issue": true
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:36"
+    "recorded_at": "2026-11-04 18:04:08"
   },
   {
     "device_id": "gw-2832f9e1",
@@ -1026,8 +1030,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM BALI MARSA GALLERY UBUD",
     "site_name": "CRM BALI MARSA GALLERY UBUD",
-    "timestamp": 1793736278459,
-    "datetime_utc7": "2026-11-04 03:04:38 (UTC+7 / WIB)",
+    "timestamp": 1793790270518,
+    "datetime_utc7": "2026-11-04 18:04:30 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -1060,7 +1064,7 @@
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
         "target_endpoint": "10.79.73.201",
-        "message": "Aliran data seluler aktif (IP: 10.79.73.201, CSQ: 26)"
+        "message": "Aliran data seluler aktif (IP: 10.79.73.201, CSQ: 28)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -1100,28 +1104,28 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "11d 9h 12m",
+      "uptime": "12d 0h 12m",
       "cpu": {
-        "usage_percent": 10.0,
+        "usage_percent": 5.1,
         "cores": 4,
         "load_avg": [
-          1.01,
-          1.03,
-          1.02
+          1.3,
+          1.19,
+          1.1
         ],
-        "temperature_c": 44.0,
+        "temperature_c": 46.2,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 360.3,
-        "free_mb": 605.7,
-        "usage_percent": 37.3,
+        "used_mb": 363.7,
+        "free_mb": 602.3,
+        "usage_percent": 37.6,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 56.6,
+        "latency_ms": 49.1,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.123",
@@ -1215,12 +1219,12 @@
           "used_human": "241 MB",
           "free_human": "716 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 252688384,
-          "free_bytes": 751029248,
+          "used_bytes": 252950528,
+          "free_bytes": 750767104,
           "used_percent": 25.2,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -1233,11 +1237,11 @@
           "used_gb": 0.07,
           "free_gb": 8.92,
           "total_human": "8.99 GB",
-          "used_human": "73 MB",
+          "used_human": "74 MB",
           "free_human": "8.92 GB",
           "total_bytes": 9654214656,
-          "used_bytes": 76251136,
-          "free_bytes": 9577963520,
+          "used_bytes": 77225984,
+          "free_bytes": 9576988672,
           "used_percent": 0.8,
           "inode_total": 0,
           "inode_used": 0,
@@ -1247,10 +1251,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 491.3,
-        "write_mb": 1179.2,
-        "read_human": "491.3 MB",
-        "write_human": "1.15 GB"
+        "read_mb": 493.8,
+        "write_mb": 1265.2,
+        "read_human": "493.8 MB",
+        "write_human": "1.24 GB"
       }
     },
     "modem_usb": {
@@ -1315,8 +1319,8 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 3053)",
-          "pppd (PID 15140)"
+          "pppd (PID 26232)",
+          "pppd (PID 3053)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
@@ -1345,7 +1349,7 @@
         "source": "None"
       },
       "signal": {
-        "csq": 26,
+        "csq": 28,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
@@ -1353,11 +1357,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.79.73.201",
-        "ping_ms": 46.703,
+        "ping_ms": 74.669,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 19 B/s | TX: 298 B/s",
-        "rx_human": "62.88 MB",
-        "tx_human": "251.33 MB"
+        "throughput": "RX: 21 B/s | TX: 299 B/s",
+        "rx_human": "66.30 MB",
+        "tx_human": "268.56 MB"
       }
     },
     "wifi": {
@@ -1382,9 +1386,9 @@
       "nvr_endpoint": "172.16.50.250:80",
       "status": "HEALTHY",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 2085.0,
-      "total_used_gb": 1641.02,
-      "total_free_percent": 56.0,
+      "total_free_gb": 2077.0,
+      "total_used_gb": 1649.02,
+      "total_free_percent": 55.7,
       "disks": [
         {
           "id": "1",
@@ -1394,17 +1398,17 @@
           "status_raw": "ok",
           "health": "HEALTHY",
           "capacity_gb": 3726.02,
-          "free_gb": 2085.0,
-          "used_gb": 1641.02,
-          "used_percent": 44.0,
-          "free_percent": 56.0,
+          "free_gb": 2077.0,
+          "used_gb": 1649.02,
+          "used_percent": 44.3,
+          "free_percent": 55.7,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 34,
+            "temperature_c": 37,
             "power_on_days": 486,
-            "power_on_hours": 11668,
+            "power_on_hours": 11683,
             "power_cycles": 29,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -1416,9 +1420,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 34,
+          "temperature_c": 37,
           "power_on_days": 486,
-          "power_on_hours": 11668,
+          "power_on_hours": 11683,
           "power_cycles": 29,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -1457,6 +1461,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -1465,6 +1470,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -1473,6 +1479,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -1481,6 +1488,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -1497,8 +1505,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 7,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 4,
+        "latest_record_time": "19:04:28 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -1609,7 +1617,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:38"
+    "recorded_at": "2026-11-04 18:04:30"
   },
   {
     "device_id": "gw-3f9eb764",
@@ -1621,8 +1629,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
     "site_name": "CRM JAKARTA GEDUNG PLAZA OLEOS",
-    "timestamp": 1793736272961,
-    "datetime_utc7": "2026-11-04 03:04:32 (UTC+7 / WIB)",
+    "timestamp": 1793790253249,
+    "datetime_utc7": "2026-11-04 18:04:13 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -1646,16 +1654,16 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "SIM Tray Hardware",
-        "target_endpoint": "IND TELKOMSEL",
-        "message": "Terhubung normal di slot SIM modem (IND TELKOMSEL)"
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem (Telkomsel)"
       },
       "cellular_data_flow": {
         "name": "Aliran Data Seluler (Internet / PPP)",
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.127.3.57",
-        "message": "Aliran data seluler aktif (IP: 10.127.3.57, CSQ: 12)"
+        "target_endpoint": "10.98.150.93",
+        "message": "Aliran data seluler aktif (IP: 10.98.150.93, CSQ: 16)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -1695,34 +1703,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "35d 3h 10m",
+      "uptime": "35d 18h 10m",
       "cpu": {
-        "usage_percent": 7.0,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          0.77,
-          0.99,
-          1.02
+          1.07,
+          1.03,
+          1.01
         ],
-        "temperature_c": 65.5,
+        "temperature_c": 65.0,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 394.0,
-        "free_mb": 572.0,
-        "usage_percent": 40.8,
+        "used_mb": 395.0,
+        "free_mb": 570.9,
+        "usage_percent": 40.9,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 20.4,
+        "latency_ms": 45.2,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.122",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.50.241",
-          "ppp0": "10.127.3.57"
+          "ppp0": "10.98.150.93"
         }
       }
     },
@@ -1802,7 +1810,7 @@
           "mount_point": "/home",
           "device": "/dev/mmcblk0p3",
           "fs_type": "ext4",
-          "mode": "rw",
+          "mode": "ro",
           "total_gb": 0.93,
           "used_gb": 0.24,
           "free_gb": 0.69,
@@ -1810,12 +1818,12 @@
           "used_human": "250 MB",
           "free_human": "707 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261912576,
-          "free_bytes": 741805056,
+          "used_bytes": 262153216,
+          "free_bytes": 741564416,
           "used_percent": 26.1,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -1825,15 +1833,15 @@
           "fs_type": "vfat",
           "mode": "rw",
           "total_gb": 8.21,
-          "used_gb": 0.18,
-          "free_gb": 8.03,
+          "used_gb": 0.17,
+          "free_gb": 8.04,
           "total_human": "8.21 GB",
-          "used_human": "183 MB",
-          "free_human": "8.03 GB",
+          "used_human": "173 MB",
+          "free_human": "8.04 GB",
           "total_bytes": 8814075904,
-          "used_bytes": 192372736,
-          "free_bytes": 8621703168,
-          "used_percent": 2.2,
+          "used_bytes": 181174272,
+          "free_bytes": 8632901632,
+          "used_percent": 2.1,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -1842,10 +1850,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 454.9,
-        "write_mb": 452.1,
-        "read_human": "454.9 MB",
-        "write_human": "452.1 MB"
+        "read_mb": 460.5,
+        "write_mb": 535.6,
+        "read_human": "460.5 MB",
+        "write_human": "535.6 MB"
       }
     },
     "modem_usb": {
@@ -1898,12 +1906,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 9017)",
-          "pppd (PID 29752)"
+          "pppd (PID 22275)",
+          "pppd (PID 3725)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.127.3.57",
+        "cellular_ip": "10.98.150.93",
         "link_up": true
       }
     },
@@ -1912,12 +1920,12 @@
       "connection_status": "CONNECTED",
       "connection_to_gateway": "CONNECTED",
       "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
-      "operator": "IND TELKOMSEL",
+      "operator": "Telkomsel",
       "network_mode": "4G LTE",
       "iccid": "8962100019151856889",
       "msisdn": "N/A",
       "imsi": "510101915185688",
-      "imei": "868089051790412",
+      "imei": "868089051792962",
       "sms_quota_history": {
         "available": false,
         "quota_info": "N/A",
@@ -1928,19 +1936,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 12,
+        "csq": 16,
         "rssi_dbm": null,
         "quality_percent": 0.0,
-        "status": "Fair"
+        "status": "Good"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.127.3.57",
-        "ping_ms": 86.619,
+        "cellular_ip": "10.98.150.93",
+        "ping_ms": 58.197,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 23 B/s | TX: 362 B/s",
-        "rx_human": "43.21 MB",
-        "tx_human": "184.89 MB"
+        "throughput": "RX: 24 B/s | TX: 324 B/s",
+        "rx_human": "4.96 MB",
+        "tx_human": "38.50 MB"
       }
     },
     "wifi": {
@@ -1950,7 +1958,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:cb:e2:31",
-      "ip_address": "10.127.3.57",
+      "ip_address": "10.98.150.93",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -1963,10 +1971,10 @@
     "nvr_surveillance": {
       "connected": true,
       "nvr_endpoint": "172.16.50.242:80",
-      "status": "CRITICAL",
+      "status": "WARNING",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 0.0,
-      "total_used_gb": 3726.02,
+      "total_free_gb": 1.0,
+      "total_used_gb": 3725.02,
       "total_free_percent": 0.0,
       "disks": [
         {
@@ -1974,38 +1982,38 @@
           "name": "hdd1",
           "type": "SATA",
           "property": "RW",
-          "status_raw": "error",
-          "health": "DANGER",
+          "status_raw": "ok",
+          "health": "WARNING",
           "capacity_gb": 3726.02,
-          "free_gb": 0.0,
-          "used_gb": 3726.02,
+          "free_gb": 1.0,
+          "used_gb": 3725.02,
           "used_percent": 100.0,
           "free_percent": 0.0,
           "health_info": {
             "health_percent": 10,
-            "health_label": "Bahaya (Terdeteksi 120 Bad Sector)",
+            "health_label": "Bahaya (Terdeteksi 190 Bad Sector)",
             "health_badge": "FAIL",
-            "temperature_c": 43,
-            "power_on_days": 1443,
-            "power_on_hours": 34650,
-            "power_cycles": 63,
-            "bad_sectors": 120,
-            "reallocated_sectors": 98,
-            "pending_sectors": 22,
+            "temperature_c": 42,
+            "power_on_days": 1444,
+            "power_on_hours": 34665,
+            "power_cycles": 65,
+            "bad_sectors": 190,
+            "reallocated_sectors": 105,
+            "pending_sectors": 85,
             "uncorrectable_sectors": 0,
             "crc_errors": 0,
-            "read_errors": 38565
+            "read_errors": 32747
           },
           "health_percent": 10,
-          "health_label": "Bahaya (Terdeteksi 120 Bad Sector)",
+          "health_label": "Bahaya (Terdeteksi 190 Bad Sector)",
           "health_badge": "FAIL",
-          "temperature_c": 43,
-          "power_on_days": 1443,
-          "power_on_hours": 34650,
-          "power_cycles": 63,
-          "bad_sectors": 120,
-          "reallocated_sectors": 98,
-          "pending_sectors": 22,
+          "temperature_c": 42,
+          "power_on_days": 1444,
+          "power_on_hours": 34665,
+          "power_cycles": 65,
+          "bad_sectors": 190,
+          "reallocated_sectors": 105,
+          "pending_sectors": 85,
           "uncorrectable_sectors": 0,
           "crc_errors": 0
         }
@@ -2040,6 +2048,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -2048,6 +2057,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -2056,6 +2066,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -2064,13 +2075,14 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
       },
       "recording": {
         "is_recording": true,
-        "status_label": "JADWAL AKTIF (STANDBY)",
+        "status_label": "SEDANG MEREKAM (2 Kamera)",
         "badge": "OK",
         "mode": "Kontinu (24/7 CMR)",
         "active_channels": [
@@ -2080,8 +2092,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 0,
-        "latest_record_time": "N/A"
+        "today_segments_count": 9,
+        "latest_record_time": "18:04:10 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -2107,7 +2119,7 @@
           "code": "WARN_NVR_HDD_BAD_SECTOR",
           "severity": "WARNING",
           "component": "Harddisk NVR",
-          "message": "Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)!"
+          "message": "Terdeteksi 190 Bad Sector (105 Rusak / 85 Pending) pada Harddisk NVR (hdd1)!"
         },
         {
           "code": "WARN_NVR_HDD_FULL",
@@ -2157,8 +2169,8 @@
           "code": "WARN_NVR_HDD_BAD_SECTOR",
           "severity": "WARNING",
           "component": "Harddisk NVR",
-          "message": "Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)!",
-          "terminal_note": "PERINGATAN: Terdeteksi 120 Bad Sector (98 Rusak / 22 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
+          "message": "Terdeteksi 190 Bad Sector (105 Rusak / 85 Pending) pada Harddisk NVR (hdd1)!",
+          "terminal_note": "PERINGATAN: Terdeteksi 190 Bad Sector (105 Rusak / 85 Pending) pada Harddisk NVR (hdd1)! Pantau berkala dan siapkan penggantian HDD."
         },
         {
           "category": "nvr",
@@ -2190,26 +2202,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-02 13:54:48] [INFO ] [#17] [MQTT OK] CPU: 0.0% (63.4\u00b0C) | RAM: 40.7% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 13:55:48] [INFO ] [#18] [MQTT OK] CPU: 28.2% (65.5\u00b0C) | RAM: 47.2% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 13:56:48] [INFO ] [#19] [MQTT OK] CPU: 25.0% (63.4\u00b0C) | RAM: 43.2% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 13:57:48] [INFO ] [#20] [MQTT OK] CPU: 0.0% (63.9\u00b0C) | RAM: 40.8% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 13:58:48] [INFO ] [#21] [MQTT OK] CPU: 25.0% (64.5\u00b0C) | RAM: 45.1% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 13:59:48] [INFO ] [#22] [MQTT OK] CPU: 2.4% (62.3\u00b0C) | RAM: 40.9% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:00:48] [INFO ] [#23] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 41.1% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:01:48] [INFO ] [#24] [MQTT OK] CPU: 25.6% (64.5\u00b0C) | RAM: 43.7% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:02:48] [INFO ] [#25] [MQTT OK] CPU: 0.0% (63.4\u00b0C) | RAM: 41.0% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:03:48] [INFO ] [#26] [MQTT OK] CPU: 28.2% (65.5\u00b0C) | RAM: 46.3% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:04:48] [INFO ] [#27] [MQTT OK] CPU: 25.0% (63.4\u00b0C) | RAM: 42.5% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:05:48] [INFO ] [#28] [MQTT OK] CPU: 0.0% (63.4\u00b0C) | RAM: 40.8% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:06:48] [INFO ] [#29] [MQTT OK] CPU: 40.0% (65.5\u00b0C) | RAM: 45.5% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:07:48] [INFO ] [#30] [MQTT OK] CPU: 5.3% (62.3\u00b0C) | RAM: 40.9% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:08:49] [INFO ] [#31] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 40.8% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:09:48] [INFO ] [#32] [MQTT OK] CPU: 25.6% (64.5\u00b0C) | RAM: 44.5% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:10:49] [INFO ] [#33] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 40.9% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:11:48] [INFO ] [#34] [MQTT OK] CPU: 25.6% (66.6\u00b0C) | RAM: 46.5% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:12:49] [INFO ] [#35] [MQTT OK] CPU: 25.6% (63.4\u00b0C) | RAM: 42.4% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%",
-      "[2026-11-02 14:13:49] [INFO ] [#36] [MQTT OK] CPU: 2.4% (63.9\u00b0C) | RAM: 40.9% | Flash: 94% [WARN] | SIM: IND TELKOMSEL (4G LTE, CSQ 16) | NVR: JADWAL AKTIF (STANDBY) | Disk /: 85.7%"
+      "[2026-11-04 17:44:12] [INFO ] [#85] [MQTT OK] CPU: 47.5% (67.7\u00b0C) | RAM: 45.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:45:12] [INFO ] [#86] [MQTT OK] CPU: 28.6% (65.5\u00b0C) | RAM: 41.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:46:12] [INFO ] [#87] [MQTT OK] CPU: 0.0% (67.1\u00b0C) | RAM: 40.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:47:12] [INFO ] [#88] [MQTT OK] CPU: 25.0% (67.7\u00b0C) | RAM: 44.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:48:12] [INFO ] [#89] [MQTT OK] CPU: 0.0% (66.6\u00b0C) | RAM: 40.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:49:12] [INFO ] [#90] [MQTT OK] CPU: 54.8% (68.8\u00b0C) | RAM: 47.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:50:12] [INFO ] [#91] [MQTT OK] CPU: 25.6% (66.1\u00b0C) | RAM: 43.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:51:12] [INFO ] [#92] [MQTT OK] CPU: 0.0% (66.1\u00b0C) | RAM: 40.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:52:12] [INFO ] [#93] [MQTT OK] CPU: 43.6% (68.8\u00b0C) | RAM: 45.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:53:12] [INFO ] [#94] [MQTT OK] CPU: 35.0% (65.5\u00b0C) | RAM: 41.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:54:12] [INFO ] [#95] [MQTT OK] CPU: 0.0% (67.7\u00b0C) | RAM: 41.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:55:12] [INFO ] [#96] [MQTT OK] CPU: 28.6% (67.1\u00b0C) | RAM: 44.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:56:12] [INFO ] [#97] [MQTT OK] CPU: 0.0% (66.1\u00b0C) | RAM: 41.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:57:13] [INFO ] [#98] [MQTT OK] CPU: 34.1% (68.8\u00b0C) | RAM: 46.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:58:13] [INFO ] [#99] [MQTT OK] CPU: 25.0% (65.5\u00b0C) | RAM: 42.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 17:59:13] [INFO ] [#100] [MQTT OK] CPU: 2.4% (65.5\u00b0C) | RAM: 40.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:00:13] [INFO ] [#101] [MQTT OK] CPU: 46.2% (67.1\u00b0C) | RAM: 45.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 16)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:01:13] [INFO ] [#102] [MQTT OK] CPU: 0.0% (64.5\u00b0C) | RAM: 41.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 16)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:02:13] [INFO ] [#103] [MQTT OK] CPU: 17.5% (67.7\u00b0C) | RAM: 40.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 16)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 18:03:13] [INFO ] [#104] [MQTT OK] CPU: 35.7% (66.6\u00b0C) | RAM: 44.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 16)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -2222,7 +2234,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:32"
+    "recorded_at": "2026-11-04 18:04:13"
   },
   {
     "device_id": "gw-de757ea5",
@@ -2234,8 +2246,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM BANDUNG WARUNG NASI AMPERA",
     "site_name": "CRM BANDUNG WARUNG NASI AMPERA",
-    "timestamp": 1793736287115,
-    "datetime_utc7": "2026-11-04 03:04:47 (UTC+7 / WIB)",
+    "timestamp": 1793790254287,
+    "datetime_utc7": "2026-11-04 18:04:14 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -2267,8 +2279,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.128.79.197",
-        "message": "Aliran data seluler aktif (IP: 10.128.79.197, CSQ: 21)"
+        "target_endpoint": "10.143.103.204",
+        "message": "Aliran data seluler aktif (IP: 10.143.103.204, CSQ: 22)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -2308,34 +2320,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "1d 11h 31m",
+      "uptime": "2d 2h 30m",
       "cpu": {
-        "usage_percent": 7.5,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          1.11,
-          1.04,
+          0.91,
+          0.99,
           0.98
         ],
-        "temperature_c": 59.6,
+        "temperature_c": 61.2,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 386.3,
-        "free_mb": 579.7,
-        "usage_percent": 40.0,
+        "used_mb": 391.8,
+        "free_mb": 574.2,
+        "usage_percent": 40.6,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 36.7,
+        "latency_ms": 117.8,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.28",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.48.1",
-          "ppp0": "10.128.79.197"
+          "ppp0": "10.143.103.204"
         }
       }
     },
@@ -2423,12 +2435,12 @@
           "used_human": "250 MB",
           "free_human": "707 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261936128,
-          "free_bytes": 741781504,
+          "used_bytes": 262196224,
+          "free_bytes": 741521408,
           "used_percent": 26.1,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -2441,11 +2453,11 @@
           "used_gb": 0.04,
           "free_gb": 7.44,
           "total_human": "7.49 GB",
-          "used_human": "45 MB",
+          "used_human": "46 MB",
           "free_human": "7.44 GB",
           "total_bytes": 8037314560,
-          "used_bytes": 46977024,
-          "free_bytes": 7990337536,
+          "used_bytes": 47964160,
+          "free_bytes": 7989350400,
           "used_percent": 0.6,
           "inode_total": 0,
           "inode_used": 0,
@@ -2455,10 +2467,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 408.4,
-        "write_mb": 203.9,
-        "read_human": "408.4 MB",
-        "write_human": "203.9 MB"
+        "read_mb": 414.6,
+        "write_mb": 289.6,
+        "read_human": "414.6 MB",
+        "write_human": "289.6 MB"
       }
     },
     "modem_usb": {
@@ -2512,11 +2524,11 @@
       "service_status": {
         "active_daemons": [
           "pppd (PID 508)",
-          "pppd (PID 32252)"
+          "pppd (PID 2755)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.128.79.197",
+        "cellular_ip": "10.143.103.204",
         "link_up": true
       }
     },
@@ -2541,19 +2553,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 21,
+        "csq": 22,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.128.79.197",
-        "ping_ms": 40.759,
+        "cellular_ip": "10.143.103.204",
+        "ping_ms": 54.961,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 21 B/s | TX: 301 B/s",
-        "rx_human": "10.25 MB",
-        "tx_human": "252.93 MB"
+        "throughput": "RX: 18 B/s | TX: 298 B/s",
+        "rx_human": "3.03 MB",
+        "tx_human": "23.51 MB"
       }
     },
     "wifi": {
@@ -2563,7 +2575,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:20:2b:f0",
-      "ip_address": "10.128.79.197",
+      "ip_address": "10.143.103.204",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -2598,9 +2610,9 @@
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 43,
-            "power_on_days": 1574,
-            "power_on_hours": 37787,
+            "temperature_c": 44,
+            "power_on_days": 1575,
+            "power_on_hours": 37802,
             "power_cycles": 35,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -2612,9 +2624,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 43,
-          "power_on_days": 1574,
-          "power_on_hours": 37787,
+          "temperature_c": 44,
+          "power_on_days": 1575,
+          "power_on_hours": 37802,
           "power_cycles": 35,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -2653,6 +2665,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -2661,6 +2674,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -2669,6 +2683,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -2677,6 +2692,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -2693,8 +2709,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 3,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 5,
+        "latest_record_time": "18:04:12 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -2820,7 +2836,7 @@
       "has_power_issue": true
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:47"
+    "recorded_at": "2026-11-04 18:04:14"
   },
   {
     "device_id": "gw-590c9399",
@@ -2832,8 +2848,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
     "site_name": "CRM PEMATANG SIANTAR ADIRA KOMPLEKS MEGALAND",
-    "timestamp": 1793736292061,
-    "datetime_utc7": "2026-11-04 03:04:52 (UTC+7 / WIB)",
+    "timestamp": 1793790261713,
+    "datetime_utc7": "2026-11-04 18:04:21 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -2857,16 +2873,16 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "SIM Tray Hardware",
-        "target_endpoint": "IND TELKOMSEL",
-        "message": "Terhubung normal di slot SIM modem (IND TELKOMSEL)"
+        "target_endpoint": "Telkomsel",
+        "message": "Terhubung normal di slot SIM modem (Telkomsel)"
       },
       "cellular_data_flow": {
         "name": "Aliran Data Seluler (Internet / PPP)",
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.163.122.227",
-        "message": "Aliran data seluler aktif (IP: 10.163.122.227, CSQ: 22)"
+        "target_endpoint": "10.161.191.212",
+        "message": "Aliran data seluler aktif (IP: 10.161.191.212, CSQ: 24)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -2906,34 +2922,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "46m 28s",
+      "uptime": "39m 27s",
       "cpu": {
-        "usage_percent": 10.0,
+        "usage_percent": 33.3,
         "cores": 4,
         "load_avg": [
-          1.06,
-          1.06,
-          1.04
+          1.21,
+          1.05,
+          1.01
         ],
-        "temperature_c": 51.5,
+        "temperature_c": 50.5,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 334.3,
-        "free_mb": 631.6,
-        "usage_percent": 34.6,
+        "used_mb": 368.1,
+        "free_mb": 597.9,
+        "usage_percent": 38.1,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 23.0,
+        "latency_ms": 25.2,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.125",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.51.9",
-          "ppp0": "10.163.122.227"
+          "ppp0": "10.161.191.212"
         }
       }
     },
@@ -3021,12 +3037,12 @@
           "used_human": "249 MB",
           "free_human": "708 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261465088,
-          "free_bytes": 742252544,
-          "used_percent": 26.0,
+          "used_bytes": 261541888,
+          "free_bytes": 742175744,
+          "used_percent": 26.1,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -3036,15 +3052,15 @@
           "fs_type": "vfat",
           "mode": "rw",
           "total_gb": 8.99,
-          "used_gb": 0.16,
-          "free_gb": 8.83,
+          "used_gb": 0.17,
+          "free_gb": 8.82,
           "total_human": "8.99 GB",
-          "used_human": "166 MB",
-          "free_human": "8.83 GB",
+          "used_human": "170 MB",
+          "free_human": "8.82 GB",
           "total_bytes": 9654214656,
-          "used_bytes": 174448640,
-          "free_bytes": 9479766016,
-          "used_percent": 1.8,
+          "used_bytes": 178700288,
+          "free_bytes": 9475514368,
+          "used_percent": 1.9,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -3053,10 +3069,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 362.1,
-        "write_mb": 1.6,
-        "read_human": "362.1 MB",
-        "write_human": "1.6 MB"
+        "read_mb": 352.6,
+        "write_mb": 1.8,
+        "read_human": "352.6 MB",
+        "write_human": "1.8 MB"
       }
     },
     "modem_usb": {
@@ -3077,19 +3093,19 @@
       },
       "serial_ports": [
         {
-          "port": "/dev/ttyUSB1",
+          "port": "/dev/ttyUSB0",
           "interface": 2,
           "role": "AT Command Port",
           "exists": true
         },
         {
-          "port": "/dev/ttyUSB2",
+          "port": "/dev/ttyUSB1",
           "interface": 3,
           "role": "PPP / Modem Data Port",
           "exists": true
         },
         {
-          "port": "/dev/ttyUSB3",
+          "port": "/dev/ttyUSB2",
           "interface": 4,
           "role": "Audio / Voice Port",
           "exists": true
@@ -3097,12 +3113,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 1667)",
-          "pppd (PID 643)"
+          "pppd (PID 2636)",
+          "pppd (PID 2287)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.163.122.227",
+        "cellular_ip": "10.161.191.212",
         "link_up": true
       }
     },
@@ -3111,12 +3127,12 @@
       "connection_status": "CONNECTED",
       "connection_to_gateway": "CONNECTED",
       "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
-      "operator": "IND TELKOMSEL",
+      "operator": "Telkomsel",
       "network_mode": "4G LTE",
-      "iccid": "N/A",
+      "iccid": "8962100019157353048",
       "msisdn": "N/A",
-      "imsi": "N/A",
-      "imei": "N/A",
+      "imsi": "510101915735304",
+      "imei": "868089051642076",
       "sms_quota_history": {
         "available": false,
         "quota_info": "N/A",
@@ -3127,19 +3143,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 22,
+        "csq": 24,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.163.122.227",
-        "ping_ms": 37.153,
+        "cellular_ip": "10.161.191.212",
+        "ping_ms": 73.812,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 27 B/s | TX: 316 B/s",
-        "rx_human": "182.1 KB",
-        "tx_human": "1004.6 KB"
+        "throughput": "RX: 27 B/s | TX: 314 B/s",
+        "rx_human": "141.6 KB",
+        "tx_human": "915.0 KB"
       }
     },
     "wifi": {
@@ -3149,7 +3165,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:59:c6:cc",
-      "ip_address": "10.163.122.227",
+      "ip_address": "10.161.191.212",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -3164,8 +3180,8 @@
       "nvr_endpoint": "172.16.51.10:80",
       "status": "WARNING",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 0.0,
-      "total_used_gb": 3726.02,
+      "total_free_gb": 1.0,
+      "total_used_gb": 3725.02,
       "total_free_percent": 0.0,
       "disks": [
         {
@@ -3176,18 +3192,18 @@
           "status_raw": "ok",
           "health": "WARNING",
           "capacity_gb": 3726.02,
-          "free_gb": 0.0,
-          "used_gb": 3726.02,
+          "free_gb": 1.0,
+          "used_gb": 3725.02,
           "used_percent": 100.0,
           "free_percent": 0.0,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 36,
-            "power_on_days": 1392,
-            "power_on_hours": 33418,
-            "power_cycles": 49,
+            "temperature_c": 34,
+            "power_on_days": 1393,
+            "power_on_hours": 33433,
+            "power_cycles": 54,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
             "pending_sectors": 0,
@@ -3198,10 +3214,10 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 36,
-          "power_on_days": 1392,
-          "power_on_hours": 33418,
-          "power_cycles": 49,
+          "temperature_c": 34,
+          "power_on_days": 1393,
+          "power_on_hours": 33433,
+          "power_cycles": 54,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
           "pending_sectors": 0,
@@ -3239,6 +3255,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -3247,6 +3264,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -3255,6 +3273,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -3263,6 +3282,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -3279,8 +3299,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 6,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 12,
+        "latest_record_time": "18:04:20 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -3374,26 +3394,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:51] [INFO ] [#27] [MQTT OK] CPU: 48.8% (53.2\u00b0C) | RAM: 39.2% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:45:51] [INFO ] [#28] [MQTT OK] CPU: 32.5% (49.9\u00b0C) | RAM: 34.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:46:51] [INFO ] [#29] [MQTT OK] CPU: 5.0% (52.6\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:47:51] [INFO ] [#30] [MQTT OK] CPU: 25.0% (52.1\u00b0C) | RAM: 37.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:48:51] [INFO ] [#31] [MQTT OK] CPU: 10.0% (51.0\u00b0C) | RAM: 35.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:49:51] [INFO ] [#32] [MQTT OK] CPU: 25.0% (53.2\u00b0C) | RAM: 40.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:50:51] [INFO ] [#33] [MQTT OK] CPU: 25.6% (51.0\u00b0C) | RAM: 36.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:51:51] [INFO ] [#34] [MQTT OK] CPU: 0.0% (51.5\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:52:51] [INFO ] [#35] [MQTT OK] CPU: 25.6% (52.1\u00b0C) | RAM: 38.2% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:53:51] [INFO ] [#36] [MQTT OK] CPU: 0.0% (49.9\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:54:51] [INFO ] [#37] [MQTT OK] CPU: 28.2% (53.7\u00b0C) | RAM: 40.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:55:51] [INFO ] [#38] [MQTT OK] CPU: 48.7% (51.5\u00b0C) | RAM: 36.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:56:51] [INFO ] [#39] [MQTT OK] CPU: 0.0% (51.0\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:57:51] [INFO ] [#40] [MQTT OK] CPU: 35.1% (52.6\u00b0C) | RAM: 39.3% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:58:51] [INFO ] [#41] [MQTT OK] CPU: 52.3% (50.5\u00b0C) | RAM: 34.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:59:51] [INFO ] [#42] [MQTT OK] CPU: 0.0% (52.1\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:00:51] [INFO ] [#43] [MQTT OK] CPU: 25.6% (51.5\u00b0C) | RAM: 37.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:01:51] [INFO ] [#44] [MQTT OK] CPU: 0.0% (50.5\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:02:52] [INFO ] [#45] [MQTT OK] CPU: 36.8% (53.2\u00b0C) | RAM: 40.2% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:03:52] [INFO ] [#46] [MQTT OK] CPU: 29.3% (51.5\u00b0C) | RAM: 35.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 22)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%"
+      "[2026-11-04 17:44:20] [INFO ] [#20] [MQTT OK] CPU: 0.0% (48.3\u00b0C) | RAM: 34.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:45:20] [INFO ] [#21] [MQTT OK] CPU: 0.0% (50.5\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:46:20] [INFO ] [#22] [MQTT OK] CPU: 25.6% (50.5\u00b0C) | RAM: 37.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:47:20] [INFO ] [#23] [MQTT OK] CPU: 0.0% (49.4\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:48:20] [INFO ] [#24] [MQTT OK] CPU: 46.2% (51.5\u00b0C) | RAM: 40.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:49:21] [INFO ] [#25] [MQTT OK] CPU: 25.6% (49.9\u00b0C) | RAM: 36.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:50:21] [INFO ] [#26] [MQTT OK] CPU: 30.8% (50.5\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:51:21] [INFO ] [#27] [MQTT OK] CPU: 27.5% (51.0\u00b0C) | RAM: 38.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:52:21] [INFO ] [#28] [MQTT OK] CPU: 0.0% (49.4\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:53:21] [INFO ] [#29] [MQTT OK] CPU: 35.0% (52.1\u00b0C) | RAM: 40.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:54:21] [INFO ] [#30] [MQTT OK] CPU: 25.0% (50.5\u00b0C) | RAM: 36.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:55:21] [INFO ] [#31] [MQTT OK] CPU: 5.1% (49.9\u00b0C) | RAM: 33.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:56:21] [INFO ] [#32] [MQTT OK] CPU: 41.0% (51.5\u00b0C) | RAM: 38.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:57:21] [INFO ] [#33] [MQTT OK] CPU: 25.0% (48.9\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:58:21] [INFO ] [#34] [MQTT OK] CPU: 20.5% (51.5\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:59:21] [INFO ] [#35] [MQTT OK] CPU: 65.9% (50.5\u00b0C) | RAM: 36.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:00:21] [INFO ] [#36] [MQTT OK] CPU: 4.9% (49.4\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:01:21] [INFO ] [#37] [MQTT OK] CPU: 68.3% (52.1\u00b0C) | RAM: 39.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:02:21] [INFO ] [#38] [MQTT OK] CPU: 25.0% (49.4\u00b0C) | RAM: 35.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:03:21] [INFO ] [#39] [MQTT OK] CPU: 4.9% (51.0\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 24)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.6%"
     ],
     "power_throttled": {
       "raw_hex": "0x50000",
@@ -3406,7 +3426,7 @@
       "has_power_issue": true
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:52"
+    "recorded_at": "2026-11-04 18:04:21"
   },
   {
     "device_id": "gw-dccdec07",
@@ -3661,8 +3681,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "Site PQP",
     "site_name": "Site PQP",
-    "timestamp": 1793736303212,
-    "datetime_utc7": "2026-11-04 03:05:03 (UTC+7 / WIB)",
+    "timestamp": 1793790249097,
+    "datetime_utc7": "2026-11-04 18:04:09 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -3694,8 +3714,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.64.7.148",
-        "message": "Aliran data seluler aktif (IP: 10.64.7.148, CSQ: 28)"
+        "target_endpoint": "10.174.20.112",
+        "message": "Aliran data seluler aktif (IP: 10.174.20.112, CSQ: 31)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -3735,34 +3755,33 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "8h 42m",
+      "uptime": "4h 52m",
       "cpu": {
         "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          1.28,
-          1.1,
-          1.03
+          0.65,
+          0.77,
+          0.76
         ],
-        "temperature_c": 29.5,
+        "temperature_c": 33.2,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 336.2,
-        "free_mb": 629.8,
-        "usage_percent": 34.8,
+        "used_mb": 333.7,
+        "free_mb": 632.3,
+        "usage_percent": 34.5,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 60.9,
+        "latency_ms": 52.1,
         "tailscale_ip": "N/A",
         "interfaces": {
-          "ppp1": "10.1.37.75",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.57.105",
-          "ppp0": "10.64.7.148"
+          "ppp0": "10.174.20.112"
         }
       }
     },
@@ -3868,12 +3887,12 @@
           "used_gb": 0.04,
           "free_gb": 0.49,
           "total_human": "540 MB",
-          "used_human": "36 MB",
-          "free_human": "504 MB",
+          "used_human": "39 MB",
+          "free_human": "501 MB",
           "total_bytes": 566149120,
-          "used_bytes": 38014976,
-          "free_bytes": 528134144,
-          "used_percent": 6.7,
+          "used_bytes": 40566784,
+          "free_bytes": 525582336,
+          "used_percent": 7.2,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -3882,10 +3901,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 384.5,
-        "write_mb": 18.6,
-        "read_human": "384.5 MB",
-        "write_human": "18.6 MB"
+        "read_mb": 382.0,
+        "write_mb": 11.0,
+        "read_human": "382.0 MB",
+        "write_human": "11.0 MB"
       }
     },
     "modem_usb": {
@@ -3962,12 +3981,11 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 763)",
-          "pppd (PID 488)"
+          "pppd (PID 494)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.64.7.148",
+        "cellular_ip": "10.174.20.112",
         "link_up": true
       }
     },
@@ -3988,23 +4006,23 @@
         "quota_main_gb": 9.53,
         "quota_expiry": "31-10-2026 pkl 23:59",
         "last_updated": "30-10-2026 07:52:47 WIB",
-        "age_human": "(4 hari lalu)",
+        "age_human": "(5 hari lalu)",
         "source": "SMS Balasan 3636"
       },
       "signal": {
-        "csq": 28,
+        "csq": 31,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.64.7.148",
-        "ping_ms": 58.808,
+        "cellular_ip": "10.174.20.112",
+        "ping_ms": 64.721,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 250 B/s | TX: 408 B/s",
-        "rx_human": "7.11 MB",
-        "tx_human": "23.91 MB"
+        "throughput": "RX: 194 B/s | TX: 373 B/s",
+        "rx_human": "7.14 MB",
+        "tx_human": "14.10 MB"
       }
     },
     "wifi": {
@@ -4014,7 +4032,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:bf:8e:d0",
-      "ip_address": "10.64.7.148",
+      "ip_address": "10.174.20.112",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -4029,9 +4047,9 @@
       "nvr_endpoint": "172.16.57.106:80",
       "status": "HEALTHY",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 2053.0,
-      "total_used_gb": 1673.02,
-      "total_free_percent": 55.1,
+      "total_free_gb": 2044.0,
+      "total_used_gb": 1682.02,
+      "total_free_percent": 54.9,
       "disks": [
         {
           "id": "1",
@@ -4041,18 +4059,18 @@
           "status_raw": "ok",
           "health": "HEALTHY",
           "capacity_gb": 3726.02,
-          "free_gb": 2053.0,
-          "used_gb": 1673.02,
-          "used_percent": 44.9,
-          "free_percent": 55.1,
+          "free_gb": 2044.0,
+          "used_gb": 1682.02,
+          "used_percent": 45.1,
+          "free_percent": 54.9,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 32,
+            "temperature_c": 35,
             "power_on_days": 364,
-            "power_on_hours": 8743,
-            "power_cycles": 69,
+            "power_on_hours": 8758,
+            "power_cycles": 70,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
             "pending_sectors": 0,
@@ -4063,10 +4081,10 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 32,
+          "temperature_c": 35,
           "power_on_days": 364,
-          "power_on_hours": 8743,
-          "power_cycles": 69,
+          "power_on_hours": 8758,
+          "power_cycles": 70,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
           "pending_sectors": 0,
@@ -4144,8 +4162,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 9,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 20,
+        "latest_record_time": "17:15:57 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -4239,39 +4257,39 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:59] [INFO ] [#503] [MQTT OK] CPU: 0.0% (30.0\u00b0C) | RAM: 34.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:45:58] [INFO ] [#504] [MQTT OK] CPU: 2.5% (30.0\u00b0C) | RAM: 34.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:46:58] [INFO ] [#505] [MQTT OK] CPU: 0.0% (30.0\u00b0C) | RAM: 34.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:48:02] [INFO ] [#506] [MQTT OK] CPU: 42.5% (30.6\u00b0C) | RAM: 40.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:48:59] [INFO ] [#507] [MQTT OK] CPU: 50.0% (30.0\u00b0C) | RAM: 40.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:49:59] [INFO ] [#508] [MQTT OK] CPU: 32.5% (30.0\u00b0C) | RAM: 39.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:50:59] [INFO ] [#509] [MQTT OK] CPU: 25.0% (31.1\u00b0C) | RAM: 38.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:51:59] [INFO ] [#510] [MQTT OK] CPU: 42.5% (30.6\u00b0C) | RAM: 37.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:52:59] [INFO ] [#511] [MQTT OK] CPU: 25.0% (30.6\u00b0C) | RAM: 36.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:53:59] [INFO ] [#512] [MQTT OK] CPU: 25.0% (30.6\u00b0C) | RAM: 35.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:54:59] [INFO ] [#513] [MQTT OK] CPU: 2.5% (29.5\u00b0C) | RAM: 35.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:55:59] [INFO ] [#514] [MQTT OK] CPU: 0.0% (30.0\u00b0C) | RAM: 34.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:56:59] [INFO ] [#515] [MQTT OK] CPU: 0.0% (30.0\u00b0C) | RAM: 34.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 30)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:57:59] [INFO ] [#516] [MQTT OK] CPU: 25.0% (31.1\u00b0C) | RAM: 41.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:58:59] [INFO ] [#517] [MQTT OK] CPU: 77.5% (32.2\u00b0C) | RAM: 40.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 02:59:59] [INFO ] [#518] [MQTT OK] CPU: 25.0% (30.6\u00b0C) | RAM: 39.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:01:00] [INFO ] [#519] [MQTT OK] CPU: 25.0% (30.6\u00b0C) | RAM: 38.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:02:00] [INFO ] [#520] [MQTT OK] CPU: 25.0% (30.6\u00b0C) | RAM: 37.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:02:59] [INFO ] [#521] [MQTT OK] CPU: 35.0% (30.0\u00b0C) | RAM: 36.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
-      "[2026-11-04 03:04:00] [INFO ] [#522] [MQTT OK] CPU: 28.2% (29.5\u00b0C) | RAM: 35.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%"
+      "[2026-11-04 17:44:09] [INFO ] [#273] [MQTT OK] CPU: 31.7% (35.4\u00b0C) | RAM: 40.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:45:08] [INFO ] [#274] [MQTT OK] CPU: 53.8% (36.5\u00b0C) | RAM: 39.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:46:08] [INFO ] [#275] [MQTT OK] CPU: 28.2% (35.9\u00b0C) | RAM: 38.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:47:08] [INFO ] [#276] [MQTT OK] CPU: 25.6% (35.4\u00b0C) | RAM: 37.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:48:08] [INFO ] [#277] [MQTT OK] CPU: 28.6% (35.4\u00b0C) | RAM: 37.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:49:09] [INFO ] [#278] [MQTT OK] CPU: 25.0% (34.9\u00b0C) | RAM: 36.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:50:09] [INFO ] [#279] [MQTT OK] CPU: 26.8% (33.8\u00b0C) | RAM: 34.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:51:08] [INFO ] [#280] [MQTT OK] CPU: 0.0% (32.7\u00b0C) | RAM: 34.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:52:08] [INFO ] [#281] [MQTT OK] CPU: 2.4% (32.7\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:53:08] [INFO ] [#282] [MQTT OK] CPU: 4.9% (33.2\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:54:09] [INFO ] [#283] [MQTT OK] CPU: 7.0% (33.2\u00b0C) | RAM: 34.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:55:09] [INFO ] [#284] [MQTT OK] CPU: 0.0% (34.9\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:56:09] [INFO ] [#285] [MQTT OK] CPU: 2.5% (34.9\u00b0C) | RAM: 33.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:57:09] [INFO ] [#286] [MQTT OK] CPU: 7.5% (35.9\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 29)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:58:09] [INFO ] [#287] [MQTT OK] CPU: 82.5% (36.5\u00b0C) | RAM: 40.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 27)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 17:59:09] [INFO ] [#288] [MQTT OK] CPU: 25.0% (35.4\u00b0C) | RAM: 39.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:00:09] [INFO ] [#289] [MQTT OK] CPU: 25.6% (35.9\u00b0C) | RAM: 38.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 28)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:01:09] [INFO ] [#290] [MQTT OK] CPU: 27.5% (35.4\u00b0C) | RAM: 37.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:02:09] [INFO ] [#291] [MQTT OK] CPU: 28.2% (35.4\u00b0C) | RAM: 36.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%",
+      "[2026-11-04 18:03:09] [INFO ] [#292] [MQTT OK] CPU: 25.0% (34.9\u00b0C) | RAM: 35.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (Ch 1) | Flash: 94% [WARN] | Disk /: 85.6%"
     ],
     "power_throttled": {
-      "raw_hex": "0x50005",
-      "value": 327685,
-      "status": "UNDERVOLTAGE_DETECTED",
-      "undervoltage_now": true,
-      "undervoltage_occurred": true,
+      "raw_hex": "0x0",
+      "value": 0,
+      "status": "NORMAL",
+      "undervoltage_now": false,
+      "undervoltage_occurred": false,
       "thermal_throttled_now": false,
       "thermal_throttled_occurred": false,
-      "has_power_issue": true
+      "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:05:03"
+    "recorded_at": "2026-11-04 18:04:09"
   },
   {
     "device_id": "gw-3dc25578",
@@ -4283,8 +4301,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM BOGOR STASIUN KERETA API",
     "site_name": "CRM BOGOR STASIUN KERETA API",
-    "timestamp": 1793736289061,
-    "datetime_utc7": "2026-11-04 03:04:49 (UTC+7 / WIB)",
+    "timestamp": 1793790232274,
+    "datetime_utc7": "2026-11-04 18:03:52 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -4316,8 +4334,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.23.152.236",
-        "message": "Aliran data seluler aktif (IP: 10.23.152.236, CSQ: 23)"
+        "target_endpoint": "10.5.204.22",
+        "message": "Aliran data seluler aktif (IP: 10.5.204.22, CSQ: 25)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -4357,34 +4375,34 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "23h 56m",
+      "uptime": "11h 14m",
       "cpu": {
         "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          1.31,
-          1.08,
-          1.02
+          0.79,
+          1.01,
+          1.05
         ],
-        "temperature_c": 46.2,
+        "temperature_c": 47.2,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 356.8,
-        "free_mb": 609.1,
-        "usage_percent": 36.9,
+        "used_mb": 336.5,
+        "free_mb": 629.5,
+        "usage_percent": 34.8,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 27.0,
+        "latency_ms": 39.3,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.58",
           "wlan0": "192.168.0.1",
           "eth0": "172.16.48.241",
-          "ppp0": "10.23.152.236"
+          "ppp0": "10.5.204.22"
         }
       }
     },
@@ -4422,7 +4440,7 @@
           "mount_point": "/",
           "device": "/dev/root",
           "fs_type": "ext4",
-          "mode": "rw",
+          "mode": "ro",
           "total_gb": 3.81,
           "used_gb": 3.26,
           "free_gb": 0.55,
@@ -4464,20 +4482,20 @@
           "mount_point": "/home",
           "device": "/dev/mmcblk0p3",
           "fs_type": "ext4",
-          "mode": "ro",
+          "mode": "rw",
           "total_gb": 0.93,
           "used_gb": 0.24,
           "free_gb": 0.69,
           "total_human": "957 MB",
-          "used_human": "249 MB",
+          "used_human": "250 MB",
           "free_human": "708 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 261502976,
-          "free_bytes": 742214656,
+          "used_bytes": 261633024,
+          "free_bytes": 742084608,
           "used_percent": 26.1,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -4488,14 +4506,14 @@
           "mode": "rw",
           "total_gb": 8.99,
           "used_gb": 0.07,
-          "free_gb": 8.92,
+          "free_gb": 8.93,
           "total_human": "8.99 GB",
-          "used_human": "76 MB",
-          "free_human": "8.92 GB",
+          "used_human": "67 MB",
+          "free_human": "8.93 GB",
           "total_bytes": 9654214656,
-          "used_bytes": 79421440,
-          "free_bytes": 9574793216,
-          "used_percent": 0.8,
+          "used_bytes": 70582272,
+          "free_bytes": 9583632384,
+          "used_percent": 0.7,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -4504,10 +4522,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 405.0,
-        "write_mb": 56.7,
-        "read_human": "405.0 MB",
-        "write_human": "56.7 MB"
+        "read_mb": 397.8,
+        "write_mb": 38.2,
+        "read_human": "397.8 MB",
+        "write_human": "38.2 MB"
       }
     },
     "modem_usb": {
@@ -4548,12 +4566,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 2325)",
-          "pppd (PID 15370)"
+          "pppd (PID 4542)",
+          "pppd (PID 633)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.23.152.236",
+        "cellular_ip": "10.5.204.22",
         "link_up": true
       }
     },
@@ -4578,19 +4596,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 23,
+        "csq": 25,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.23.152.236",
-        "ping_ms": 37.666,
+        "cellular_ip": "10.5.204.22",
+        "ping_ms": 76.338,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 25 B/s | TX: 359 B/s",
-        "rx_human": "20.38 MB",
-        "tx_human": "149.32 MB"
+        "throughput": "RX: 26 B/s | TX: 315 B/s",
+        "rx_human": "11.52 MB",
+        "tx_human": "149.80 MB"
       }
     },
     "wifi": {
@@ -4600,7 +4618,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:97:00:2d",
-      "ip_address": "10.23.152.236",
+      "ip_address": "10.5.204.22",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -4635,10 +4653,10 @@
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 47,
-            "power_on_days": 1510,
-            "power_on_hours": 36250,
-            "power_cycles": 66,
+            "temperature_c": 49,
+            "power_on_days": 1511,
+            "power_on_hours": 36265,
+            "power_cycles": 67,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
             "pending_sectors": 0,
@@ -4649,10 +4667,10 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 47,
-          "power_on_days": 1510,
-          "power_on_hours": 36250,
-          "power_cycles": 66,
+          "temperature_c": 49,
+          "power_on_days": 1511,
+          "power_on_hours": 36265,
+          "power_cycles": 67,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
           "pending_sectors": 0,
@@ -4690,6 +4708,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -4698,6 +4717,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -4706,6 +4726,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -4714,6 +4735,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -4730,8 +4752,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 8,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 9,
+        "latest_record_time": "18:03:49 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
@@ -4825,26 +4847,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:48] [INFO ] [#1416] [MQTT OK] CPU: 25.6% (47.8\u00b0C) | RAM: 42.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:45:48] [INFO ] [#1417] [MQTT OK] CPU: 33.3% (46.2\u00b0C) | RAM: 38.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:46:48] [INFO ] [#1418] [MQTT OK] CPU: 0.0% (47.2\u00b0C) | RAM: 36.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:47:48] [INFO ] [#1419] [MQTT OK] CPU: 25.6% (47.2\u00b0C) | RAM: 41.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:48:48] [INFO ] [#1420] [MQTT OK] CPU: 4.9% (45.6\u00b0C) | RAM: 37.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:49:48] [INFO ] [#1421] [MQTT OK] CPU: 41.0% (48.3\u00b0C) | RAM: 42.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:50:48] [INFO ] [#1422] [MQTT OK] CPU: 27.5% (46.2\u00b0C) | RAM: 39.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:51:48] [INFO ] [#1423] [MQTT OK] CPU: 0.0% (46.2\u00b0C) | RAM: 36.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:52:49] [INFO ] [#1424] [MQTT OK] CPU: 25.0% (47.8\u00b0C) | RAM: 41.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:53:48] [INFO ] [#1425] [MQTT OK] CPU: 7.3% (45.1\u00b0C) | RAM: 36.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:54:48] [INFO ] [#1426] [MQTT OK] CPU: 0.0% (47.2\u00b0C) | RAM: 37.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:55:48] [INFO ] [#1427] [MQTT OK] CPU: 25.0% (47.8\u00b0C) | RAM: 39.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:56:48] [INFO ] [#1428] [MQTT OK] CPU: 5.0% (46.2\u00b0C) | RAM: 37.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:57:48] [INFO ] [#1429] [MQTT OK] CPU: 36.8% (48.3\u00b0C) | RAM: 42.2% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:58:48] [INFO ] [#1430] [MQTT OK] CPU: 60.0% (46.7\u00b0C) | RAM: 37.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 02:59:48] [INFO ] [#1431] [MQTT OK] CPU: 0.0% (46.7\u00b0C) | RAM: 36.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:00:48] [INFO ] [#1432] [MQTT OK] CPU: 25.0% (47.8\u00b0C) | RAM: 40.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:01:49] [INFO ] [#1433] [MQTT OK] CPU: 0.0% (46.2\u00b0C) | RAM: 37.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:02:49] [INFO ] [#1434] [MQTT OK] CPU: 25.6% (47.8\u00b0C) | RAM: 43.0% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
-      "[2026-11-04 03:03:49] [INFO ] [#1435] [MQTT OK] CPU: 25.0% (46.2\u00b0C) | RAM: 38.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 23)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%"
+      "[2026-11-04 13:32:24] [INFO ] [#403] [MQTT OK] CPU: 7.1% (49.4\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:33:24] [INFO ] [#404] [MQTT OK] CPU: 27.5% (50.5\u00b0C) | RAM: 38.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:34:24] [INFO ] [#405] [MQTT OK] CPU: 0.0% (48.9\u00b0C) | RAM: 35.3% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:35:24] [INFO ] [#406] [MQTT OK] CPU: 23.1% (51.0\u00b0C) | RAM: 35.3% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:36:24] [INFO ] [#407] [MQTT OK] CPU: 57.9% (51.0\u00b0C) | RAM: 37.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:37:24] [INFO ] [#408] [MQTT OK] CPU: 0.0% (49.4\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:38:24] [INFO ] [#409] [MQTT OK] CPU: 29.3% (51.5\u00b0C) | RAM: 39.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:39:24] [INFO ] [#410] [MQTT OK] CPU: 25.0% (49.4\u00b0C) | RAM: 35.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:40:25] [INFO ] [#411] [MQTT OK] CPU: 0.0% (50.5\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:41:25] [INFO ] [#412] [MQTT OK] CPU: 25.6% (50.5\u00b0C) | RAM: 38.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:42:24] [INFO ] [#413] [MQTT OK] CPU: 7.3% (49.9\u00b0C) | RAM: 34.4% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:43:25] [INFO ] [#414] [MQTT OK] CPU: 48.8% (52.1\u00b0C) | RAM: 40.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:44:25] [INFO ] [#415] [MQTT OK] CPU: 25.0% (49.9\u00b0C) | RAM: 36.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:45:24] [INFO ] [#416] [MQTT OK] CPU: 15.8% (49.9\u00b0C) | RAM: 34.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:46:25] [INFO ] [#417] [MQTT OK] CPU: 36.8% (50.5\u00b0C) | RAM: 39.1% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:47:24] [INFO ] [#418] [MQTT OK] CPU: 0.0% (49.4\u00b0C) | RAM: 35.4% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:48:25] [INFO ] [#419] [MQTT OK] CPU: 0.0% (51.5\u00b0C) | RAM: 35.2% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:49:25] [INFO ] [#420] [MQTT OK] CPU: 60.0% (51.0\u00b0C) | RAM: 37.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:50:25] [INFO ] [#421] [MQTT OK] CPU: 0.0% (49.4\u00b0C) | RAM: 34.8% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 94% [WARN] | Disk /: 85.7%",
+      "[2026-11-04 13:51:28] [INFO ] [#422] [MQTT OK] CPU: 35.9% (51.5\u00b0C) | RAM: 39.9% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 25)] | NVR: OFFLINE | Flash: 94% [WARN] | Disk /: 85.7%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -4857,7 +4879,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:49"
+    "recorded_at": "2026-11-04 18:03:52"
   },
   {
     "device_id": "gw-8c35ffc2",
@@ -4869,8 +4891,8 @@
     "hardware_type": "dusun",
     "location_name": "CRM SAMARINDA ATM CENTER JUANDA",
     "site_name": "CRM SAMARINDA ATM CENTER JUANDA",
-    "timestamp": 1793736292259,
-    "datetime_utc7": "2026-11-04 03:04:52 (UTC+7 / WIB)",
+    "timestamp": 1793790261167,
+    "datetime_utc7": "2026-11-04 18:04:21 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -4903,7 +4925,7 @@
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
         "target_endpoint": "10.64.55.29",
-        "message": "Aliran data seluler aktif (IP: 10.64.55.29, CSQ: 31)"
+        "message": "Aliran data seluler aktif (IP: 10.64.55.29, CSQ: 30)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -4943,31 +4965,31 @@
         "pqube_variant": "putih",
         "label": "PUTIH (Dusun IoT Gateway)"
       },
-      "uptime": "20h 3m",
+      "uptime": "11h 4m",
       "cpu": {
-        "usage_percent": 0.0,
+        "usage_percent": 2.4,
         "cores": 4,
         "load_avg": [
-          0.14,
-          0.16,
-          0.21
+          0.02,
+          0.22,
+          0.27
         ],
-        "temperature_c": 53.3,
+        "temperature_c": 57.7,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 1958.6,
-        "used_mb": 363.1,
-        "free_mb": 1595.5,
-        "usage_percent": 18.5,
+        "used_mb": 366.1,
+        "free_mb": 1592.5,
+        "usage_percent": 18.7,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 24.6,
+        "latency_ms": 32.5,
         "tailscale_ip": "N/A",
         "interfaces": {
-          "veth4609960": "169.254.16.20",
+          "veth2572f1a": "169.254.70.205",
           "br-62272d88012c": "172.19.0.1",
           "eth0": "172.16.61.121",
           "ppp0": "10.64.55.29",
@@ -4988,10 +5010,10 @@
         "cid_register": "150100384754463452066620be23baa9"
       },
       "health_percent": 94,
-      "health_label": "Baik (Kapasitas Root Waspada 89.8%)",
+      "health_label": "Baik (Kapasitas Root Waspada 89.7%)",
       "health_badge": "WARN",
       "health_deductions": [
-        "Kapasitas Root Waspada 89.8% (-6%)"
+        "Kapasitas Root Waspada 89.7% (-6%)"
       ],
       "hw_write_lock": "Normal (Writable)",
       "bad_sectors": {
@@ -5017,14 +5039,14 @@
           "free_gb": 0.6,
           "total_human": "5.85 GB",
           "used_human": "5.25 GB",
-          "free_human": "611 MB",
+          "free_human": "615 MB",
           "total_bytes": 6276579328,
-          "used_bytes": 5636177920,
-          "free_bytes": 640401408,
-          "used_percent": 89.8,
+          "used_bytes": 5632086016,
+          "free_bytes": 644493312,
+          "used_percent": 89.7,
           "inode_total": 384000,
-          "inode_used": 140477,
-          "inode_free": 243523,
+          "inode_used": 140482,
+          "inode_free": 243518,
           "inode_percent": 36.6,
           "status": "WARN"
         },
@@ -5040,21 +5062,21 @@
           "used_human": "605 MB",
           "free_human": "474 MB",
           "total_bytes": 1131831296,
-          "used_bytes": 634732544,
-          "free_bytes": 497098752,
+          "used_bytes": 634716160,
+          "free_bytes": 497115136,
           "used_percent": 56.1,
           "inode_total": 72576,
-          "inode_used": 3161,
-          "inode_free": 69415,
+          "inode_used": 3160,
+          "inode_free": 69416,
           "inode_percent": 4.4,
           "status": "GOOD"
         }
       ],
       "io_stats": {
-        "read_mb": 391.4,
-        "write_mb": 17713.4,
-        "read_human": "391.4 MB",
-        "write_human": "17.30 GB"
+        "read_mb": 389.8,
+        "write_mb": 9740.1,
+        "read_human": "389.8 MB",
+        "write_human": "9.51 GB"
       }
     },
     "modem_usb": {
@@ -5107,8 +5129,8 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 525)",
-          "pppd (PID 1885)"
+          "pppd (PID 2282)",
+          "pppd (PID 529)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
@@ -5137,7 +5159,7 @@
         "source": "None"
       },
       "signal": {
-        "csq": 31,
+        "csq": 30,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Excellent"
@@ -5145,11 +5167,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.64.55.29",
-        "ping_ms": 47.48,
+        "ping_ms": 54.274,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 546 B/s | TX: 443 B/s",
-        "rx_human": "9.48 MB",
-        "tx_human": "24.09 MB"
+        "throughput": "RX: 124 B/s | TX: 343 B/s",
+        "rx_human": "6.81 MB",
+        "tx_human": "24.59 MB"
       }
     },
     "wifi": {
@@ -5174,8 +5196,8 @@
       "nvr_endpoint": "172.16.61.122:80",
       "status": "HEALTHY",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 3712.0,
-      "total_used_gb": 14.02,
+      "total_free_gb": 3710.0,
+      "total_used_gb": 16.02,
       "total_free_percent": 99.6,
       "disks": [
         {
@@ -5186,17 +5208,17 @@
           "status_raw": "ok",
           "health": "HEALTHY",
           "capacity_gb": 3726.02,
-          "free_gb": 3712.0,
-          "used_gb": 14.02,
+          "free_gb": 3710.0,
+          "used_gb": 16.02,
           "used_percent": 0.4,
           "free_percent": 99.6,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 26,
+            "temperature_c": 30,
             "power_on_days": 970,
-            "power_on_hours": 23280,
+            "power_on_hours": 23295,
             "power_cycles": 67,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -5208,9 +5230,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 26,
+          "temperature_c": 30,
           "power_on_days": 970,
-          "power_on_hours": 23280,
+          "power_on_hours": 23295,
           "power_cycles": 67,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -5249,6 +5271,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -5257,6 +5280,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -5265,6 +5289,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -5273,6 +5298,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -5319,13 +5345,13 @@
           "code": "WARN_STORAGE_PARTITION_HIGH",
           "severity": "WARNING",
           "component": "Partisi /",
-          "message": "Kapasitas partisi '/' mencapai 89.8% (Sisa: 611 MB)."
+          "message": "Kapasitas partisi '/' mencapai 89.7% (Sisa: 615 MB)."
         },
         {
           "code": "WARN_STORAGE_HEALTH_DEGRADED",
           "severity": "WARNING",
           "component": "Kesehatan Flash",
-          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.8%))."
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.7%))."
         }
       ],
       "system": [],
@@ -5354,8 +5380,8 @@
           "code": "WARN_STORAGE_PARTITION_HIGH",
           "severity": "WARNING",
           "component": "Partisi /",
-          "message": "Kapasitas partisi '/' mencapai 89.8% (Sisa: 611 MB).",
-          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 89.8%. Segera bersihkan file sementara atau log."
+          "message": "Kapasitas partisi '/' mencapai 89.7% (Sisa: 615 MB).",
+          "terminal_note": "Kapasitas partisi '/' storage gateway mencapai 89.7%. Segera bersihkan file sementara atau log."
         },
         {
           "category": "storage",
@@ -5363,32 +5389,32 @@
           "code": "WARN_STORAGE_HEALTH_DEGRADED",
           "severity": "WARNING",
           "component": "Kesehatan Flash",
-          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.8%)).",
-          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 89.8%))."
+          "message": "Kondisi flash storage gateway menurun ke 94% (Baik (Kapasitas Root Waspada 89.7%)).",
+          "terminal_note": "Kondisi flash storage gateway menurun: 94% (Baik (Kapasitas Root Waspada 89.7%))."
         }
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:51] [INFO ] [#1183] [MQTT OK] CPU: 0.0% (53.8\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:45:51] [INFO ] [#1184] [MQTT OK] CPU: 0.0% (54.2\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 02:46:51] [INFO ] [#1185] [MQTT OK] CPU: 0.0% (55.0\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:47:51] [INFO ] [#1186] [MQTT OK] CPU: 2.5% (53.3\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:48:51] [INFO ] [#1187] [MQTT OK] CPU: 0.0% (54.2\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:49:51] [INFO ] [#1188] [MQTT OK] CPU: 2.5% (53.8\u00b0C) | RAM: 18.6% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:50:51] [INFO ] [#1189] [MQTT OK] CPU: 2.5% (55.0\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 02:51:51] [INFO ] [#1190] [MQTT OK] CPU: 20.0% (55.5\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:52:51] [INFO ] [#1191] [MQTT OK] CPU: 32.5% (55.9\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:53:51] [INFO ] [#1192] [MQTT OK] CPU: 35.0% (55.5\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:54:51] [INFO ] [#1193] [MQTT OK] CPU: 10.0% (53.3\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 02:55:51] [INFO ] [#1194] [MQTT OK] CPU: 0.0% (52.9\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 02:56:51] [INFO ] [#1195] [MQTT OK] CPU: 0.0% (53.3\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:57:51] [INFO ] [#1196] [MQTT OK] CPU: 0.0% (53.8\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:58:51] [INFO ] [#1197] [MQTT OK] CPU: 2.4% (52.9\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 02:59:51] [INFO ] [#1198] [MQTT OK] CPU: 0.0% (52.5\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 03:00:51] [INFO ] [#1199] [MQTT OK] CPU: 0.0% (53.8\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
-      "[2026-11-04 03:01:51] [INFO ] [#1200] [MQTT OK] CPU: 2.5% (53.3\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 03:02:51] [INFO ] [#1201] [MQTT OK] CPU: 0.0% (54.2\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
-      "[2026-11-04 03:03:51] [INFO ] [#1202] [MQTT OK] CPU: 2.3% (52.9\u00b0C) | RAM: 18.5% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 31)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%"
+      "[2026-11-04 17:44:20] [INFO ] [#84] [MQTT OK] CPU: 47.4% (60.4\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:45:20] [INFO ] [#85] [MQTT OK] CPU: 26.8% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:46:20] [INFO ] [#86] [MQTT OK] CPU: 0.0% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 17:47:20] [INFO ] [#87] [MQTT OK] CPU: 0.0% (58.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:48:20] [INFO ] [#88] [MQTT OK] CPU: 2.4% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:49:20] [INFO ] [#89] [MQTT OK] CPU: 2.4% (58.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:50:20] [INFO ] [#90] [MQTT OK] CPU: 0.0% (57.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 17:51:20] [INFO ] [#91] [MQTT OK] CPU: 0.0% (57.3\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 17:52:20] [INFO ] [#92] [MQTT OK] CPU: 0.0% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:53:20] [INFO ] [#93] [MQTT OK] CPU: 2.4% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:54:20] [INFO ] [#94] [MQTT OK] CPU: 0.0% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:55:20] [INFO ] [#95] [MQTT OK] CPU: 0.0% (58.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 17:56:20] [INFO ] [#96] [MQTT OK] CPU: 0.0% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 17:57:21] [INFO ] [#97] [MQTT OK] CPU: 0.0% (57.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:58:20] [INFO ] [#98] [MQTT OK] CPU: 0.0% (59.1\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 17:59:20] [INFO ] [#99] [MQTT OK] CPU: 7.5% (60.4\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 18:00:21] [INFO ] [#100] [MQTT OK] CPU: 28.2% (60.0\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.8%",
+      "[2026-11-04 18:01:21] [INFO ] [#101] [MQTT OK] CPU: 37.5% (59.5\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 18:02:21] [INFO ] [#102] [MQTT OK] CPU: 7.5% (58.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%",
+      "[2026-11-04 18:03:21] [INFO ] [#103] [MQTT OK] CPU: 5.0% (58.6\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: IND TELKOMSEL (4G LTE, CSQ 30)] | NVR: JADWAL AKTIF (STANDBY) | Flash: 94% [WARN] | Disk /: 89.7%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -5401,7 +5427,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:52"
+    "recorded_at": "2026-11-04 18:04:21"
   },
   {
     "device_id": "gw-0218098c",
@@ -5413,8 +5439,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "CRM JKT ALFAMIDI PENGGILINGAN",
     "site_name": "CRM JKT ALFAMIDI PENGGILINGAN",
-    "timestamp": 1793736296273,
-    "datetime_utc7": "2026-11-04 03:04:56 (UTC+7 / WIB)",
+    "timestamp": 1793790275868,
+    "datetime_utc7": "2026-11-04 18:04:35 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -5487,28 +5513,28 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "1d 12h 42m",
+      "uptime": "2d 3h 41m",
       "cpu": {
-        "usage_percent": 30.8,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          1.14,
-          1.11,
-          1.08
+          1.28,
+          1.09,
+          1.03
         ],
-        "temperature_c": 47.2,
+        "temperature_c": 53.2,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 966.0,
-        "used_mb": 461.2,
-        "free_mb": 504.8,
-        "usage_percent": 47.7,
+        "used_mb": 445.3,
+        "free_mb": 520.7,
+        "usage_percent": 46.1,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 27.7,
+        "latency_ms": 159.2,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.36.37",
@@ -5599,15 +5625,15 @@
           "used_gb": 0.24,
           "free_gb": 0.69,
           "total_human": "957 MB",
-          "used_human": "250 MB",
+          "used_human": "251 MB",
           "free_human": "707 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 262633472,
-          "free_bytes": 741084160,
+          "used_bytes": 262894592,
+          "free_bytes": 740823040,
           "used_percent": 26.2,
           "inode_total": 254000,
-          "inode_used": 13446,
-          "inode_free": 240554,
+          "inode_used": 13449,
+          "inode_free": 240551,
           "inode_percent": 5.3,
           "status": "GOOD"
         },
@@ -5617,15 +5643,15 @@
           "fs_type": "vfat",
           "mode": "rw",
           "total_gb": 0.49,
-          "used_gb": 0.06,
+          "used_gb": 0.07,
           "free_gb": 0.43,
           "total_human": "506 MB",
           "used_human": "67 MB",
           "free_human": "439 MB",
           "total_bytes": 530577408,
-          "used_bytes": 69785600,
-          "free_bytes": 460791808,
-          "used_percent": 13.2,
+          "used_bytes": 70752256,
+          "free_bytes": 459825152,
+          "used_percent": 13.3,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -5634,10 +5660,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 391.8,
-        "write_mb": 215.5,
-        "read_human": "391.8 MB",
-        "write_human": "215.5 MB"
+        "read_mb": 399.3,
+        "write_mb": 302.7,
+        "read_human": "399.3 MB",
+        "write_human": "302.7 MB"
       }
     },
     "modem_usb": {
@@ -5678,7 +5704,7 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 16151)",
+          "pppd (PID 27045)",
           "pppd (PID 657)"
         ],
         "is_daemon_running": true,
@@ -5716,11 +5742,11 @@
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.2.73.0",
-        "ping_ms": 35.905,
+        "ping_ms": 38.9,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 22 B/s | TX: 300 B/s",
-        "rx_human": "44.19 MB",
-        "tx_human": "137.25 MB"
+        "throughput": "RX: 23 B/s | TX: 311 B/s",
+        "rx_human": "50.61 MB",
+        "tx_human": "184.16 MB"
       }
     },
     "wifi": {
@@ -5745,9 +5771,9 @@
       "nvr_endpoint": "172.16.48.74:80",
       "status": "WARNING",
       "total_capacity_gb": 3726.02,
-      "total_free_gb": 189.0,
-      "total_used_gb": 3537.02,
-      "total_free_percent": 5.1,
+      "total_free_gb": 182.0,
+      "total_used_gb": 3544.02,
+      "total_free_percent": 4.9,
       "disks": [
         {
           "id": "1",
@@ -5757,17 +5783,17 @@
           "status_raw": "ok",
           "health": "WARNING",
           "capacity_gb": 3726.02,
-          "free_gb": 189.0,
-          "used_gb": 3537.02,
-          "used_percent": 94.9,
-          "free_percent": 5.1,
+          "free_gb": 182.0,
+          "used_gb": 3544.02,
+          "used_percent": 95.1,
+          "free_percent": 4.9,
           "health_info": {
             "health_percent": 100,
             "health_label": "Baik (Kondisi Sangat Sehat)",
             "health_badge": "OK",
-            "temperature_c": 41,
-            "power_on_days": 741,
-            "power_on_hours": 17799,
+            "temperature_c": 45,
+            "power_on_days": 742,
+            "power_on_hours": 17814,
             "power_cycles": 41,
             "bad_sectors": 0,
             "reallocated_sectors": 0,
@@ -5779,9 +5805,9 @@
           "health_percent": 100,
           "health_label": "Baik (Kondisi Sangat Sehat)",
           "health_badge": "OK",
-          "temperature_c": 41,
-          "power_on_days": 741,
-          "power_on_hours": 17799,
+          "temperature_c": 45,
+          "power_on_days": 742,
+          "power_on_hours": 17814,
           "power_cycles": 41,
           "bad_sectors": 0,
           "reallocated_sectors": 0,
@@ -5820,6 +5846,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -5828,6 +5855,7 @@
             "is_online": true,
             "resolution_raw": "1080P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -5836,6 +5864,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -5844,6 +5873,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -5861,13 +5891,13 @@
         ],
         "channel_count": 4,
         "today_segments_count": 8,
-        "latest_record_time": "00:00:00 WIB"
+        "latest_record_time": "18:04:34 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "Database amsys.db (/media/amsys.db)"
     },
     "active_alerts": {
-      "total": 4,
+      "total": 5,
       "has_critical": false,
       "has_warning": true,
       "nvr": [
@@ -5882,6 +5912,12 @@
           "severity": "WARNING",
           "component": "Kamera #4",
           "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati)."
+        },
+        {
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 4.9%). Perekaman mode loop overwrite 24/7 tetap aktif."
         }
       ],
       "modem": [],
@@ -5918,6 +5954,15 @@
           "component": "Kamera #4",
           "message": "Kamera #4 (Camera 04) terputus / NO VIDEO (Kabel lepas atau kamera mati).",
           "terminal_note": "Kamera #4 (Camera 04): Status NO VIDEO. Periksa sambungan kabel coaxial/LAN dan adaptor kamera."
+        },
+        {
+          "category": "nvr",
+          "category_label": "NVR & Surveillance CCTV",
+          "code": "WARN_NVR_HDD_FULL",
+          "severity": "WARNING",
+          "component": "Harddisk NVR",
+          "message": "Kapasitas Harddisk NVR penuh (Sisa 4.9%). Perekaman mode loop overwrite 24/7 tetap aktif.",
+          "terminal_note": "Kapasitas Harddisk NVR penuh (Sisa 4.9%). Perekaman mode loop overwrite 24/7 tetap aktif merekam."
         },
         {
           "category": "storage",
@@ -5972,7 +6017,7 @@
       "has_power_issue": true
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:56"
+    "recorded_at": "2026-11-04 18:04:35"
   },
   {
     "device_id": "gw-c6acef40",
@@ -5984,8 +6029,8 @@
     "hardware_type": "dusun",
     "location_name": "CRM SEMARANG RS COLUMBIA ASIA",
     "site_name": "CRM SEMARANG RS COLUMBIA ASIA",
-    "timestamp": 1793736291212,
-    "datetime_utc7": "2026-11-04 03:04:51 (UTC+7 / WIB)",
+    "timestamp": 1793790287108,
+    "datetime_utc7": "2026-11-04 18:04:47 (UTC+7 / WIB)",
     "overall_status": "WARNING",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -6017,8 +6062,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.2.95.172",
-        "message": "Aliran data seluler aktif (IP: 10.2.95.172, CSQ: 31)"
+        "target_endpoint": "10.17.115.16",
+        "message": "Aliran data seluler aktif (IP: 10.17.115.16, CSQ: 31)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -6058,34 +6103,34 @@
         "pqube_variant": "putih",
         "label": "PUTIH (Dusun IoT Gateway)"
       },
-      "uptime": "20h 3m",
+      "uptime": "11h 2m",
       "cpu": {
-        "usage_percent": 2.4,
+        "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
           0.0,
-          0.04,
-          0.13
+          0.03,
+          0.11
         ],
         "temperature_c": 63.3,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 1958.6,
-        "used_mb": 365.8,
-        "free_mb": 1592.8,
-        "usage_percent": 18.7,
+        "used_mb": 371.3,
+        "free_mb": 1587.4,
+        "usage_percent": 19.0,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 36.0,
+        "latency_ms": 24.8,
         "tailscale_ip": "N/A",
         "interfaces": {
-          "veth647206f": "169.254.45.142",
+          "veth71d7be4": "169.254.3.109",
           "br-84806512a99f": "172.20.0.1",
           "eth0": "172.16.65.33",
-          "ppp0": "10.2.95.172",
+          "ppp0": "10.17.115.16",
           "ppp10": "10.1.38.68",
           "wlan0": "192.168.0.1",
           "docker0": "172.17.0.1"
@@ -6106,7 +6151,7 @@
       "health_label": "Sangat Sehat (Kondisi Prima)",
       "health_badge": "OK",
       "health_deductions": [
-        "Kapasitas Root 84.4% (-3%)"
+        "Kapasitas Root 84.5% (-3%)"
       ],
       "hw_write_lock": "Normal (Writable)",
       "bad_sectors": {
@@ -6128,18 +6173,18 @@
           "fs_type": "ext4",
           "mode": "rw",
           "total_gb": 5.85,
-          "used_gb": 4.93,
+          "used_gb": 4.94,
           "free_gb": 0.91,
           "total_human": "5.85 GB",
-          "used_human": "4.93 GB",
-          "free_human": "933 MB",
+          "used_human": "4.94 GB",
+          "free_human": "928 MB",
           "total_bytes": 6276579328,
-          "used_bytes": 5298393088,
-          "free_bytes": 978186240,
-          "used_percent": 84.4,
+          "used_bytes": 5303746560,
+          "free_bytes": 972832768,
+          "used_percent": 84.5,
           "inode_total": 384000,
-          "inode_used": 123894,
-          "inode_free": 260106,
+          "inode_used": 123898,
+          "inode_free": 260102,
           "inode_percent": 32.3,
           "status": "WARN"
         },
@@ -6155,21 +6200,21 @@
           "used_human": "243 MB",
           "free_human": "836 MB",
           "total_bytes": 1131831296,
-          "used_bytes": 255180800,
-          "free_bytes": 876650496,
+          "used_bytes": 255168512,
+          "free_bytes": 876662784,
           "used_percent": 22.5,
           "inode_total": 72576,
-          "inode_used": 1522,
-          "inode_free": 71054,
+          "inode_used": 1521,
+          "inode_free": 71055,
           "inode_percent": 2.1,
           "status": "GOOD"
         }
       ],
       "io_stats": {
-        "read_mb": 406.6,
-        "write_mb": 17536.3,
-        "read_human": "406.6 MB",
-        "write_human": "17.13 GB"
+        "read_mb": 416.1,
+        "write_mb": 9732.5,
+        "read_human": "416.1 MB",
+        "write_human": "9.50 GB"
       }
     },
     "modem_usb": {
@@ -6222,12 +6267,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 1886)",
-          "pppd (PID 596)"
+          "pppd (PID 520)",
+          "pppd (PID 1936)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.2.95.172",
+        "cellular_ip": "10.17.115.16",
         "link_up": true
       }
     },
@@ -6259,12 +6304,12 @@
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.2.95.172",
-        "ping_ms": 53.337,
+        "cellular_ip": "10.17.115.16",
+        "ping_ms": 70.592,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 42 B/s | TX: 341 B/s",
-        "rx_human": "12.68 MB",
-        "tx_human": "25.69 MB"
+        "throughput": "RX: 30 B/s | TX: 308 B/s",
+        "rx_human": "17.92 MB",
+        "tx_human": "26.53 MB"
       }
     },
     "wifi": {
@@ -6274,7 +6319,7 @@
       "ssid": "dsgw-e67a23",
       "bssid": "cc:64:1a:2d:d0:99",
       "mac_address": "cc:64:1a:2d:d0:99",
-      "ip_address": "10.2.95.172",
+      "ip_address": "10.17.115.16",
       "signal_pct": 100.0,
       "signal_dbm": -30,
       "signal_label": "Hotspot Active",
@@ -6309,9 +6354,9 @@
             "health_percent": 75,
             "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
             "health_badge": "WARN",
-            "temperature_c": 38,
-            "power_on_days": 751,
-            "power_on_hours": 18036,
+            "temperature_c": 39,
+            "power_on_days": 752,
+            "power_on_hours": 18051,
             "power_cycles": 157,
             "bad_sectors": 1,
             "reallocated_sectors": 1,
@@ -6323,9 +6368,9 @@
           "health_percent": 75,
           "health_label": "Waspada (Terdeteksi 1 Bad Sector)",
           "health_badge": "WARN",
-          "temperature_c": 38,
-          "power_on_days": 751,
-          "power_on_hours": 18036,
+          "temperature_c": 39,
+          "power_on_days": 752,
+          "power_on_hours": 18051,
           "power_cycles": 157,
           "bad_sectors": 1,
           "reallocated_sectors": 1,
@@ -6364,6 +6409,7 @@
             "is_online": true,
             "resolution_raw": "1920*1080(1080P)P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -6372,6 +6418,7 @@
             "is_online": true,
             "resolution_raw": "1920*1080(1080P)P25",
             "resolution": "1080P",
+            "fps": 25,
             "enabled": true
           },
           {
@@ -6380,6 +6427,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           },
           {
@@ -6388,6 +6436,7 @@
             "is_online": false,
             "resolution_raw": "NO VIDEO",
             "resolution": "NO VIDEO",
+            "fps": null,
             "enabled": false
           }
         ]
@@ -6404,8 +6453,8 @@
           "Ch 4"
         ],
         "channel_count": 4,
-        "today_segments_count": 2,
-        "latest_record_time": "00:00:00 WIB"
+        "today_segments_count": 6,
+        "latest_record_time": "18:04:45 WIB"
       },
       "auto_discovered": true,
       "discovery_source": "RTSP Stream Script (/f/capture_image/index.js)"
@@ -6483,26 +6532,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:50] [INFO ] [#1183] [MQTT OK] CPU: 4.5% (62.5\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
-      "[2026-11-04 02:45:50] [INFO ] [#1184] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:46:50] [INFO ] [#1185] [MQTT OK] CPU: 2.6% (62.1\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:47:50] [INFO ] [#1186] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:48:50] [INFO ] [#1187] [MQTT OK] CPU: 0.0% (62.1\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:49:50] [INFO ] [#1188] [MQTT OK] CPU: 2.4% (62.5\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
-      "[2026-11-04 02:50:50] [INFO ] [#1189] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:51:50] [INFO ] [#1190] [MQTT OK] CPU: 0.0% (62.9\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:52:50] [INFO ] [#1191] [MQTT OK] CPU: 0.0% (64.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:53:50] [INFO ] [#1192] [MQTT OK] CPU: 2.4% (62.1\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
-      "[2026-11-04 02:54:50] [INFO ] [#1193] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
-      "[2026-11-04 02:55:50] [INFO ] [#1194] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:56:50] [INFO ] [#1195] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:57:50] [INFO ] [#1196] [MQTT OK] CPU: 0.0% (62.9\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 02:58:51] [INFO ] [#1197] [MQTT OK] CPU: 0.0% (62.9\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
-      "[2026-11-04 02:59:51] [INFO ] [#1198] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 03:00:51] [INFO ] [#1199] [MQTT OK] CPU: 0.0% (62.5\u00b0C) | RAM: 18.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 03:01:51] [INFO ] [#1200] [MQTT OK] CPU: 0.0% (61.7\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 03:02:51] [INFO ] [#1201] [MQTT OK] CPU: 0.0% (62.1\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
-      "[2026-11-04 03:03:51] [INFO ] [#1202] [MQTT OK] CPU: 0.0% (61.2\u00b0C) | RAM: 18.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%"
+      "[2026-11-04 17:44:46] [INFO ] [#85] [MQTT OK] CPU: 0.0% (63.8\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:45:46] [INFO ] [#86] [MQTT OK] CPU: 0.0% (62.9\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 17:46:46] [INFO ] [#87] [MQTT OK] CPU: 0.0% (62.5\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:47:46] [INFO ] [#88] [MQTT OK] CPU: 0.0% (64.2\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:48:46] [INFO ] [#89] [MQTT OK] CPU: 0.0% (64.6\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:49:46] [INFO ] [#90] [MQTT OK] CPU: 0.0% (62.5\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:50:46] [INFO ] [#91] [MQTT OK] CPU: 2.4% (64.2\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 17:51:46] [INFO ] [#92] [MQTT OK] CPU: 0.0% (63.8\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:52:46] [INFO ] [#93] [MQTT OK] CPU: 0.0% (63.8\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:53:46] [INFO ] [#94] [MQTT OK] CPU: 0.0% (63.8\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:54:46] [INFO ] [#95] [MQTT OK] CPU: 0.0% (63.8\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 17:55:47] [INFO ] [#96] [MQTT OK] CPU: 2.4% (63.3\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 17:56:47] [INFO ] [#97] [MQTT OK] CPU: 7.3% (64.6\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:57:46] [INFO ] [#98] [MQTT OK] CPU: 17.1% (64.2\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:58:47] [INFO ] [#99] [MQTT OK] CPU: 30.8% (65.0\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 17:59:46] [INFO ] [#100] [MQTT OK] CPU: 28.2% (64.2\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 18:00:46] [INFO ] [#101] [MQTT OK] CPU: 14.6% (62.9\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.5%",
+      "[2026-11-04 18:01:47] [INFO ] [#102] [MQTT OK] CPU: 5.1% (63.8\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 18:02:47] [INFO ] [#103] [MQTT OK] CPU: 0.0% (63.3\u00b0C) | RAM: 18.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%",
+      "[2026-11-04 18:03:47] [INFO ] [#104] [MQTT OK] CPU: 0.0% (63.3\u00b0C) | RAM: 19.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 31)] | NVR: SEDANG MEREKAM (2 Kamera) | Flash: 97% [OK] | Disk /: 84.4%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -6515,7 +6564,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:51"
+    "recorded_at": "2026-11-04 18:04:47"
   },
   {
     "device_id": "gw-f580ec12",
@@ -6527,8 +6576,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "Site PQB00618",
     "site_name": "Site PQB00618",
-    "timestamp": 1793733776085,
-    "datetime_utc7": "2026-11-04 02:22:56 (UTC+7 / WIB)",
+    "timestamp": 1793790259012,
+    "datetime_utc7": "2026-11-04 18:04:19 (UTC+7 / WIB)",
     "overall_status": "HEALTHY",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -6560,8 +6609,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
-        "target_endpoint": "10.185.54.83",
-        "message": "Aliran data seluler aktif (IP: 10.185.54.83, CSQ: 18)"
+        "target_endpoint": "10.102.194.200",
+        "message": "Aliran data seluler aktif (IP: 10.102.194.200, CSQ: 19)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -6601,32 +6650,33 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "12h 3m",
+      "uptime": "4h 22m",
       "cpu": {
         "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          0.03,
-          0.09,
+          0.04,
+          0.1,
           0.11
         ],
-        "temperature_c": 62.8,
+        "temperature_c": 65.5,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 870.8,
-        "used_mb": 264.6,
-        "free_mb": 606.2,
-        "usage_percent": 30.4,
+        "used_mb": 260.5,
+        "free_mb": 610.3,
+        "usage_percent": 29.9,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 48.0,
+        "latency_ms": 56.9,
         "tailscale_ip": "N/A",
         "interfaces": {
           "ppp1": "10.1.0.31",
-          "ppp0": "10.185.54.83"
+          "wlan0": "192.168.0.1",
+          "ppp0": "10.102.194.200"
         }
       }
     },
@@ -6712,13 +6762,13 @@
           "used_human": "245 MB",
           "free_human": "712 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 257262592,
-          "free_bytes": 746455040,
+          "used_bytes": 257339392,
+          "free_bytes": 746378240,
           "used_percent": 25.6,
           "inode_total": 254000,
-          "inode_used": 14350,
-          "inode_free": 239650,
-          "inode_percent": 5.6,
+          "inode_used": 14353,
+          "inode_free": 239647,
+          "inode_percent": 5.7,
           "status": "GOOD"
         },
         {
@@ -6730,12 +6780,12 @@
           "used_gb": 0.01,
           "free_gb": 0.47,
           "total_human": "498 MB",
-          "used_human": "13 MB",
-          "free_human": "485 MB",
+          "used_human": "15 MB",
+          "free_human": "483 MB",
           "total_bytes": 522221568,
-          "used_bytes": 13936640,
-          "free_bytes": 508284928,
-          "used_percent": 2.7,
+          "used_bytes": 15972352,
+          "free_bytes": 506249216,
+          "used_percent": 3.1,
           "inode_total": 0,
           "inode_used": 0,
           "inode_free": 0,
@@ -6744,10 +6794,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 267.2,
-        "write_mb": 19.0,
-        "read_human": "267.2 MB",
-        "write_human": "19.0 MB"
+        "read_mb": 268.6,
+        "write_mb": 7.5,
+        "read_human": "268.6 MB",
+        "write_human": "7.5 MB"
       }
     },
     "modem_usb": {
@@ -6788,12 +6838,12 @@
       ],
       "service_status": {
         "active_daemons": [
-          "pppd (PID 1453)",
-          "pppd (PID 637)"
+          "pppd (PID 665)",
+          "pppd (PID 13599)"
         ],
         "is_daemon_running": true,
         "cellular_interface": "ppp0",
-        "cellular_ip": "10.185.54.83",
+        "cellular_ip": "10.102.194.200",
         "link_up": true
       }
     },
@@ -6818,19 +6868,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 18,
+        "csq": 19,
         "rssi_dbm": null,
         "quality_percent": 0.0,
         "status": "Good"
       },
       "data_traffic": {
         "interface": "ppp0",
-        "cellular_ip": "10.185.54.83",
-        "ping_ms": 45.344,
+        "cellular_ip": "10.102.194.200",
+        "ping_ms": 78.645,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 353 B/s | TX: 326 B/s",
-        "rx_human": "10.96 MB",
-        "tx_human": "12.72 MB"
+        "throughput": "RX: 252 B/s | TX: 298 B/s",
+        "rx_human": "4.53 MB",
+        "tx_human": "4.71 MB"
       }
     },
     "wifi": {
@@ -6840,7 +6890,7 @@
       "ssid": "N/A",
       "bssid": "N/A",
       "mac_address": "b8:27:eb:d5:b9:47",
-      "ip_address": "10.185.54.83",
+      "ip_address": "10.102.194.200",
       "signal_pct": 0.0,
       "signal_dbm": null,
       "signal_label": "No Signal",
@@ -6904,26 +6954,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:02:55] [INFO ] [#704] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:03:55] [INFO ] [#705] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:04:55] [INFO ] [#706] [MQTT OK] CPU: 0.0% (63.4\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:05:55] [INFO ] [#707] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 29.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:06:57] [INFO ] [#708] [MQTT OK] CPU: 2.5% (62.3\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:07:55] [INFO ] [#709] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:08:55] [INFO ] [#710] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:09:55] [INFO ] [#711] [MQTT OK] CPU: 2.4% (62.8\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:10:55] [INFO ] [#712] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:11:55] [INFO ] [#713] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:12:57] [INFO ] [#714] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:13:55] [INFO ] [#715] [MQTT OK] CPU: 4.9% (62.8\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:14:55] [INFO ] [#716] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:15:56] [INFO ] [#717] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:16:56] [INFO ] [#718] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:17:56] [INFO ] [#719] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.4% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:18:56] [INFO ] [#720] [MQTT OK] CPU: 0.0% (62.3\u00b0C) | RAM: 29.7% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:19:56] [INFO ] [#721] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:20:56] [INFO ] [#722] [MQTT OK] CPU: 0.0% (62.8\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:21:56] [INFO ] [#723] [MQTT OK] CPU: 0.0% (63.4\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%"
+      "[2026-11-04 17:44:18] [INFO ] [#98] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 29.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:45:21] [INFO ] [#99] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 29.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:46:22] [INFO ] [#100] [MQTT OK] CPU: 17.5% (65.0\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:47:22] [INFO ] [#101] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 29.9% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 20)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:48:22] [INFO ] [#102] [MQTT OK] CPU: 2.5% (65.5\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:49:22] [INFO ] [#103] [MQTT OK] CPU: 0.0% (65.0\u00b0C) | RAM: 30.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 20)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:50:20] [INFO ] [#104] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:51:21] [INFO ] [#105] [MQTT OK] CPU: 0.0% (65.0\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:52:20] [INFO ] [#106] [MQTT OK] CPU: 0.0% (65.0\u00b0C) | RAM: 30.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:53:20] [INFO ] [#107] [MQTT OK] CPU: 2.5% (65.0\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:54:22] [INFO ] [#108] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.5% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:55:22] [INFO ] [#109] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:56:19] [INFO ] [#110] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:57:24] [INFO ] [#111] [MQTT OK] CPU: 27.5% (65.5\u00b0C) | RAM: 30.0% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:58:22] [INFO ] [#112] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:59:20] [INFO ] [#113] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:00:23] [INFO ] [#114] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 30.2% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 19)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:01:20] [INFO ] [#115] [MQTT OK] CPU: 4.9% (65.5\u00b0C) | RAM: 30.3% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 20)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:02:21] [INFO ] [#116] [MQTT OK] CPU: 0.0% (65.5\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 18)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:03:19] [INFO ] [#117] [MQTT OK] CPU: 0.0% (65.0\u00b0C) | RAM: 29.6% | [MODEM-CPU: OK] | [SIM: Telkomsel (4G LTE, CSQ 17)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -6936,7 +6986,7 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 02:22:56"
+    "recorded_at": "2026-11-04 18:04:19"
   },
   {
     "device_id": "gw-43618515",
@@ -6948,8 +6998,8 @@
     "hardware_type": "raspberry_pi",
     "location_name": "Site PQB00164",
     "site_name": "Site PQB00164",
-    "timestamp": 1793736281691,
-    "datetime_utc7": "2026-11-04 03:04:41 (UTC+7 / WIB)",
+    "timestamp": 1793790281792,
+    "datetime_utc7": "2026-11-04 18:04:41 (UTC+7 / WIB)",
     "overall_status": "HEALTHY",
     "hardware_connections": {
       "nvr_surveillance": {
@@ -6973,8 +7023,8 @@
         "status": "CONNECTED",
         "connected": true,
         "link_type": "SIM Tray Hardware",
-        "target_endpoint": "N/A",
-        "message": "Terhubung normal di slot SIM modem (N/A)"
+        "target_endpoint": "INDOSATOOREDOO",
+        "message": "Terhubung normal di slot SIM modem (INDOSATOOREDOO)"
       },
       "cellular_data_flow": {
         "name": "Aliran Data Seluler (Internet / PPP)",
@@ -6982,7 +7032,7 @@
         "connected": true,
         "link_type": "Cellular Packet Data (PPP/QMI)",
         "target_endpoint": "10.217.84.111",
-        "message": "Aliran data seluler aktif (IP: 10.217.84.111, CSQ: 99)"
+        "message": "Aliran data seluler aktif (IP: 10.217.84.111, CSQ: 21)"
       },
       "ethernet_lan": {
         "name": "Kabel LAN Ethernet (eth0)",
@@ -7022,31 +7072,31 @@
         "pqube_variant": "hitam",
         "label": "HITAM (Raspberry Pi)"
       },
-      "uptime": "44m 23s",
+      "uptime": "15h 44m",
       "cpu": {
         "usage_percent": 0.0,
         "cores": 4,
         "load_avg": [
-          0.09,
-          0.09,
-          0.09
+          0.08,
+          0.07,
+          0.07
         ],
-        "temperature_c": 56.4,
+        "temperature_c": 53.7,
         "status": "GOOD"
       },
       "memory": {
         "total_mb": 870.8,
-        "used_mb": 260.3,
-        "free_mb": 610.5,
-        "usage_percent": 29.9,
+        "used_mb": 269.1,
+        "free_mb": 601.7,
+        "usage_percent": 30.9,
         "status": "GOOD"
       },
       "network_gateway": {
         "internet": "ONLINE",
-        "latency_ms": 133.5,
+        "latency_ms": 228.0,
         "tailscale_ip": "N/A",
         "interfaces": {
-          "wlan0": "192.168.0.1",
+          "ppp1": "10.1.0.32",
           "ppp0": "10.217.84.111"
         }
       }
@@ -7133,12 +7183,12 @@
           "used_human": "245 MB",
           "free_human": "712 MB",
           "total_bytes": 1003717632,
-          "used_bytes": 257314816,
-          "free_bytes": 746402816,
+          "used_bytes": 257398784,
+          "free_bytes": 746318848,
           "used_percent": 25.6,
           "inode_total": 254000,
-          "inode_used": 14370,
-          "inode_free": 239630,
+          "inode_used": 14374,
+          "inode_free": 239626,
           "inode_percent": 5.7,
           "status": "GOOD"
         },
@@ -7151,11 +7201,11 @@
           "used_gb": 0.01,
           "free_gb": 0.48,
           "total_human": "498 MB",
-          "used_human": "10 MB",
-          "free_human": "488 MB",
+          "used_human": "11 MB",
+          "free_human": "487 MB",
           "total_bytes": 522221568,
-          "used_bytes": 10948608,
-          "free_bytes": 511272960,
+          "used_bytes": 11102208,
+          "free_bytes": 511119360,
           "used_percent": 2.1,
           "inode_total": 0,
           "inode_used": 0,
@@ -7165,10 +7215,10 @@
         }
       ],
       "io_stats": {
-        "read_mb": 266.6,
-        "write_mb": 3.0,
-        "read_human": "266.6 MB",
-        "write_human": "3.0 MB"
+        "read_mb": 271.6,
+        "write_mb": 25.0,
+        "read_human": "271.6 MB",
+        "write_human": "25.0 MB"
       }
     },
     "modem_usb": {
@@ -7209,6 +7259,7 @@
       ],
       "service_status": {
         "active_daemons": [
+          "pppd (PID 27082)",
           "pppd (PID 615)"
         ],
         "is_daemon_running": true,
@@ -7222,8 +7273,8 @@
       "connection_status": "CONNECTED",
       "connection_to_gateway": "CONNECTED",
       "connection_state": "TERHUBUNG (ONLINE & DATA AKTIF)",
-      "operator": "N/A",
-      "network_mode": "N/A",
+      "operator": "INDOSATOOREDOO",
+      "network_mode": "4G LTE",
       "iccid": "89620100001974489961",
       "msisdn": "N/A",
       "imsi": "510011019901406",
@@ -7238,19 +7289,19 @@
         "source": "None"
       },
       "signal": {
-        "csq": 99,
+        "csq": 21,
         "rssi_dbm": null,
         "quality_percent": 0.0,
-        "status": "Unknown"
+        "status": "Excellent"
       },
       "data_traffic": {
         "interface": "ppp0",
         "cellular_ip": "10.217.84.111",
-        "ping_ms": 36.75,
+        "ping_ms": 65.15,
         "packet_loss_pct": 0.0,
-        "throughput": "RX: 244 B/s | TX: 278 B/s",
-        "rx_human": "682.9 KB",
-        "tx_human": "1.61 MB"
+        "throughput": "RX: 244 B/s | TX: 290 B/s",
+        "rx_human": "14.04 MB",
+        "tx_human": "16.96 MB"
       }
     },
     "wifi": {
@@ -7324,26 +7375,26 @@
       ]
     },
     "recent_system_logs": [
-      "[2026-11-04 02:44:40] [INFO ] [#25] [MQTT OK] CPU: 0.0% (56.9\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:45:40] [INFO ] [#26] [MQTT OK] CPU: 4.9% (56.9\u00b0C) | RAM: 29.6% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:46:41] [INFO ] [#27] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.5% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:47:41] [INFO ] [#28] [MQTT OK] CPU: 0.0% (55.8\u00b0C) | RAM: 29.4% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:48:46] [INFO ] [#29] [MQTT OK] CPU: 10.0% (55.8\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:49:40] [INFO ] [#30] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.3% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:50:41] [INFO ] [#31] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.2% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:51:41] [INFO ] [#32] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.6% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:52:44] [INFO ] [#33] [MQTT OK] CPU: 10.5% (55.8\u00b0C) | RAM: 29.7% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:53:41] [INFO ] [#34] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.6% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:54:40] [INFO ] [#35] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:55:42] [INFO ] [#36] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.2% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:56:40] [INFO ] [#37] [MQTT OK] CPU: 20.0% (56.4\u00b0C) | RAM: 30.0% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:57:41] [INFO ] [#38] [MQTT OK] CPU: 4.9% (56.4\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:58:41] [INFO ] [#39] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.9% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 02:59:41] [INFO ] [#40] [MQTT OK] CPU: 0.0% (55.8\u00b0C) | RAM: 29.6% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 03:00:41] [INFO ] [#41] [MQTT OK] CPU: 2.4% (56.9\u00b0C) | RAM: 29.2% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 03:01:42] [INFO ] [#42] [MQTT OK] CPU: 0.0% (55.8\u00b0C) | RAM: 30.1% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 03:02:41] [INFO ] [#43] [MQTT OK] CPU: 0.0% (55.8\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
-      "[2026-11-04 03:03:41] [INFO ] [#44] [MQTT OK] CPU: 0.0% (56.4\u00b0C) | RAM: 29.8% | [MODEM-CPU: OK] | [SIM: N/A (N/A, CSQ 99)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%"
+      "[2026-11-04 17:44:41] [INFO ] [#97] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.8% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:45:40] [INFO ] [#98] [MQTT OK] CPU: 0.0% (53.2\u00b0C) | RAM: 30.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:46:40] [INFO ] [#99] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:47:41] [INFO ] [#100] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 31.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:48:40] [INFO ] [#101] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 31.0% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:49:41] [INFO ] [#102] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:50:41] [INFO ] [#103] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 31.2% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:51:41] [INFO ] [#104] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 31.1% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:52:41] [INFO ] [#105] [MQTT OK] CPU: 20.0% (52.6\u00b0C) | RAM: 30.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:53:41] [INFO ] [#106] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:54:48] [INFO ] [#107] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:55:41] [INFO ] [#108] [MQTT OK] CPU: 0.0% (52.6\u00b0C) | RAM: 30.9% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:56:41] [INFO ] [#109] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:57:41] [INFO ] [#110] [MQTT OK] CPU: 2.5% (53.7\u00b0C) | RAM: 30.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:58:41] [INFO ] [#111] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.8% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 17:59:41] [INFO ] [#112] [MQTT OK] CPU: 2.4% (53.7\u00b0C) | RAM: 30.6% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:00:41] [INFO ] [#113] [MQTT OK] CPU: 0.0% (54.2\u00b0C) | RAM: 31.0% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:01:48] [INFO ] [#114] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 31.3% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:02:41] [INFO ] [#115] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.7% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%",
+      "[2026-11-04 18:03:41] [INFO ] [#116] [MQTT OK] CPU: 0.0% (53.7\u00b0C) | RAM: 30.5% | [MODEM-CPU: OK] | [SIM: INDOSATOOREDOO (4G LTE, CSQ 21)] | NVR: OFFLINE | Flash: 100% [OK] | Disk /: 75.9%"
     ],
     "power_throttled": {
       "raw_hex": "0x0",
@@ -7356,6 +7407,6 @@
       "has_power_issue": false
     },
     "offline_recovery": null,
-    "recorded_at": "2026-11-04 03:04:41"
+    "recorded_at": "2026-11-04 18:04:41"
   }
 ]

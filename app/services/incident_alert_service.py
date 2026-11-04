@@ -255,20 +255,7 @@ class IncidentAlertService:
         if from_logs:
             return from_logs
 
-        # 2. Fallback: Cek selisih waktu dari baris telemetri terakhir sebelum paket ini
-        prev_q = db.query(GatewayTelemetryHistory).filter(
-            GatewayTelemetryHistory.device_id == dev_id,
-            GatewayTelemetryHistory.recorded_at < rec_dt
-        )
-        if telemetry_history_id:
-            prev_q = prev_q.filter(GatewayTelemetryHistory.id != telemetry_history_id)
-        
-        prev_row = prev_q.order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
-        if prev_row and prev_row.recorded_at:
-            gap_sec = int((rec_dt - prev_row.recorded_at).total_seconds())
-            if gap_sec >= 600:  # Gap >= 10 menit menandakan gateway benar-benar offline (2 siklus simpan)
-                return prev_row.recorded_at, rec_dt, gap_sec
-
+        # 2. Fallback: Di bawah Opsi A, selisih waktu transmisi tanpa error log bukan downtime
         return None
 
     def process_telemetry_for_alerts(
@@ -478,6 +465,24 @@ class IncidentAlertService:
             )
             if alert:
                 created_alerts.append(alert)
+        elif isinstance(pt, dict) and not pt.get("undervoltage_now"):
+            # Auto-resolve alert undervoltage yang sedang ACTIVE jika tegangan sudah normal
+            active_uv = db.query(GatewayIncidentAlert).filter(
+                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.alert_code == "UNDERVOLTAGE_BROWNOUT",
+                GatewayIncidentAlert.status == "ACTIVE"
+            ).first()
+            if active_uv:
+                active_uv.recovered_at = rec_dt
+                active_uv.status = "RESOLVED"
+                gap = int((rec_dt - active_uv.occurred_at).total_seconds()) if active_uv.occurred_at else 0
+                active_uv.downtime_seconds = max(gap, 0)
+                active_uv.downtime_duration = format_downtime_duration(gap)
+                active_uv.message = f"Tegangan listrik input adaptor sempat drop di bawah toleransi 4.63V selama {active_uv.downtime_duration}. Tegangan kini telah stabil kembali normal."
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
         # -------------------------------------------------------------
         # 3. KARTU SIM: Sedang Dicabut (ACTIVE) atau Sempat Dicabut (RESOLVED)
@@ -602,6 +607,24 @@ class IncidentAlertService:
             )
             if alert:
                 created_alerts.append(alert)
+        elif isinstance(lan, dict) and (lan.get("status") == "CONNECTED" or lan.get("connected") is True):
+            # Auto-resolve alert LAN fisik yang sedang ACTIVE jika kabel sudah dicolok kembali normal
+            active_lan = db.query(GatewayIncidentAlert).filter(
+                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.alert_code == "LAN_CABLE_DISCONNECTED",
+                GatewayIncidentAlert.status == "ACTIVE"
+            ).first()
+            if active_lan:
+                active_lan.recovered_at = rec_dt
+                active_lan.status = "RESOLVED"
+                gap = int((rec_dt - active_lan.occurred_at).total_seconds()) if active_lan.occurred_at else 0
+                active_lan.downtime_seconds = max(gap, 0)
+                active_lan.downtime_duration = format_downtime_duration(gap)
+                active_lan.message = f"Koneksi kabel LAN port eth0 sempat terputus selama {active_lan.downtime_duration}. Kabel LAN kini telah terhubung kembali normal ke switch/NVR."
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
         return created_alerts
 
@@ -661,6 +684,11 @@ class IncidentAlertService:
                 logger.warning(f"Failed to update downtime alert: {e}")
             return None
 
+        dt_wib = occurred_at + timedelta(hours=7) if occurred_at else datetime.now(timezone.utc) + timedelta(hours=7)
+        cal_date_str = dt_wib.strftime("%Y-%m-%d")
+        day_down_min = round(downtime_seconds / 60.0, 1) if downtime_seconds else 0.0
+        resolved_metric = "power" if "REBOOT" in alert_code or category == "POWER" else ("cpu_modem" if category == "CPU_MODEM" else ("cpu_dvr" if category in ["CPU_DVR", "DVR", "CCTV_NVR"] else "cellular"))
+
         # Buat entri baru jika belum pernah dicatat
         alert = GatewayIncidentAlert(
             device_id=dev_id,
@@ -674,6 +702,9 @@ class IncidentAlertService:
             recommendation=recommendation,
             downtime_duration=downtime_duration,
             downtime_seconds=downtime_seconds,
+            metric=resolved_metric,
+            date_str=cal_date_str,
+            day_downtime_minutes=day_down_min,
             occurred_at=occurred_at,
             recovered_at=recovered_at,
             status=status,
@@ -712,6 +743,16 @@ class IncidentAlertService:
         telemetry_history_id: Optional[str] = None
     ) -> Optional[GatewayIncidentAlert]:
         """Menghindari duplikasi alert pada device yang sama dalam rentang waktu 15 menit."""
+        # Jika status ACTIVE, jangan buat tiket baru jika tiket ACTIVE masih terbuka
+        if status == "ACTIVE":
+            active_existing = db.query(GatewayIncidentAlert.id).filter(
+                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.alert_code == alert_code,
+                GatewayIncidentAlert.status == "ACTIVE"
+            ).first()
+            if active_existing:
+                return None
+
         window_start = occurred_at - timedelta(minutes=15)
         window_end = occurred_at + timedelta(minutes=15)
         existing = db.query(GatewayIncidentAlert.id).filter(

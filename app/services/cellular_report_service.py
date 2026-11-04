@@ -135,9 +135,9 @@ class CellularReportService:
 
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
 
-        up_str = sla["gateway_uptime_str"]
-        off_str = sla["gateway_offline_str"]
-        sr = sla["gateway_sla_pct"]
+        up_str = sla.get("cpu_modem_uptime_str", sla["gateway_uptime_str"])
+        off_str = sla.get("cpu_modem_offline_str", sla["gateway_offline_str"])
+        sr = sla.get("cpu_modem_success_rate", sla["gateway_sla_pct"])
 
         # Extract 100% real ping latency from cellular data traffic or SLA history
         raw_ping = nms_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms")
@@ -153,9 +153,9 @@ class CellularReportService:
             resp_ms = None
         resp_ms_str = f"{resp_ms} ms" if resp_ms is not None else "-"
 
-        net_up_str = sla["cellular_uptime_str"]
-        net_off_str = sla["cellular_offline_str"]
-        net_sr = sla["cellular_sla_pct"]
+        net_up_str = sla.get("network_uptime_str", sla["cellular_uptime_str"])
+        net_off_str = sla.get("network_offline_str", sla["cellular_offline_str"])
+        net_sr = sla.get("network_success_rate", sla["cellular_sla_pct"])
         events_count = len(sla["trouble_events"])
 
         report_item = {
@@ -245,6 +245,8 @@ class CellularReportService:
             "total_gangguan": f"{events_count} events",
             "timeline_segments": sla["timeline_tracks"][0]["segments"],
             "trouble_events": formatted_trouble_events,
+            "daily_breakdown": sla.get("daily_breakdown", []),
+            "daily_summary": sla.get("daily_summary"),
         }
 
         self._live_gateways[device_id] = {
@@ -334,6 +336,7 @@ class CellularReportService:
         gateway_type: Optional[str] = None,
         provider: Optional[str] = None,
         location: Optional[str] = None,
+        date_range: Optional[str] = None,
     ) -> str:
         """Export real report data to CSV string format"""
         data = self.get_report(
@@ -341,6 +344,7 @@ class CellularReportService:
             gateway_type=gateway_type,
             provider=provider,
             location=location,
+            date_range=date_range,
             page=1,
             page_size=1000,
         )
@@ -393,17 +397,17 @@ class CellularReportService:
                     date_range_str=date_range
                 )
                 detail["period_hours"] = sla["period_hours_str"]
-                detail["cpu_modem_uptime"] = sla["gateway_uptime_str"]
-                detail["cpu_modem_uptime_pct"] = f"{sla['gateway_sla_pct']}%"
-                detail["cpu_modem_offline"] = sla["gateway_offline_str"]
-                detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla['gateway_sla_pct'], 1)}%"
-                detail["success_rate"] = f"{sla['gateway_sla_pct']}%"
+                detail["cpu_modem_uptime"] = sla.get("cpu_modem_uptime_str", sla["gateway_uptime_str"])
+                detail["cpu_modem_uptime_pct"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
+                detail["cpu_modem_offline"] = sla.get("cpu_modem_offline_str", sla["gateway_offline_str"])
+                detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla.get('cpu_modem_success_rate', sla['gateway_sla_pct']), 1)}%"
+                detail["success_rate"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
                 if sla.get("avg_ping") is not None:
                     detail["avg_response_time"] = f"{sla['avg_ping']} ms"
-                detail["network_uptime"] = sla["cellular_uptime_str"]
-                detail["network_uptime_pct"] = f"{sla['cellular_sla_pct']}%"
-                detail["network_offline"] = sla["cellular_offline_str"]
-                detail["network_offline_pct"] = f"{round(100.0 - sla['cellular_sla_pct'], 1)}%"
+                detail["network_uptime"] = sla.get("network_uptime_str", sla["cellular_uptime_str"])
+                detail["network_uptime_pct"] = f"{sla.get('network_success_rate', sla['cellular_sla_pct'])}%"
+                detail["network_offline"] = sla.get("network_offline_str", sla["cellular_offline_str"])
+                detail["network_offline_pct"] = f"{round(100.0 - sla.get('network_success_rate', sla['cellular_sla_pct']), 1)}%"
                 detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
                 detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
                 if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
@@ -412,6 +416,8 @@ class CellularReportService:
                 if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
                     detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]
                 detail["trouble_events"] = sla.get("trouble_events", [])
+                detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+                detail["daily_summary"] = sla.get("daily_summary")
             return detail
 
         return {

@@ -65,6 +65,60 @@ class TimelineSegment(BaseModel):
     period: str
 
 
+class DailySlaRecord(BaseModel):
+    day: int
+    date: str
+    day_name: str
+    target_sla: float = 98.0
+    uptime_min: float
+    downtime_min: float
+    success_rate: float
+    sla_diff: float
+    sla_status: str
+    cpu_modem_uptime_min: float
+    cpu_modem_downtime_min: float
+    cpu_modem_success_rate: float
+    cpu_modem_sla_diff: float
+    cpu_modem_status_sla: str
+    cellular_uptime_min: float
+    cellular_downtime_min: float
+    cellular_success_rate: float
+    cellular_sla_diff: float
+    cellular_status_sla: str
+    cpu_dvr_uptime_min: Optional[float] = None
+    cpu_dvr_downtime_min: Optional[float] = None
+    cpu_dvr_success_rate: Optional[float] = None
+    cpu_dvr_sla_diff: Optional[float] = None
+    cpu_dvr_status_sla: Optional[str] = None
+    rec_uptime_min: Optional[float] = None
+    rec_downtime_min: Optional[float] = None
+    rec_success_rate: Optional[float] = None
+    rec_sla_diff: Optional[float] = None
+    rec_status_sla: Optional[str] = None
+
+
+class DailySlaSummary(BaseModel):
+    total_days: int
+    target_sla_pct: float
+    total_obs_min: float
+    total_cpu_modem_uptime_min: float
+    total_cpu_modem_downtime_min: float
+    avg_cpu_modem_success_rate: float
+    cpu_modem_sla_status: str
+    total_cellular_uptime_min: float
+    total_cellular_downtime_min: float
+    avg_cellular_success_rate: float
+    cellular_sla_status: str
+    total_cpu_dvr_uptime_min: Optional[float] = None
+    total_cpu_dvr_downtime_min: Optional[float] = None
+    avg_cpu_dvr_success_rate: Optional[float] = None
+    cpu_dvr_sla_status: Optional[str] = None
+    total_rec_uptime_min: Optional[float] = None
+    total_rec_downtime_min: Optional[float] = None
+    avg_rec_success_rate: Optional[float] = None
+    rec_sla_status: Optional[str] = None
+
+
 class CellularReportGatewayDetail(BaseModel):
     id: str
     status: str
@@ -96,6 +150,8 @@ class CellularReportGatewayDetail(BaseModel):
     total_gangguan: str
     timeline_segments: List[TimelineSegment]
     trouble_events: List[TroubleEventItem]
+    daily_breakdown: Optional[List[DailySlaRecord]] = None
+    daily_summary: Optional[DailySlaSummary] = None
 
 
 class CellularReportGatewayDetailResponse(BaseModel):

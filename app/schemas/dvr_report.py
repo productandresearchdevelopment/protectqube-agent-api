@@ -1,5 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
+from app.schemas.cellular_report import DailySlaRecord, DailySlaSummary
 
 
 class DVRReportItem(BaseModel):
@@ -103,6 +104,8 @@ class DVRReportGatewayDetail(BaseModel):
     kamera_offline: int
     timeline_tracks: List[DVRTimelineTrack]
     trouble_events: List[DVRReportTroubleEvent]
+    daily_breakdown: Optional[List[DailySlaRecord]] = None
+    daily_summary: Optional[DailySlaSummary] = None
 
 
 class DVRReportGatewayDetailResponse(BaseModel):

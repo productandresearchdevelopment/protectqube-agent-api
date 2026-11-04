@@ -245,6 +245,11 @@ class GatewayIncidentAlert(Base):
     downtime_duration = Column(String(50), nullable=True)
     downtime_seconds = Column(Integer, nullable=True)
 
+    # Klasifikasi Metrik & Sinkronisasi Downtime Harian SLA (Point 1-3)
+    metric = Column(String(50), nullable=True, index=True)  # cpu_modem, cellular, cpu_dvr, power
+    date_str = Column(String(20), nullable=True, index=True)  # YYYY-MM-DD
+    day_downtime_minutes = Column(Float, nullable=True)
+
     # Timestamp Kejadian & Pemulihan
     occurred_at = Column(DateTime, nullable=False, index=True)
     recovered_at = Column(DateTime, nullable=True)

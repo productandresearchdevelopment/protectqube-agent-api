@@ -145,9 +145,9 @@ class DVRReportService:
 
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
 
-        up_str = sla["gateway_uptime_str"]
-        off_str = sla["gateway_offline_str"]
-        sr = sla["gateway_sla_pct"]
+        up_str = sla.get("cpu_dvr_uptime_str") or sla["gateway_uptime_str"]
+        off_str = sla.get("cpu_dvr_offline_str") or sla["gateway_offline_str"]
+        sr = sla.get("cpu_dvr_success_rate", sla["gateway_sla_pct"])
         resp_ms = 42 if nvr_reachable else 0
         rec_up_str = sla["dvr_uptime_str"]
         rec_off_str = sla["dvr_offline_str"]
@@ -209,6 +209,8 @@ class DVRReportService:
             "kamera_offline": offline_cam,
             "timeline_tracks": sla["timeline_tracks"],
             "trouble_events": sla["trouble_events"],
+            "daily_breakdown": sla.get("daily_breakdown", []),
+            "daily_summary": sla.get("daily_summary"),
         }
 
         self._live_gateways[device_id] = {
@@ -235,8 +237,31 @@ class DVRReportService:
         page: int = 1,
         page_size: int = 10,
     ) -> Dict[str, Any]:
-        """Filter & paginate real fleet records for DVR Report"""
-        filtered = self._get_all_rows()
+        """Filter & paginate 100% real fleet records for DVR Report with live SLA calculation"""
+        from app.services.sla_calculator_service import sla_calculator_service
+
+        items = []
+        for g in self._live_gateways.values():
+            item = dict(g["report_item"])
+            if date_range:
+                dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
+                sla = sla_calculator_service.calculate_device_sla(
+                    device_id=dev_id,
+                    live_payload=g.get("raw_payload"),
+                    date_range_str=date_range
+                )
+                item["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla.get("gateway_uptime_str", "0m"))
+                item["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla.get("gateway_offline_str", "0m"))
+                item["cpu_dvr_success_rate"] = sla.get("cpu_dvr_success_rate", sla.get("gateway_sla_pct", 100.0))
+                item["rec_uptime"] = sla.get("dvr_uptime_str", "0m")
+                item["rec_tidak_merekam"] = sla.get("dvr_offline_str", "0m")
+                item["jumlah_event"] = len(sla.get("trouble_events", []))
+            items.append(item)
+
+        for idx, it in enumerate(items, 1):
+            it["no"] = idx
+
+        filtered = items
 
         if search:
             q = search.lower().strip()
@@ -280,6 +305,7 @@ class DVRReportService:
         gateway_type: Optional[str] = None,
         dvr_brand: Optional[str] = None,
         location: Optional[str] = None,
+        date_range: Optional[str] = None,
     ) -> str:
         """Export DVR report data to CSV string format"""
         data = self.get_report(
@@ -287,6 +313,7 @@ class DVRReportService:
             gateway_type=gateway_type,
             dvr_brand=dvr_brand,
             location=location,
+            date_range=date_range,
             page=1,
             page_size=2000,
         )
@@ -361,17 +388,19 @@ class DVRReportService:
                     from app.services.sla_calculator_service import sla_calculator_service
                     sla = sla_calculator_service.calculate_device_sla(gid, live_payload=data.get("raw_payload"), date_range=date_range)
                     detail["period_hours"] = sla["period_hours_str"]
-                    detail["cpu_dvr_uptime"] = sla["gateway_uptime_str"]
-                    detail["cpu_dvr_uptime_pct"] = f"{sla['gateway_sla_pct']}%"
-                    detail["cpu_dvr_offline"] = sla["gateway_offline_str"]
-                    detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla['gateway_sla_pct'], 1)}%"
-                    detail["success_rate"] = f"{sla['gateway_sla_pct']}%"
+                    detail["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla["gateway_uptime_str"])
+                    detail["cpu_dvr_uptime_pct"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
+                    detail["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla["gateway_offline_str"])
+                    detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct']), 1)}%"
+                    detail["success_rate"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
                     detail["rec_uptime"] = sla["dvr_uptime_str"]
                     detail["rec_uptime_pct"] = f"{sla['dvr_sla_pct']}%"
                     detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
                     detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
                     detail["timeline_tracks"] = sla.get("timeline_tracks", [])
                     detail["trouble_events"] = sla.get("trouble_events", [])
+                    detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+                    detail["daily_summary"] = sla.get("daily_summary")
                 return detail
 
         if self._live_gateways:
@@ -382,17 +411,19 @@ class DVRReportService:
                 from app.services.sla_calculator_service import sla_calculator_service
                 sla = sla_calculator_service.calculate_device_sla(first_gid, live_payload=first_data.get("raw_payload"), date_range=date_range)
                 detail["period_hours"] = sla["period_hours_str"]
-                detail["cpu_dvr_uptime"] = sla["gateway_uptime_str"]
-                detail["cpu_dvr_uptime_pct"] = f"{sla['gateway_sla_pct']}%"
-                detail["cpu_dvr_offline"] = sla["gateway_offline_str"]
-                detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla['gateway_sla_pct'], 1)}%"
-                detail["success_rate"] = f"{sla['gateway_sla_pct']}%"
+                detail["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla["gateway_uptime_str"])
+                detail["cpu_dvr_uptime_pct"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
+                detail["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla["gateway_offline_str"])
+                detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct']), 1)}%"
+                detail["success_rate"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
                 detail["rec_uptime"] = sla["dvr_uptime_str"]
                 detail["rec_uptime_pct"] = f"{sla['dvr_sla_pct']}%"
                 detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
                 detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
                 detail["timeline_tracks"] = sla.get("timeline_tracks", [])
                 detail["trouble_events"] = sla.get("trouble_events", [])
+                detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+                detail["daily_summary"] = sla.get("daily_summary")
             return detail
 
         return {

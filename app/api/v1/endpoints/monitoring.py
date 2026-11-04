@@ -239,6 +239,7 @@ def export_cellular_report_csv(
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     provider: Optional[str] = Query(None, description="Filter provider SIM card"),
     location: Optional[str] = Query(None, description="Filter lokasi/kota"),
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
     """
     Exports fleet cellular telemetry data to CSV file.
@@ -248,6 +249,7 @@ def export_cellular_report_csv(
         gateway_type=gateway_type,
         provider=provider,
         location=location,
+        date_range=date_range,
     )
     return Response(
         content=csv_data,
@@ -307,6 +309,7 @@ def export_dvr_report_csv(
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     dvr_brand: Optional[str] = Query(None, description="Filter merek DVR/NVR"),
     location: Optional[str] = Query(None, description="Filter lokasi/kota"),
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
     """
     Exports fleet DVR telemetry data to CSV file.
@@ -316,6 +319,7 @@ def export_dvr_report_csv(
         gateway_type=gateway_type,
         dvr_brand=dvr_brand,
         location=location,
+        date_range=date_range,
     )
     return Response(
         content=csv_data,
