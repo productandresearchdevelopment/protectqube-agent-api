@@ -1,6 +1,6 @@
 """update_incident_alerts_and_telemetry
 
-Revision ID: 003_update_incident_alerts_and_telemetry
+Revision ID: 003_incident_alerts
 Revises: 002_seed_initial_auth_data
 Create Date: 2026-11-05 15:45:00.000000
 
@@ -9,7 +9,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = '003_update_incident_alerts_and_telemetry'
+revision: str = '003_incident_alerts'
 down_revision: Union[str, None] = '002_seed_initial_auth_data'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
