@@ -23,17 +23,17 @@ def upgrade() -> None:
     # 1. roles
     if 'roles' not in existing_tables:
         op.create_table(
-        'roles',
-        sa.Column('id', sa.String(length=36), primary_key=True),
-        sa.Column('name', sa.String(length=100), nullable=False),
-        sa.Column('alias', sa.String(length=100), nullable=False),
-        sa.Column('color', sa.String(length=20), nullable=False, server_default='#3b82f6'),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.Column('deleted_at', sa.DateTime(), nullable=True),
-    )
-    op.create_index('ix_roles_name', 'roles', ['name'])
+            'roles',
+            sa.Column('id', sa.String(length=36), primary_key=True),
+            sa.Column('name', sa.String(length=100), nullable=False),
+            sa.Column('alias', sa.String(length=100), nullable=False),
+            sa.Column('color', sa.String(length=20), nullable=False, server_default='#3b82f6'),
+            sa.Column('description', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('updated_at', sa.DateTime(), nullable=False),
+            sa.Column('deleted_at', sa.DateTime(), nullable=True),
+        )
+        op.create_index('ix_roles_name', 'roles', ['name'])
 
     # 2. module_types
     if 'module_types' not in existing_tables:
