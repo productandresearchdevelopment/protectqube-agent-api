@@ -59,5 +59,6 @@ jobs:
             docker pull "$IMAGE"
 
             export IMAGE="$IMAGE"
+            export BACKUP_RETENTION_DAYS="${{ secrets.BACKUP_RETENTION_DAYS || 7 }}"
 
             /var/www/protectqube-agent/api/deploy/deploy_prod_bluegreen.sh
