@@ -26,6 +26,12 @@ ADMIN_PASSWORD_HASH = "$2b$12$EibK34ognTvLscr1bZ6DZu18B07oE24DBhpvgru4VG3sWhhJA4
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    existing_user = bind.execute(sa.text("SELECT id FROM users WHERE username = 'admin'")).fetchone()
+    if existing_user:
+        # Initial auth data already seeded
+        return
+
     # 1. Seed Roles
     roles_table = sa.table(
         'roles',
