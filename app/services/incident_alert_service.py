@@ -291,16 +291,17 @@ class IncidentAlertService:
 
         for line in logs:
             ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))
-            if ts_str:
+            if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
                 try:
                     dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
-                    if dt_wib.year >= 2024:
+                    min_dt = dt_wib.replace(second=0, microsecond=0)
+                    if min_dt.year >= 2024:
                         if c_down:
-                            outages["cpu_modem"].append((dt_wib, str(line)))
+                            outages["cpu_modem"].append((min_dt, str(line)))
                         if n_down:
-                            outages["cellular"].append((dt_wib, str(line)))
+                            outages["cellular"].append((min_dt, str(line)))
                         if d_down:
-                            outages["cpu_dvr"].append((dt_wib, str(line)))
+                            outages["cpu_dvr"].append((min_dt, str(line)))
                 except Exception:
                     pass
 
@@ -310,15 +311,14 @@ class IncidentAlertService:
             seen_min = set()
             dedup_items = []
             for dt, l in sorted(items, key=lambda x: x[0]):
-                k = dt.strftime("%Y-%m-%d %H:%M")
-                if k not in seen_min:
-                    seen_min.add(k)
+                if dt not in seen_min:
+                    seen_min.add(dt)
                     dedup_items.append((dt, l))
 
             groups = []
             curr = [dedup_items[0]]
             for it in dedup_items[1:]:
-                if (it[0] - curr[-1][0]).total_seconds() <= 180:
+                if (it[0] - curr[-1][0]).total_seconds() <= 65:
                     curr.append(it)
                 else:
                     groups.append(curr)
@@ -329,14 +329,16 @@ class IncidentAlertService:
             for g in groups:
                 st = g[0][0]
                 et = g[-1][0] + timedelta(minutes=1)
-                dur = max(1.0, round((et - st).total_seconds() / 60.0, 1))
+                dur = float(len(g))
                 st_utc = (st - timedelta(hours=7)).replace(tzinfo=None)
                 et_utc = (et - timedelta(hours=7)).replace(tzinfo=None)
 
+                # Deteksi jika sudah ada insiden sejenis yang bertabrakan atau menyambung (dalam jeda <= 65s)
                 existing = db.query(GatewayIncidentAlert).filter(
                     GatewayIncidentAlert.device_id == dev_id,
                     GatewayIncidentAlert.metric == metric,
-                    GatewayIncidentAlert.start_time == st_utc
+                    GatewayIncidentAlert.start_time <= et_utc + timedelta(seconds=65),
+                    GatewayIncidentAlert.end_time >= st_utc - timedelta(seconds=65)
                 ).first()
 
                 if not existing:
@@ -362,6 +364,22 @@ class IncidentAlertService:
                     )
                     db.add(new_alert)
                     created.append(new_alert)
+                else:
+                    # Gabungkan rentang jika window telemetri baru memperluas insiden yang sudah tercatat
+                    new_st = min(existing.start_time, st_utc)
+                    new_et = max(existing.end_time, et_utc)
+                    if new_st < existing.start_time or new_et > existing.end_time:
+                        new_dur = max(1.0, round((new_et - new_st).total_seconds() / 60.0, 1))
+                        existing.start_time = new_st
+                        existing.end_time = new_et
+                        existing.duration_minutes = new_dur
+                        existing.duration_str = f"{round(new_dur)} Menit"
+                        if metric == "cpu_modem":
+                            existing.description = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(new_dur)} Menit"
+                        elif metric == "cellular":
+                            existing.description = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(new_dur)} Menit"
+                        else:
+                            existing.description = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(new_dur)} Menit"
 
         if created:
             try:
@@ -992,24 +1010,98 @@ class IncidentAlertService:
         }
 
     def backfill_from_telemetry_history(self, db: Session) -> int:
-        """Memproses data historis yang sudah ada di gateway_telemetry_history ke tabel alert."""
-        rows = db.query(GatewayTelemetryHistory).order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
-        total_created = 0
-        logger.info(f"Starting backfill alerts from {len(rows)} telemetry history rows...")
+        """
+        Memproses data historis yang sudah ada di gateway_telemetry_history ke tabel alert
+        dengan pengelompokan interval yang bersih (deduplikasi menyeluruh per menit).
+        """
+        from collections import defaultdict
+        from app.services.sla_calculator_service import sla_calculator_service
+        wib = timezone(timedelta(hours=7))
+
+        rows = db.query(GatewayTelemetryHistory).filter(
+            GatewayTelemetryHistory.raw_payload.isnot(None)
+        ).order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
+
+        logger.info(f"Starting deduplicated backfill alerts from {len(rows)} telemetry history rows...")
+
+        # 1. Kumpulkan seluruh menit outage unik per device dan metric
+        outage_map = defaultdict(lambda: defaultdict(dict))
 
         for r in rows:
             p = r.raw_payload or {}
-            created = self.process_telemetry_for_alerts(
-                db=db,
-                dev_id=r.device_id,
-                loc_name=r.location or f"Gateway {r.device_id}",
-                payload=p,
-                rec_dt=r.recorded_at,
-                telemetry_history_id=r.id
-            )
-            total_created += len(created)
+            logs = p.get("recent_system_logs")
+            if not logs:
+                continue
+            if isinstance(logs, str):
+                logs = logs.strip().split("\n")
+            for line in logs:
+                ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))
+                if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
+                    try:
+                        dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
+                        min_dt = dt_wib.replace(second=0, microsecond=0)
+                        if dt_wib.year >= 2024:
+                            if c_down:
+                                outage_map[r.device_id]["cpu_modem"][min_dt] = r.id
+                            if n_down:
+                                outage_map[r.device_id]["cellular"][min_dt] = r.id
+                            if d_down:
+                                outage_map[r.device_id]["cpu_dvr"][min_dt] = r.id
+                    except Exception:
+                        pass
 
-        logger.info(f"Backfill completed! Created/updated {total_created} incident alerts in database.")
+        # 2. Buat incident alerts bersih per kelompok waktu beruntun
+        total_created = 0
+        for dev_id, metrics in outage_map.items():
+            for metric, times_dict in metrics.items():
+                sorted_times = sorted(times_dict.keys())
+                if not sorted_times:
+                    continue
+
+                groups = []
+                curr = [sorted_times[0]]
+                for t in sorted_times[1:]:
+                    if (t - curr[-1]).total_seconds() <= 65:
+                        curr.append(t)
+                    else:
+                        groups.append(curr)
+                        curr = [t]
+                if curr:
+                    groups.append(curr)
+
+                for g in groups:
+                    st = g[0]
+                    et = g[-1] + timedelta(minutes=1)
+                    dur = float(len(g))
+                    st_utc = (st - timedelta(hours=7)).replace(tzinfo=None)
+                    et_utc = (et - timedelta(hours=7)).replace(tzinfo=None)
+                    telemetry_id = times_dict.get(st)
+
+                    if metric == "cpu_modem":
+                        desc = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(dur)} Menit"
+                    elif metric == "cellular":
+                        desc = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(dur)} Menit"
+                    else:
+                        desc = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(dur)} Menit"
+
+                    new_alert = GatewayIncidentAlert(
+                        id=str(uuid.uuid4()),
+                        device_id=dev_id,
+                        telemetry_history_id=telemetry_id,
+                        metric=metric,
+                        description=desc,
+                        start_time=st_utc,
+                        end_time=et_utc,
+                        duration_minutes=dur,
+                        duration_str=f"{round(dur)} Menit",
+                        status="RESOLVED",
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(new_alert)
+                    total_created += 1
+
+        db.commit()
+        logger.info(f"Backfill completed! Created {total_created} clean deduplicated incident alerts in database.")
         return total_created
 
 

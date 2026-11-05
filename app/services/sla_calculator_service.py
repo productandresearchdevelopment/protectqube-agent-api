@@ -740,13 +740,27 @@ class SLACalculatorService:
                     logs = logs.strip().split("\n")
                 for line in logs:
                     ts_str, c_down, n_down, d_down, rec = self.parse_system_log_line(str(line))
-                    if ts_str:
+                    if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
                         d_key = ts_str[:10]  # YYYY-MM-DD
                         min_k = ts_str[:16]  # YYYY-MM-DD HH:MM
                         if d_key not in unique_day_logs:
                             unique_day_logs[d_key] = {}
                         if min_k not in unique_day_logs[d_key]:
-                            unique_day_logs[d_key][min_k] = (bool(c_down), bool(n_down), bool(d_down), bool(rec if rec is not None else True))
+                            unique_day_logs[d_key][min_k] = [
+                                bool(c_down),
+                                bool(n_down),
+                                bool(d_down),
+                                bool(rec if rec is not None else True)
+                            ]
+                        else:
+                            if c_down is not None and c_down:
+                                unique_day_logs[d_key][min_k][0] = True
+                            if n_down is not None and n_down:
+                                unique_day_logs[d_key][min_k][1] = True
+                            if d_down is not None and d_down:
+                                unique_day_logs[d_key][min_k][2] = True
+                            if rec is not None and not rec:
+                                unique_day_logs[d_key][min_k][3] = False
 
             while cur_date <= e_date:
                 d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
