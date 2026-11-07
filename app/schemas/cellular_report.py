@@ -104,6 +104,8 @@ class DailySlaRecord(BaseModel):
     rec_success_rate: Optional[float] = None
     rec_sla_diff: Optional[float] = None
     rec_status_sla: Optional[str] = None
+    rec_channels: Optional[str] = None
+    rec_condition: Optional[str] = None
 
 
 class DailySlaSummary(BaseModel):

@@ -144,6 +144,7 @@ class DVREventItem(BaseModel):
     title: str
     time: str
     status: str = "success"
+    duration: Optional[str] = None
 
 
 class DVRGatewayDetailData(BaseModel):

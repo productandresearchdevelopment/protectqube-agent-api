@@ -1,10 +1,11 @@
 import os
 import json
 import logging
+import calendar
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import time
-from app.services.sla_calculator_service import sla_calculator_service, get_default_period_str
+from app.services.sla_calculator_service import sla_calculator_service, get_default_period_str, WIB
 
 logger = logging.getLogger("system-health-service")
 
@@ -34,9 +35,13 @@ class SystemHealthService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
-                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                for dev_id in dev_ids:
-                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                latest_records = (
+                    db.query(GatewayTelemetryHistory)
+                    .distinct(GatewayTelemetryHistory.device_id)
+                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
+                    .all()
+                )
+                for latest in latest_records:
                     if latest and latest.raw_payload:
                         payload = dict(latest.raw_payload)
                         if latest.recorded_at:
@@ -113,9 +118,9 @@ class SystemHealthService:
         if raw_badge.upper() in ["OK", "GOOD"]:
             sd_health_label = "Good"
         elif raw_badge.upper() in ["WARN", "WARNING"]:
-            sd_health_label = "Wear"
+            sd_health_label = "Warning"
         else:
-            sd_health_label = "Bad"
+            sd_health_label = "Critical"
 
         overall_status = str(nms_payload.get("overall_status", "HEALTHY")).upper()
         if overall_status in ["CRITICAL", "BAD"] or cpu_temp >= 85.0:
@@ -152,9 +157,68 @@ class SystemHealthService:
         }
 
         sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
-        uptime_pct_val = sla["gateway_sla_pct"]
-        is_sla_met = uptime_pct_val >= 99.5
         downtime_events = sla.get("trouble_events", [])
+
+        # Dynamic month & cutoff time calculation (WIB)
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        current_year = now_wib.year
+        current_month = now_wib.month
+        days_in_month = calendar.monthrange(current_year, current_month)[1]
+        month_total_hours = days_in_month * 24
+
+        # Elapsed time from 1st of month (00:00:00 WIB) up to cutoff time now
+        start_of_month = datetime(current_year, current_month, 1, 0, 0, 0, tzinfo=WIB)
+        elapsed_seconds_in_month = max(60.0, (now_wib - start_of_month).total_seconds())
+
+        # Hardware SBC uptime from kernel /proc/uptime (point-in-time value, not cumulative sum)
+        kernel_uptime_sec = gw_sys.get("uptime_seconds", 0)
+        if not kernel_uptime_sec:
+            raw_up = gw_sys.get("uptime", "")
+            try:
+                parts = raw_up.split()
+                h = 0
+                m = 0
+                for p in parts:
+                    if p.endswith("h"):
+                        h = int(p[:-1])
+                    elif p.endswith("m"):
+                        m = int(p[:-1])
+                    elif p.endswith("d"):
+                        h += int(p[:-1]) * 24
+                kernel_uptime_sec = h * 3600 + m * 60
+            except Exception:
+                kernel_uptime_sec = 86400
+
+        session_days = int(kernel_uptime_sec // 86400)
+        session_hours = int((kernel_uptime_sec % 86400) // 3600)
+
+        # Uptime with month cutoff:
+        # If device has been running continuously since previous month (e.g. October),
+        # only the elapsed portion belonging to this month (from 1st until now) is counted.
+        effective_month_uptime_sec = min(float(kernel_uptime_sec), elapsed_seconds_in_month)
+
+        # Subtract downtime events occurring within current month
+        downtime_sec = 0.0
+        for ev in downtime_events:
+            downtime_sec += float(ev.get("duration_minutes", 0.0)) * 60.0
+        effective_month_uptime_sec = max(0.0, effective_month_uptime_sec - downtime_sec)
+
+        uptime_pct_val = round(max(0.0, min(100.0, (effective_month_uptime_sec / elapsed_seconds_in_month) * 100.0)), 1)
+        is_sla_met = uptime_pct_val >= 99.5
+
+        def _format_sec(sec: float) -> str:
+            s = int(max(0, sec))
+            h = s // 3600
+            m = (s % 3600) // 60
+            return f"{h}h {m:02d}m"
+
+        uptime_duration_str = _format_sec(effective_month_uptime_sec)
+        downtime_duration_str = _format_sec(downtime_sec)
+
+        min_sla_uptime_hours = month_total_hours * 0.995
+        max_sla_downtime_hours = month_total_hours * 0.005
+        sla_target_hours_str = f"{int(min_sla_uptime_hours)}h {int(round((min_sla_uptime_hours % 1) * 60)):02d}m"
+        sla_downtime_allowed_str = f"{int(max_sla_downtime_hours)}h {int(round((max_sla_downtime_hours % 1) * 60)):02d}m"
 
         detail_item = {
             "id": device_id,
@@ -184,20 +248,20 @@ class SystemHealthService:
                 "temperature": f"{int(cpu_temp)}°C",
                 "io_error": 0,
             },
-            "uptime_days": 12,
-            "uptime_hours": 8,
+            "uptime_days": session_days,
+            "uptime_hours": session_hours,
             "uptime_status": "Running",
             "uptime_subtext": "Normal Operation (SBC Linux)",
             "month_period": get_default_period_str(),
-            "month_total_hours": 744,
-            "uptime_duration": sla["gateway_uptime_str"],
+            "month_total_hours": month_total_hours,
+            "uptime_duration": uptime_duration_str,
             "uptime_pct": f"{uptime_pct_val:.1f}%",
-            "downtime_duration": sla["gateway_offline_str"],
+            "downtime_duration": downtime_duration_str,
             "downtime_pct": f"{100.0 - uptime_pct_val:.1f}%",
             "sla_target": 99.5,
-            "sla_target_hours": "740h 17m",
-            "sla_status": "Tercapai" if is_sla_met else "Breach",
-            "sla_downtime_allowed": "3h 43m",
+            "sla_target_hours": sla_target_hours_str,
+            "sla_status": "Achieved" if is_sla_met else "Breach",
+            "sla_downtime_allowed": sla_downtime_allowed_str,
             "downtime_events": downtime_events,
         }
 
@@ -397,7 +461,7 @@ class SystemHealthService:
                 if gateway_type.strip().lower() in g["type"].lower()
             ]
 
-        if status and status not in ["Semua Status", "All"]:
+        if status and status not in ["Semua Status", "All", "All Statuses"]:
             s = status.strip().lower()
             filtered = [
                 g for g in filtered
@@ -450,14 +514,150 @@ class SystemHealthService:
             "pagination": gateways_data["pagination"],
         }
 
+    def _enrich_detail_with_history(
+        self,
+        base_detail: Dict[str, Any],
+        dev_id: str,
+        raw_payload: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Calculates 100% REAL event logs and SLA trouble events directly from MQTT telemetry."""
+        detail = dict(base_detail)
+        real_events = []
+        import re
+        today_iso = datetime.now().strftime("%Y-%m-%d")
+        today_display = datetime.now().strftime("%d %b")
+
+        # 1. Trouble events calculated from SLA calculator for today
+        try:
+            sla = sla_calculator_service.calculate_device_sla(dev_id, live_payload=raw_payload)
+            detail["downtime_events"] = sla.get("trouble_events", [])
+            for idx, ev in enumerate(sla.get("trouble_events", []), 1):
+                ev_date = ev.get("date_str") or ""
+                ev_start = ev.get("start_time") or ""
+                # Only include events occurring today
+                if ev_date and ev_date != today_iso:
+                    continue
+                if ev_start and not ev_start.startswith(today_display):
+                    continue
+
+                real_events.append({
+                    "id": f"trouble-{idx}",
+                    "title": ev.get("title") or ev.get("description") or "System Health Incident Alert",
+                    "time": ev.get("start_time") or "Today",
+                    "status": "error" if ev.get("status") == "Active" else "warning",
+                    "duration": ev.get("duration", "-"),
+                    "category": ev.get("category", "SYSTEM"),
+                })
+        except Exception as e:
+            logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
+
+        # 2. Parse recent_system_logs from MQTT telemetry stream for today only
+        logs = (raw_payload or {}).get("recent_system_logs", [])
+        for idx, line in enumerate(reversed(logs), 1):
+            ts_m = re.match(r"\[(\d{4}-\d{2}-\d{2})\s+([\d:]+)\]", line)
+            if ts_m:
+                d_part, t_part = ts_m.group(1), ts_m.group(2)
+                # Only include logs from today
+                if d_part != today_iso:
+                    continue
+                ts = f"{t_part} WIB"
+            else:
+                ts_any = re.match(r"\[(.*?)\]", line)
+                ts = ts_any.group(1) if ts_any else "Today"
+
+            if "CPU:" in line or "RAM:" in line or "Power:" in line:
+                cpu_m = re.search(r"CPU:\s*([^\|]+)", line)
+                ram_m = re.search(r"RAM:\s*([^\|]+)", line)
+                pwr_m = re.search(r"Power:\s*([^\|]+)", line)
+                disk_m = re.search(r"Disk/\s*:\s*([^\|]+)", line)
+                flash_m = re.search(r"Flash:\s*([^\|]+)", line)
+
+                if cpu_m:
+                    cpu_txt = cpu_m.group(1).strip()
+                    is_hot = "°C" in cpu_txt and any(int(float(x)) >= 75 for x in re.findall(r"(\d+(?:\.\d+)?)°C", cpu_txt))
+                    real_events.append({
+                        "id": f"log-cpu-{idx}",
+                        "title": f"CPU Telemetry & Temperature: {cpu_txt}",
+                        "time": ts,
+                        "status": "warning" if is_hot else "success",
+                    })
+
+                if pwr_m:
+                    pwr_txt = pwr_m.group(1).strip()
+                    is_ac = "AC" in pwr_txt
+                    real_events.append({
+                        "id": f"log-pwr-{idx}",
+                        "title": f"Power System Status: {pwr_txt}",
+                        "time": ts,
+                        "status": "success" if is_ac else "warning",
+                    })
+
+                if disk_m or flash_m:
+                    storage_parts = []
+                    if disk_m:
+                        storage_parts.append(f"Storage {disk_m.group(1).strip()}")
+                    if flash_m:
+                        storage_parts.append(f"eMMC/Flash {flash_m.group(1).strip()}")
+                    storage_str = " | ".join(storage_parts)
+                    real_events.append({
+                        "id": f"log-disk-{idx}",
+                        "title": f"Storage Status: {storage_str}",
+                        "time": ts,
+                        "status": "warning" if "[WARN" in line else "success",
+                    })
+            elif any(k in line.lower() for k in ["reboot", "power", "temperature", "throttling", "oom", "disk", "flash"]):
+                clean_text = re.sub(r"^\[.*?\]\s*(\[.*?\]\s*)*", "", line).strip()
+                real_events.append({
+                    "id": f"log-alert-{idx}",
+                    "title": clean_text,
+                    "time": ts,
+                    "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
+                })
+
+            if len(real_events) >= 20:
+                break
+
+        # Fallback if no logs available today: provide authentic device status snapshot
+        if not real_events:
+            c_pct = detail.get("cpu_percent", 25)
+            r_pct = detail.get("ram_percent", 35)
+            s_pct = detail.get("sd_percent", 50)
+            h_stat = detail.get("sd_health", {}).get("status", "Good")
+            temp = detail.get("sd_health", {}).get("temperature", "45°C")
+            curr_time = detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            real_events.append({
+                "id": "evt-live-cpu",
+                "title": f"Processor Load & CPU Temperature: CPU {c_pct}% ({temp})",
+                "time": curr_time,
+                "status": "success" if c_pct < 75 else "warning",
+            })
+            real_events.append({
+                "id": "evt-live-ram",
+                "title": f"Memory RAM Utilization: {r_pct}% in-use",
+                "time": curr_time,
+                "status": "success" if r_pct < 80 else "warning",
+            })
+            real_events.append({
+                "id": "evt-live-storage",
+                "title": f"Storage Capacity & Health Status: {s_pct}% used ({h_stat})",
+                "time": curr_time,
+                "status": "success" if h_stat == "Good" else "warning",
+            })
+
+        detail["events"] = real_events
+        return detail
+
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:
         """Detailed telemetry for a specific gateway"""
+        self._sync_freshness()
         for gid, gdata in self._live_gateways.items():
             if gid.lower() == gateway_id.lower() or gateway_id.lower() in gid.lower():
-                return gdata["detail_item"]
+                return self._enrich_detail_with_history(gdata["detail_item"], gid, gdata.get("raw_payload"))
 
         if self._live_gateways:
-            return list(self._live_gateways.values())[0]["detail_item"]
+            first_gid, first_data = next(iter(self._live_gateways.items()))
+            return self._enrich_detail_with_history(first_data["detail_item"], first_gid, first_data.get("raw_payload"))
 
         return {
             "id": gateway_id,
@@ -497,6 +697,7 @@ class SystemHealthService:
             "sla_status": "Breach",
             "sla_downtime_allowed": "3h 43m",
             "downtime_events": [],
+            "events": [],
         }
 
 

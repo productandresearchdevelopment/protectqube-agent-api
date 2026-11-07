@@ -100,6 +100,15 @@ class DowntimeEvent(BaseModel):
     status: str
 
 
+class SystemHealthEventItem(BaseModel):
+    id: Optional[str] = None
+    title: str
+    time: str
+    status: str = "success"
+    duration: Optional[str] = None
+    category: Optional[str] = None
+
+
 class GatewayDetailData(BaseModel):
     id: str
     location: str
@@ -138,6 +147,7 @@ class GatewayDetailData(BaseModel):
     sla_status: Optional[str] = "Breach"
     sla_downtime_allowed: Optional[str] = "3h 43m"
     downtime_events: Optional[List[DowntimeEvent]] = None
+    events: Optional[List[SystemHealthEventItem]] = None
 
 
 class GatewayDetailResponse(BaseModel):

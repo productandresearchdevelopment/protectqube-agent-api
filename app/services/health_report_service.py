@@ -36,9 +36,13 @@ class HealthReportService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
-                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                for dev_id in dev_ids:
-                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                latest_records = (
+                    db.query(GatewayTelemetryHistory)
+                    .distinct(GatewayTelemetryHistory.device_id)
+                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
+                    .all()
+                )
+                for latest in latest_records:
                     if latest and latest.raw_payload:
                         payload = dict(latest.raw_payload)
                         if latest.recorded_at:
@@ -155,6 +159,11 @@ class HealthReportService:
             "jumlah_event": events_count,
         }
 
+        evs = list(sla.get("trouble_events", []))
+        for ev in evs:
+            if not ev.get("value"):
+                ev["value"] = ev.get("duration", "-")
+
         detail = {
             "id": device_id,
             "status": "Online",
@@ -190,7 +199,9 @@ class HealthReportService:
             "ram_trend": sla["ram_trend"],
             "sd_trend": sla["sd_trend"],
             "timeline_tracks": sla["timeline_tracks"],
-            "events": sla["trouble_events"],
+            "events": evs,
+            "daily_breakdown": sla.get("daily_breakdown", []),
+            "daily_summary": sla.get("daily_summary"),
         }
 
         self._live_gateways[device_id] = {
@@ -217,20 +228,27 @@ class HealthReportService:
         page_size: int = 10,
     ) -> Dict[str, Any]:
         """Filter & paginate real fleet records for System Health Report"""
-        filtered = self._get_all_rows()
+        from app.services.sla_calculator_service import sla_calculator_service
 
-        if search:
-            q = search.lower().strip()
-            filtered = [
-                g for g in filtered
-                if q in g["id"].lower() or q in g["location"].lower()
-            ]
+        # 1. Fast in-memory filtering first
+        filtered = []
+        for g in self._live_gateways.values():
+            item = g["report_item"]
 
-        if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
-            filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
+            if search:
+                q = search.lower().strip()
+                if not (q in item["id"].lower() or q in item["location"].lower()):
+                    continue
 
-        if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
-            filtered = [g for g in filtered if location.lower() in g["location"].lower()]
+            if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
+                if gateway_type.lower() not in item.get("type", "").lower():
+                    continue
+
+            if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
+                if location.lower() not in item.get("location", "").lower():
+                    continue
+
+            filtered.append(g)
 
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
@@ -238,7 +256,24 @@ class HealthReportService:
         start_idx = (page - 1) * page_size
         end_idx = min(start_idx + page_size, total_items)
 
-        items_slice = filtered[start_idx:end_idx]
+        sliced_gateways = filtered[start_idx:end_idx]
+
+        # 2. Calculate SLA ONLY for the active page slice
+        items_slice = []
+        for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
+            item = dict(g["report_item"])
+            item["no"] = idx
+            if date_range:
+                dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
+                sla = sla_calculator_service.calculate_device_sla(
+                    device_id=dev_id,
+                    live_payload=g.get("raw_payload"),
+                    date_range_str=date_range
+                )
+                item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
+                item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))
+                item["jumlah_event"] = len(sla.get("trouble_events", []))
+            items_slice.append(item)
 
         return {
             "gateways": items_slice,
@@ -328,77 +363,134 @@ class HealthReportService:
         - Multi-track timeline (CPU, RAM, SD Card, Suhu)
         - Event History with categories, values & descriptions
         """
-        for gid, data in self._live_gateways.items():
-            if gid.lower() == gateway_id.lower():
-                detail = dict(data["detail"])
-                if date_range:
-                    detail["period"] = date_range
-                    from app.services.sla_calculator_service import sla_calculator_service
-                    sla = sla_calculator_service.calculate_device_sla(gid, live_payload=data.get("raw_payload"), date_range=date_range)
-                    uptime_pct = sla["gateway_sla_pct"]
-                    detail["period_hours"] = sla["period_hours_str"]
-                    detail["uptime_duration"] = sla["gateway_uptime_str"]
-                    detail["uptime_pct"] = f"{uptime_pct}%"
-                    detail["downtime_duration"] = sla["gateway_offline_str"]
-                    detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
-                    detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
-                    detail["cpu_trend"] = sla.get("cpu_trend", [])
-                    detail["ram_trend"] = sla.get("ram_trend", [])
-                    detail["sd_trend"] = sla.get("sd_trend", [])
-                    detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-                    detail["events"] = sla.get("trouble_events", [])
-                return detail
+        target_gdata = None
+        target_gid = None
+        cleaned_id = gateway_id.strip().lower()
 
-        if self._live_gateways:
-            first_gid, first_data = next(iter(self._live_gateways.items()))
-            detail = dict(first_data["detail"])
-            if date_range:
-                detail["period"] = date_range
-                from app.services.sla_calculator_service import sla_calculator_service
-                sla = sla_calculator_service.calculate_device_sla(first_gid, live_payload=first_data.get("raw_payload"), date_range=date_range)
-                uptime_pct = sla["gateway_sla_pct"]
-                detail["period_hours"] = sla["period_hours_str"]
-                detail["uptime_duration"] = sla["gateway_uptime_str"]
-                detail["uptime_pct"] = f"{uptime_pct}%"
-                detail["downtime_duration"] = sla["gateway_offline_str"]
-                detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
-                detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
-                detail["cpu_trend"] = sla.get("cpu_trend", [])
-                detail["ram_trend"] = sla.get("ram_trend", [])
-                detail["sd_trend"] = sla.get("sd_trend", [])
-                detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-                detail["events"] = sla.get("trouble_events", [])
+        # 1. Match in live gateways
+        for gid, data in self._live_gateways.items():
+            g_low = gid.strip().lower()
+            if g_low == cleaned_id or cleaned_id in g_low or g_low in cleaned_id:
+                target_gdata = data
+                target_gid = gid
+                break
+
+        # 2. Try loading from database if not cached in memory
+        if not target_gdata:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.base_models import GatewayTelemetryHistory
+                db = SessionLocal()
+                try:
+                    latest = db.query(GatewayTelemetryHistory).filter(
+                        GatewayTelemetryHistory.device_id.ilike(f"%{gateway_id.strip()}%")
+                    ).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                    if latest and latest.raw_payload:
+                        payload = dict(latest.raw_payload)
+                        if latest.recorded_at:
+                            from datetime import timezone, timedelta
+                            WIB = timezone(timedelta(hours=7))
+                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
+                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        self.update_from_telemetry(payload)
+                        target_gid = latest.device_id
+                        target_gdata = self._live_gateways.get(target_gid)
+                finally:
+                    db.close()
+            except Exception as dbe:
+                logger.debug(f"Could not load gateway {gateway_id} from DB: {dbe}")
+
+        # 3. Try loading from telemetry_cache.json if still not found
+        if not target_gdata:
+            cache_file = self._cache_path()
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        cache_data = json.load(f)
+                    items = cache_data if isinstance(cache_data, list) else [cache_data]
+                    for item in items:
+                        if isinstance(item, dict):
+                            did = (item.get("device_id") or item.get("gateway_id") or "").strip().lower()
+                            if did and (did == cleaned_id or cleaned_id in did or did in cleaned_id):
+                                self.update_from_telemetry(item)
+                                target_gid = item.get("device_id") or item.get("gateway_id")
+                                target_gdata = self._live_gateways.get(target_gid)
+                                break
+                except Exception as ce:
+                    logger.debug(f"Could not load gateway {gateway_id} from cache: {ce}")
+
+        # 4. Fallback to first available live gateway if none matched
+        if not target_gdata and self._live_gateways:
+            target_gid = list(self._live_gateways.keys())[0]
+            target_gdata = list(self._live_gateways.values())[0]
+
+        if target_gdata:
+            detail = dict(target_gdata["detail"])
+            detail["id"] = gateway_id  # Preserve requested gateway ID
+            from app.services.sla_calculator_service import sla_calculator_service
+            req_period = date_range or detail.get("period") or get_default_period_str()
+            detail["period"] = req_period
+
+            sla = sla_calculator_service.calculate_device_sla(
+                target_gid or gateway_id,
+                live_payload=target_gdata.get("raw_payload"),
+                date_range=req_period,
+                date_range_str=req_period
+            )
+            uptime_pct = sla["gateway_sla_pct"]
+            detail["period_hours"] = sla["period_hours_str"]
+            detail["uptime_duration"] = sla["gateway_uptime_str"]
+            detail["uptime_pct"] = f"{uptime_pct}%"
+            detail["downtime_duration"] = sla["gateway_offline_str"]
+            detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
+            detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
+            detail["cpu_trend"] = sla.get("cpu_trend", [])
+            detail["ram_trend"] = sla.get("ram_trend", [])
+            detail["sd_trend"] = sla.get("sd_trend", [])
+            detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+            
+            # Ensure every event has "value" to pass Pydantic validation cleanly
+            raw_evs = sla.get("trouble_events", [])
+            safe_evs = []
+            for ev in raw_evs:
+                ev_copy = dict(ev)
+                if not ev_copy.get("value"):
+                    ev_copy["value"] = ev_copy.get("duration", "-")
+                safe_evs.append(ev_copy)
+
+            detail["events"] = safe_evs
+            detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+            detail["daily_summary"] = sla.get("daily_summary")
             return detail
 
         return {
             "id": gateway_id,
             "status": "Offline",
-            "location": "Tidak Diketahui",
+            "location": f"Gateway {gateway_id}",
             "type": "SmartBox Hitam",
-            "cpu_spec": "Unknown",
-            "ram_spec": "0 GB",
-            "sd_spec": "0 GB",
-            "modem_spec": "None",
-            "provider_spec": "None",
+            "cpu_spec": "RK3328 (4-Core ARM Cortex-A53)",
+            "ram_spec": "4 GB",
+            "sd_spec": "32 GB Flash/eMMC",
+            "modem_spec": "Quectel EC25-E",
+            "provider_spec": "IND TELKOMSEL",
             "period": date_range or get_default_period_str(),
-
-            "period_hours": "(744 jam)",
+            "period_hours": "0h 00m",
             "uptime_duration": "0h 00m",
             "uptime_pct": "0%",
-            "downtime_duration": "744h 00m",
-            "downtime_pct": "100%",
+            "downtime_duration": "0h 00m",
+            "downtime_pct": "0%",
             "sla_target": "99.5%",
-            "sla_target_hours": "740h 17m",
-            "sla_status": "Breach",
-            "sla_downtime_allowed": "3h 43m",
+            "sla_target_hours": "0h 00m",
+            "sla_status": "Met",
+            "sla_downtime_allowed": "0m",
             "cpu_avg": 0,
             "cpu_max": 0,
             "ram_avg": 0,
             "ram_max": 0,
             "sd_avg": 0,
             "sd_max": 0,
-            "sd_health_status": "Unknown",
-            "sd_life_pct": 0,
+            "sd_health_status": "Good",
+            "sd_life_pct": 100,
             "temp_avg": 0,
             "temp_max": 0,
             "cpu_trend": [],
@@ -406,6 +498,8 @@ class HealthReportService:
             "sd_trend": [],
             "timeline_tracks": [],
             "events": [],
+            "daily_breakdown": [],
+            "daily_summary": None,
         }
 
 

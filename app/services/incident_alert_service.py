@@ -173,17 +173,17 @@ def parse_uptime_to_seconds(uptime_str: Optional[str]) -> Optional[int]:
 
 
 def format_downtime_duration(seconds: int) -> str:
-    """Format durasi downtime ke durasi yang mudah dibaca."""
+    """Format downtime duration to concise English format (e.g. 4m, 1h 20m)."""
     if seconds < 60:
-        return f"{seconds} Detik"
+        return f"{seconds}s"
     minutes = round(seconds / 60)
     if minutes < 60:
-        return f"{minutes} Menit"
+        return f"{minutes}m"
     hours = minutes // 60
     rem_min = minutes % 60
     if rem_min == 0:
-        return f"{hours} Jam"
-    return f"{hours} Jam {rem_min} Menit"
+        return f"{hours}h"
+    return f"{hours}h {rem_min}m"
 
 
 def extract_downtime_from_logs(logs: list) -> Optional[Tuple[datetime, datetime, int]]:
@@ -290,7 +290,7 @@ class IncidentAlertService:
         outages = {"cpu_modem": [], "cellular": [], "cpu_dvr": []}
 
         for line in logs:
-            ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))
+            ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))[:5]
             if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
                 try:
                     dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
@@ -343,11 +343,11 @@ class IncidentAlertService:
 
                 if not existing:
                     if metric == "cpu_modem":
-                        desc = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(dur)} Menit"
+                        desc = f"Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS]) for {round(dur)}m"
                     elif metric == "cellular":
-                        desc = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(dur)} Menit"
+                        desc = f"Cellular Network Connection Disconnected (No Internet Data / CSQ 99) for {round(dur)}m"
                     else:
-                        desc = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(dur)} Menit"
+                        desc = f"Gateway CPU to NVR Communication Lost (NVR: OFFLINE) for {round(dur)}m"
 
                     new_alert = GatewayIncidentAlert(
                         id=str(uuid.uuid4()),
@@ -358,7 +358,7 @@ class IncidentAlertService:
                         start_time=st_utc,
                         end_time=et_utc,
                         duration_minutes=dur,
-                        duration_str=f"{round(dur)} Menit",
+                        duration_str=f"{round(dur)}m",
                         status="RESOLVED",
                         created_at=datetime.utcnow()
                     )
@@ -373,13 +373,13 @@ class IncidentAlertService:
                         existing.start_time = new_st
                         existing.end_time = new_et
                         existing.duration_minutes = new_dur
-                        existing.duration_str = f"{round(new_dur)} Menit"
+                        existing.duration_str = f"{round(new_dur)}m"
                         if metric == "cpu_modem":
-                            existing.description = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(new_dur)} Menit"
+                            existing.description = f"Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS]) for {round(new_dur)}m"
                         elif metric == "cellular":
-                            existing.description = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(new_dur)} Menit"
+                            existing.description = f"Cellular Network Connection Disconnected (No Internet Data / CSQ 99) for {round(new_dur)}m"
                         else:
-                            existing.description = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(new_dur)} Menit"
+                            existing.description = f"Gateway CPU to NVR Communication Lost (NVR: OFFLINE) for {round(new_dur)}m"
 
         if created:
             try:
@@ -1035,7 +1035,7 @@ class IncidentAlertService:
             if isinstance(logs, str):
                 logs = logs.strip().split("\n")
             for line in logs:
-                ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))
+                ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))[:5]
                 if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
                     try:
                         dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
@@ -1078,11 +1078,11 @@ class IncidentAlertService:
                     telemetry_id = times_dict.get(st)
 
                     if metric == "cpu_modem":
-                        desc = f"Komunikasi Port USB Modem dengan CPU Terputus ([MODEM-CPU: TERPUTUS]) selama {round(dur)} Menit"
+                        desc = f"Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS]) for {round(dur)}m"
                     elif metric == "cellular":
-                        desc = f"Koneksi Jaringan Seluler Terputus (Aliran Data Internet Mati / CSQ 99) selama {round(dur)} Menit"
+                        desc = f"Cellular Network Connection Disconnected (No Internet Data / CSQ 99) for {round(dur)}m"
                     else:
-                        desc = f"Komunikasi Gateway CPU ke NVR Surveillance Terputus (NVR: OFFLINE) selama {round(dur)} Menit"
+                        desc = f"Gateway CPU to NVR Communication Lost (NVR: OFFLINE) for {round(dur)}m"
 
                     new_alert = GatewayIncidentAlert(
                         id=str(uuid.uuid4()),
@@ -1093,7 +1093,7 @@ class IncidentAlertService:
                         start_time=st_utc,
                         end_time=et_utc,
                         duration_minutes=dur,
-                        duration_str=f"{round(dur)} Menit",
+                        duration_str=f"{round(dur)}m",
                         status="RESOLVED",
                         created_at=datetime.utcnow()
                     )

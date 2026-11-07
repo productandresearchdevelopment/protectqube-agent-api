@@ -19,17 +19,20 @@ class DVRReportItem(BaseModel):
     kamera_online: int
     kamera_no_video: int
     kamera_offline: int
+    kamera_success_rate: Optional[float] = 100.0
     
     rec_uptime: str
     rec_tidak_merekam: str
     rec_error: str
+    rec_success_rate: Optional[float] = 100.0
+    sla: Optional[float] = 100.0
     
     storage_kapasitas: str
     storage_terpakai_pct: int
     storage_rata_rata: str
     
     jumlah_event: int
-    terakhir_offline: str
+    terakhir_offline: Optional[str] = "-"
     last_seen: Optional[str] = None
 
 

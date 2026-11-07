@@ -23,16 +23,15 @@ def _to_wib_str(dt: Optional[datetime], fmt: str = "%d %b %H:%M") -> str:
 
 def get_default_period_str(reference_dt: Optional[datetime] = None) -> str:
     """
-    Menghasilkan string rentang tanggal bulan aktif (misal '01 Nov 2026 - 30 Nov 2026')
-    berdasarkan waktu sekarang (WIB) secara dinamis.
+    Menghasilkan string rentang tanggal bulan aktif berjalan dari tanggal 01 sampai hari ini (WIB) secara dinamis.
+    Misal hari ini 05 Nov 2026 -> '01 Nov 2026 - 05 Nov 2026'.
     """
     if not reference_dt:
         reference_dt = datetime.now(timezone.utc).astimezone(WIB)
     year = reference_dt.year
-    month = reference_dt.month
-    _, last_day = calendar.monthrange(year, month)
     mon_name = reference_dt.strftime("%b")
-    return f"01 {mon_name} {year} - {last_day:02d} {mon_name} {year}"
+    today_day = reference_dt.day
+    return f"01 {mon_name} {year} - {today_day:02d} {mon_name} {year}"
 
 
 class SLACalculatorService:
@@ -75,15 +74,47 @@ class SLACalculatorService:
         return f"{m}m"
 
     @staticmethod
-    def parse_system_log_line(line_str: str) -> Tuple[Optional[str], Optional[bool], Optional[bool], Optional[bool], Optional[bool]]:
+    def _to_english_incident_desc(desc: Optional[str], metric: Optional[str] = None) -> str:
+        """Converts Indonesian alert/incident descriptions into clean professional English."""
+        if not desc:
+            if metric == "cpu_modem":
+                return "Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS])"
+            elif metric == "cellular":
+                return "Cellular Network Connection Disconnected (No Internet Data / CSQ 99)"
+            elif metric in ["dvr", "cpu_dvr"]:
+                return "Gateway CPU to NVR Communication Lost (NVR: OFFLINE)"
+            elif metric == "recording":
+                return "CCTV Cameras Not Recording"
+            return "Normal Operation (No incidents detected)"
+
+        t = str(desc)
+        t = re.sub(r'Komunikasi\s+Port\s+USB\s+Modem\s+dengan\s+CPU\s+Terputus', 'Modem USB Port Communication Lost', t, flags=re.IGNORECASE)
+        t = re.sub(r'Koneksi\s+Jaringan\s+Seluler\s+Terputus', 'Cellular Network Connection Disconnected', t, flags=re.IGNORECASE)
+        t = re.sub(r'Aliran\s+Data\s+Internet\s+Mati', 'No Internet Data', t, flags=re.IGNORECASE)
+        t = re.sub(r'Komunikasi\s+Gateway\s+CPU\s+ke\s+NVR\s+Surveillance\s+Terputus', 'Gateway CPU to NVR Communication Lost', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kamera\s+Hilang\s+Sinyal\s*/\s*No\s+Video', 'Camera Signal Loss / No Video', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kamera\s+Terputus\s*/\s*Offline', 'Camera Disconnected / Offline', t, flags=re.IGNORECASE)
+        t = re.sub(r'Gangguan\s+Jaringan', 'Network Disruption', t, flags=re.IGNORECASE)
+        t = re.sub(r'Gangguan', 'Incident', t, flags=re.IGNORECASE)
+        t = re.sub(r'selama\s+(\d+)\s*Menit', r'for \1m', t, flags=re.IGNORECASE)
+        t = re.sub(r'selama\s+(\d+)\s*Jam\s*(\d+)\s*Menit', r'for \1h \2m', t, flags=re.IGNORECASE)
+        t = re.sub(r'selama\s+(\d+)\s*Jam', r'for \1h', t, flags=re.IGNORECASE)
+        t = re.sub(r'(\d+)\s*Menit', r'\1m', t, flags=re.IGNORECASE)
+        t = re.sub(r'(\d+)\s*Jam', r'\1h', t, flags=re.IGNORECASE)
+        t = re.sub(r'Normal\s+Operation\s*\(No incidents detected\)', 'Normal Operation (No incidents detected)', t, flags=re.IGNORECASE)
+        t = re.sub(r'Operasi\s+Normal', 'Normal Operation', t, flags=re.IGNORECASE)
+        return t
+
+    @staticmethod
+    def parse_system_log_line(line_str: str) -> Tuple[Optional[str], Optional[bool], Optional[bool], Optional[bool], Optional[bool], float, Dict[int, str]]:
         """
         Parses a single log line from recent_system_logs:
         Returns:
-            (ts_str, cpu_down, net_down, dvr_down, is_rec)
+            (ts_str, cpu_down, net_down, dvr_down, is_rec, rec_loss_ratio, cam_statuses)
         """
         m = re.search(r'\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]', line_str)
         if not m:
-            return None, None, None, None, None
+            return None, None, None, None, None, 0.0, {}
         ts_str = m.group(1)
 
         # 1. CPU - Modem
@@ -102,20 +133,59 @@ class SLACalculatorService:
         elif "[SIM:" in line_str:
             net_down = True   # Opsi B, C, D, F
 
-        # 3. DVR & Recording
+        # 3. CPU – DVR Communication & CCTV Recording
+        # Parameter CPU-DVR: [NVR-CPU: OK] -> Uptime (dvr_down=False). Selain itu -> Downtime (dvr_down=True).
         dvr_down = None
         is_rec = None
-        nvr_m = re.search(r'NVR:\s*([^\|]+)', line_str)
-        if nvr_m:
-            nvr_val = nvr_m.group(1).strip().upper()
-            if "OFFLINE" in nvr_val:
-                dvr_down = True
-                is_rec = False
-            else:
-                dvr_down = False
-                is_rec = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
+        rec_loss_ratio = 0.0
+        cam_statuses: Dict[int, str] = {}
 
-        return ts_str, cpu_down, net_down, dvr_down, is_rec
+        if "[NVR-CPU: OK]" in line_str:
+            dvr_down = False
+        elif "[NVR-CPU:" in line_str:
+            dvr_down = True
+        elif "NVR:" in line_str:
+            nvr_m = re.search(r'NVR:\s*([^\|]+)', line_str)
+            if nvr_m:
+                nvr_val = nvr_m.group(1).strip().upper()
+                dvr_down = ("OFFLINE" in nvr_val)
+
+        # Parameter NVR RECORDING:
+        # Format: NVR RECORDING: (CAMERA 1 : NOT_RECORD, CAMERA 2 : NOT_RECORD, CAMERA 3 : NOT_RECORD, CAMERA 4 : NOT_RECORD)
+        rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', line_str, re.IGNORECASE)
+        if rec_m:
+            cams_str = rec_m.group(1)
+            cam_matches = re.findall(r'CAMERA\s+(\d+)\s*:\s*([A-Za-z0-9_]+)', cams_str, re.IGNORECASE)
+            if cam_matches:
+                total_cams = len(cam_matches)
+                rec_cams = 0
+                for cid, cst in cam_matches:
+                    cid_int = int(cid)
+                    st_upper = cst.upper()
+                    cam_statuses[cid_int] = st_upper
+                    if "RECORD" in st_upper and "NOT" not in st_upper:
+                        rec_cams += 1
+                rec_loss_ratio = round((total_cams - rec_cams) / total_cams, 4) if total_cams > 0 else 0.0
+                is_rec = (rec_cams > 0)
+        elif "NVR RECORDING:" in line_str:
+            if any(w in line_str for w in ["TERPUTUS", "LEPAS", "N/A", "OFFLINE"]):
+                is_rec = False
+                rec_loss_ratio = 1.0
+            else:
+                is_rec = True
+                rec_loss_ratio = 0.0
+        elif "NVR:" in line_str:
+            nvr_m = re.search(r'NVR:\s*([^\|]+)', line_str)
+            if nvr_m:
+                nvr_val = nvr_m.group(1).strip().upper()
+                if "OFFLINE" in nvr_val:
+                    is_rec = False
+                    rec_loss_ratio = 1.0
+                else:
+                    is_rec = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
+                    rec_loss_ratio = 0.0 if is_rec else 1.0
+
+        return ts_str, cpu_down, net_down, dvr_down, is_rec, rec_loss_ratio, cam_statuses
 
     @staticmethod
     def evaluate_record_status(
@@ -132,16 +202,18 @@ class SLACalculatorService:
 
         Rules:
         1. CPU - Modem:
-           - Uptime: [MODEM-CPU: OK]
-           - Downtime: [MODEM-CPU: TERPUTUS]
+        - Uptime: [MODEM-CPU: OK]
+        - Downtime: [MODEM-CPU: TERPUTUS]
         2. CPU – DVR Communication:
-           - Downtime: NVR: OFFLINE
-           - Uptime: Any status other than OFFLINE (e.g. SEDANG MEREKAM, JADWAL AKTIF)
-        3. Network Connection (SIM):
-           - Uptime: Strictly Opsi A (<Operator> (4G LTE, CSQ <1-31>))
-           - Downtime: Opsi B (ALIRAN DATA MATI), C (DICABUT), D (NO SIGNAL), F (CSQ 99)
-           - EXCEPTION (Opsi E): [SIM: N/A (Modem Terputus)] is EXCLUDED from Network downtime
-             (allocated to CPU-Modem downtime).
+        - Uptime: [NVR-CPU: OK]
+        - Downtime: [NVR-CPU: TERPUTUS] / any NVR-CPU not OK / NVR: OFFLINE
+        3. CCTV Recording:
+        - Parsed from NVR RECORDING: (CAMERA 1 : RECORD/NOT_RECORD, ...)
+        4. Network Connection (SIM):
+        - Uptime: Strictly Opsi A (<Operator> (4G LTE, CSQ <1-31>))
+        - Downtime: Opsi B (ALIRAN DATA MATI), C (DICABUT), D (NO SIGNAL), F (CSQ 99)
+        - EXCEPTION (Opsi E): [SIM: N/A (Modem Terputus)] is EXCLUDED from Network downtime
+            (allocated to CPU-Modem downtime).
         """
         payload = payload if isinstance(payload, dict) else {}
         logs = payload.get("recent_system_logs")
@@ -149,12 +221,12 @@ class SLACalculatorService:
         latest_log = None
         if isinstance(logs, list) and logs:
             for line in reversed(logs):
-                if isinstance(line, str) and ("[MODEM-CPU:" in line or "NVR:" in line or "[SIM:" in line):
+                if isinstance(line, str) and ("[MODEM-CPU:" in line or "[NVR-CPU:" in line or "NVR:" in line or "[SIM:" in line):
                     latest_log = line
                     break
         elif isinstance(logs, str) and logs.strip():
             for line in reversed(logs.strip().split("\n")):
-                if "[MODEM-CPU:" in line or "NVR:" in line or "[SIM:" in line:
+                if "[MODEM-CPU:" in line or "[NVR-CPU:" in line or "NVR:" in line or "[SIM:" in line:
                     latest_log = line.strip()
                     break
 
@@ -170,16 +242,35 @@ class SLACalculatorService:
             elif "[MODEM-CPU: TERPUTUS]" in latest_log:
                 cpu_modem_up = False
 
-            # 2. CPU – DVR Communication & Recording
-            nvr_match = re.search(r'NVR:\s*([^\|]+)', latest_log)
-            if nvr_match:
-                nvr_val = nvr_match.group(1).strip().upper()
-                if "OFFLINE" in nvr_val:
-                    cpu_dvr_up = False
-                    is_recording = False
-                else:
-                    cpu_dvr_up = True
-                    is_recording = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
+            # 2. CPU – DVR Communication
+            if "[NVR-CPU: OK]" in latest_log:
+                cpu_dvr_up = True
+            elif "[NVR-CPU:" in latest_log:
+                cpu_dvr_up = False
+            else:
+                nvr_match = re.search(r'NVR:\s*([^\|]+)', latest_log)
+                if nvr_match:
+                    nvr_val = nvr_match.group(1).strip().upper()
+                    cpu_dvr_up = ("OFFLINE" not in nvr_val)
+
+            # CCTV Recording
+            rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', latest_log, re.IGNORECASE)
+            if rec_m:
+                cams_str = rec_m.group(1)
+                cam_matches = re.findall(r'CAMERA\s+(\d+)\s*:\s*([A-Za-z0-9_]+)', cams_str, re.IGNORECASE)
+                if cam_matches:
+                    rec_cams = sum(1 for cid, cst in cam_matches if "RECORD" in cst.upper() and "NOT" not in cst.upper())
+                    is_recording = (rec_cams > 0)
+            elif "NVR RECORDING:" in latest_log:
+                is_recording = not any(w in latest_log for w in ["TERPUTUS", "LEPAS", "N/A", "OFFLINE"])
+            elif "NVR:" in latest_log:
+                nvr_match = re.search(r'NVR:\s*([^\|]+)', latest_log)
+                if nvr_match:
+                    nvr_val = nvr_match.group(1).strip().upper()
+                    if "OFFLINE" in nvr_val:
+                        is_recording = False
+                    else:
+                        is_recording = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
 
             # 3. Network Connection (SIM)
             if "[SIM: N/A (Modem Terputus)]" in latest_log or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', latest_log, re.IGNORECASE):
@@ -269,6 +360,109 @@ class SLACalculatorService:
 
         return "SmartBox Hitam"
 
+    def _extract_minute_health_trends(
+        self,
+        rows: Optional[List[Any]] = None,
+        live_payload: Optional[Dict[str, Any]] = None
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Extracts real per-minute CPU, RAM, and Disk telemetry trends from recent_system_logs and database history."""
+        minute_health_map: Dict[str, Dict[str, Any]] = {}
+
+        all_logs_sources = []
+        if live_payload and live_payload.get("recent_system_logs"):
+            all_logs_sources.append(live_payload.get("recent_system_logs"))
+        if rows:
+            for r in rows:
+                logs = r.raw_payload.get("recent_system_logs") if (r and r.raw_payload) else None
+                if logs:
+                    all_logs_sources.append(logs)
+
+        for logs in all_logs_sources:
+            if isinstance(logs, str):
+                logs = logs.strip().split("\n")
+            for line in logs:
+                line_str = str(line)
+                ts_m = re.search(r'\[(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}):\d{2}\]', line_str)
+                if not ts_m:
+                    continue
+                date_part = ts_m.group(1)  # YYYY-MM-DD
+                time_part = ts_m.group(2)  # HH:MM
+                min_k = f"{date_part} {time_part}"
+                if min_k in minute_health_map:
+                    continue
+
+                cpu_m = re.search(r'CPU:\s*([0-9\.]+)\%', line_str)
+                ram_m = re.search(r'RAM:\s*([0-9\.]+)\%', line_str)
+                disk_m = re.search(r'Disk\s*/?\s*:\s*([0-9\.]+)\%', line_str)
+
+                c_val = float(cpu_m.group(1)) if cpu_m else None
+                r_val = float(ram_m.group(1)) if ram_m else None
+                d_val = float(disk_m.group(1)) if disk_m else None
+
+                if c_val is not None or r_val is not None or d_val is not None:
+                    try:
+                        dt_obj = datetime.strptime(date_part, "%Y-%m-%d")
+                        day_num = dt_obj.day
+                        date_key = dt_obj.strftime("%d %b")
+                    except Exception:
+                        day_num = 1
+                        date_key = date_part
+
+                    minute_health_map[min_k] = {
+                        "date": f"{date_key} {time_part}",
+                        "time": time_part,
+                        "day": day_num,
+                        "date_key": date_key,
+                        "cpu": round(c_val, 1) if c_val is not None else 0,
+                        "ram": round(r_val, 1) if r_val is not None else 0,
+                        "disk": round(d_val, 1) if d_val is not None else 0,
+                    }
+
+        cpu_trend = []
+        ram_trend = []
+        sd_trend = []
+
+        if minute_health_map:
+            for k in sorted(minute_health_map.keys()):
+                item = minute_health_map[k]
+                cpu_trend.append({"date": item["date"], "time": item["time"], "day": item["day"], "date_key": item["date_key"], "value": item["cpu"]})
+                ram_trend.append({"date": item["date"], "time": item["time"], "day": item["day"], "date_key": item["date_key"], "value": item["ram"]})
+                sd_trend.append({"date": item["date"], "time": item["time"], "day": item["day"], "date_key": item["date_key"], "value": item["disk"]})
+        elif rows:
+            step = max(1, len(rows) // 30)
+            sampled = rows[::step]
+            if rows[-1] not in sampled:
+                sampled.append(rows[-1])
+
+            for r in sampled:
+                r_wib = r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if r.recorded_at.tzinfo is None else r.recorded_at.astimezone(WIB)
+                time_str = r_wib.strftime("%H:%M")
+                day_num = r_wib.day
+                date_key = r_wib.strftime("%d %b")
+                dt_label = f"{date_key} {time_str}"
+
+                c_val = int(round(r.cpu_percent or 0))
+                ram_pct = int(round((r.ram_used_mb / r.ram_total_mb * 100))) if r.ram_total_mb else 25
+                d_val = int(round(r.disk_used_percent or 50))
+
+                cpu_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": c_val})
+                ram_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": ram_pct})
+                sd_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": d_val})
+        elif live_payload:
+            now_dt = datetime.now(WIB)
+            time_str = now_dt.strftime("%H:%M")
+            day_num = now_dt.day
+            date_key = now_dt.strftime("%d %b")
+            dt_label = f"{date_key} {time_str}"
+            c_val = round(float(live_payload.get("gateway_system", {}).get("cpu", {}).get("usage_percent", 0)), 1)
+            r_val = round(float(live_payload.get("gateway_system", {}).get("memory", {}).get("usage_percent", 0)), 1)
+            d_val = round(float(live_payload.get("flash_storage", {}).get("disk_usage", {}).get("root_used_percent", 0)), 1)
+            cpu_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": c_val})
+            ram_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": r_val})
+            sd_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": d_val})
+
+        return cpu_trend, ram_trend, sd_trend
+
     def calculate_device_sla(
         self,
         device_id: str,
@@ -278,56 +472,74 @@ class SLACalculatorService:
     ) -> Dict[str, Any]:
         if not date_range_str and date_range:
             date_range_str = date_range
-        """
-        Analyzes historical records in database for the given device_id.
-        Returns:
-            - gateway_uptime & offline duration + SLA %
-            - cellular_uptime & offline duration + SLA %
-            - dvr_uptime & offline duration + SLA %
-            - real trouble events
-            - real multi-track timeline segments
-            - real historical trend lines (CPU, RAM, SD, RSRP)
-        """
-        db = SessionLocal()
+
+        # 1. Fast in-memory cache check (45s TTL)
+        import time as _time
+        now_ts = _time.time()
+        cache_key = f"{device_id}_{date_range_str or ''}"
+        if hasattr(self, "_sla_mem_cache") and cache_key in self._sla_mem_cache:
+            entry_ts, cached_val = self._sla_mem_cache[cache_key]
+            if (now_ts - entry_ts) < 45.0:
+                return cached_val
+
+        # 2. Database connection circuit breaker to prevent blocking socket timeouts
+        db_available = getattr(self, "_db_available", True)
+        last_db_err = getattr(self, "_last_db_err_time", 0.0)
+        db = None
+        if db_available or (now_ts - last_db_err) >= 30.0:
+            try:
+                db = SessionLocal()
+            except Exception:
+                self._db_available = False
+                self._last_db_err_time = now_ts
+                db = None
+
         rows: List[GatewayTelemetryHistory] = []
         alerts: List[GatewayIncidentAlert] = []
         start_dt, end_dt = self._parse_date_range(date_range_str)
-        try:
-            query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
-            alert_q = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id == device_id)
-            if start_dt and end_dt:
-                s_utc = start_dt - timedelta(hours=7)
-                e_utc = end_dt - timedelta(hours=7)
-                s_date_str = start_dt.strftime("%Y-%m-%d")
-                e_date_str = end_dt.strftime("%Y-%m-%d")
-                # Prepend the single row immediately preceding s_utc so intervals spanning across start_dt are preserved
-                prev_row = (
-                    db.query(GatewayTelemetryHistory)
-                    .filter(GatewayTelemetryHistory.device_id == device_id, GatewayTelemetryHistory.recorded_at < s_utc)
-                    .order_by(GatewayTelemetryHistory.recorded_at.desc())
-                    .first()
-                )
-                range_rows = (
-                    db.query(GatewayTelemetryHistory)
-                    .filter(
-                        GatewayTelemetryHistory.device_id == device_id,
-                        GatewayTelemetryHistory.recorded_at >= s_utc,
-                        GatewayTelemetryHistory.recorded_at <= e_utc
+        if db:
+            try:
+                query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
+                alert_q = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id == device_id)
+                if start_dt and end_dt:
+                    s_utc = start_dt - timedelta(hours=7)
+                    e_utc = end_dt - timedelta(hours=7)
+                    s_date_str = start_dt.strftime("%Y-%m-%d")
+                    e_date_str = end_dt.strftime("%Y-%m-%d")
+                    # Prepend the single row immediately preceding s_utc so intervals spanning across start_dt are preserved
+                    prev_row = (
+                        db.query(GatewayTelemetryHistory)
+                        .filter(GatewayTelemetryHistory.device_id == device_id, GatewayTelemetryHistory.recorded_at < s_utc)
+                        .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                        .first()
                     )
-                    .order_by(GatewayTelemetryHistory.recorded_at.asc())
-                    .all()
-                )
-                rows = ([prev_row] if prev_row else []) + range_rows
-                alert_q = alert_q.filter(
-                    (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
-                )
-            else:
-                rows = query.order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
-            alerts = alert_q.order_by(GatewayIncidentAlert.start_time.desc()).all()
-        except Exception as e:
-            logger.error(f"Error querying telemetry/alert history for {device_id}: {e}")
-        finally:
-            db.close()
+                    range_rows = (
+                        db.query(GatewayTelemetryHistory)
+                        .filter(
+                            GatewayTelemetryHistory.device_id == device_id,
+                            GatewayTelemetryHistory.recorded_at >= s_utc,
+                            GatewayTelemetryHistory.recorded_at <= e_utc
+                        )
+                        .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                        .all()
+                    )
+                    rows = ([prev_row] if prev_row else []) + range_rows
+                    alert_q = alert_q.filter(
+                        (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
+                    )
+                else:
+                    rows = query.order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
+                alerts = alert_q.order_by(GatewayIncidentAlert.start_time.desc()).all()
+                self._db_available = True
+            except Exception as e:
+                self._db_available = False
+                self._last_db_err_time = _time.time()
+                logger.debug(f"Error querying telemetry/alert history for {device_id}: {e}")
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
         kernel_uptime_sec = 0
         if live_payload:
@@ -356,9 +568,21 @@ class SLACalculatorService:
         for idx, al in enumerate(alerts, 1):
             st_str = _to_wib_str(al.start_time, fmt="%d %b %H:%M")
             et_str = _to_wib_str(al.end_time, fmt="%d %b %H:%M") if al.end_time else "Active"
-            dur_str = al.duration_str or (f"{round(al.duration_minutes or 0)} Menit" if al.duration_minutes else "1m")
-            cat_label = "CPU - Modem" if al.metric == "cpu_modem" else ("Seluler / Network" if al.metric == "cellular" else "CPU - DVR")
+            
+            dur_m = round(al.duration_minutes or 0)
+            if al.duration_minutes and al.duration_minutes > 0:
+                if dur_m >= 60:
+                    dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m % 60 else f"{dur_m // 60}h"
+                else:
+                    dur_str = f"{dur_m}m"
+            elif al.duration_str:
+                dur_str = al.duration_str.replace("Menit", "m").replace("menit", "m").replace("Jam", "h").replace("jam", "h").replace("Detik", "s").replace("detik", "s").strip()
+            else:
+                dur_str = "1m"
+
+            cat_label = "CPU - Modem" if al.metric == "cpu_modem" else ("Cellular Network" if al.metric == "cellular" else ("CCTV Recording" if al.metric == "recording" else "CPU - DVR"))
             date_key = (al.start_time + timedelta(hours=7)).strftime("%Y-%m-%d") if al.start_time else None
+            desc_en = self._to_english_incident_desc(al.description, al.metric)
 
             trouble_events.append({
                 "no": idx,
@@ -370,10 +594,10 @@ class SLACalculatorService:
                 "metric": al.metric,
                 "date_str": date_key,
                 "day_downtime_minutes": al.duration_minutes or 0.0,
-                "title": al.description,
-                "description": al.description,
-                "cause": al.description,
-                "reason": al.description,
+                "title": desc_en,
+                "description": desc_en,
+                "cause": desc_en,
+                "reason": desc_en,
                 "status": "Resolved" if al.status == "RESOLVED" else "Active",
                 "telemetry_history_id": al.telemetry_history_id,
                 "_raw_dt": al.start_time,
@@ -423,6 +647,8 @@ class SLACalculatorService:
                 rec_off_str = self._format_duration(daily_summary.get("total_rec_downtime_min", 0) * 60.0)
                 rec_sr = daily_summary.get("avg_rec_success_rate", 100.0)
 
+            cpu_trend, ram_trend, sd_trend = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
+
             return {
                 "period_hours_str": f"({round(obs_sec / 3600, 1)} hrs)",
                 "observation_seconds": obs_sec,
@@ -455,16 +681,16 @@ class SLACalculatorService:
 
                 "trouble_events": trouble_events,
                 "timeline_tracks": [
-                    {"track_name": "Gateway", "segments": [{"status": "online" if m_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Online" if m_ok else "Terputus", "period": "Live"}]},
+                    {"track_name": "Gateway", "segments": [{"status": "online" if m_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Online" if m_ok else "Disconnected", "period": "Live"}]},
                     {"track_name": "Cellular", "segments": [{"status": "online" if net_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Online" if net_ok else "No Signal/SIM", "period": "Live"}]},
                     {"track_name": "DVR", "segments": [{"status": "online" if dvr_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Connected" if dvr_ok else "Offline", "period": "Live"}]},
                 ],
                 "avg_temp": 42,
                 "avg_rsrp": -85,
                 "avg_ping": round(float(live_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms")), 1) if (live_payload and live_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms") is not None) else None,
-                "cpu_trend": [],
-                "ram_trend": [],
-                "sd_trend": [],
+                "cpu_trend": cpu_trend,
+                "ram_trend": ram_trend,
+                "sd_trend": sd_trend,
                 "daily_breakdown": daily_breakdown,
                 "daily_summary": daily_summary,
             }
@@ -500,7 +726,7 @@ class SLACalculatorService:
 
             if not m_up:
                 gw_downtime_sec += gap_sec
-                raw_gw_segments.append({"status": "offline", "duration": gap_sec, "label": "Modem-CPU Terputus", "period": f"{curr_time_str} - {next_time_str}"})
+                raw_gw_segments.append({"status": "offline", "duration": gap_sec, "label": "Modem-CPU Disconnected", "period": f"{curr_time_str} - {next_time_str}"})
             else:
                 raw_gw_segments.append({"status": "online", "duration": gap_sec, "label": "Online Normal", "period": f"{curr_time_str} - {next_time_str}"})
 
@@ -552,20 +778,8 @@ class SLACalculatorService:
             ]},
         ]
 
-        step = max(1, len(rows) // 15)
-        sampled = rows[::step]
-        if rows[-1] not in sampled:
-            sampled.append(rows[-1])
-
-        cpu_trend = []
-        ram_trend = []
-        sd_trend = []
-        for r in sampled:
-            dt_label = _to_wib_str(r.recorded_at, fmt="%H:%M")
-            cpu_trend.append({"date": dt_label, "value": int(round(r.cpu_percent or 0))})
-            ram_pct = int(round((r.ram_used_mb / r.ram_total_mb * 100))) if r.ram_total_mb else 25
-            ram_trend.append({"date": dt_label, "value": ram_pct})
-            sd_trend.append({"date": dt_label, "value": int(round(r.disk_used_percent or 50))})
+        # Collect trend points from real minute system logs or telemetry rows
+        cpu_trend, ram_trend, sd_trend = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
 
         # Urutkan trouble events secara kronologis menurun (kejadian terbaru nomor 1 di atas)
         trouble_events.sort(key=lambda x: x.get("_raw_dt") or datetime.min, reverse=True)
@@ -630,7 +844,7 @@ class SLACalculatorService:
             rec_downtime_sec = daily_summary.get("total_rec_downtime_min", dvr_downtime_sec / 60.0) * 60.0
             rec_sla = daily_summary.get("avg_rec_success_rate", dvr_sla)
 
-        return {
+        result = {
             "period_hours_str": f"({round(total_obs_sec / 3600, 1)} hrs)",
             "observation_seconds": total_obs_sec,
 
@@ -674,6 +888,11 @@ class SLACalculatorService:
             "daily_summary": daily_summary,
         }
 
+        if not hasattr(self, "_sla_mem_cache"):
+            self._sla_mem_cache = {}
+        self._sla_mem_cache[cache_key] = (now_ts, result)
+        return result
+
     @staticmethod
     def _merge_intervals(raw_intervals: List[Tuple[datetime, datetime]]) -> List[Tuple[datetime, datetime]]:
         if not raw_intervals:
@@ -712,9 +931,12 @@ class SLACalculatorService:
             if rows and rows[-1].recorded_at:
                 r_dt = rows[-1].recorded_at
                 ref_dt = r_dt.replace(tzinfo=timezone.utc).astimezone(WIB) if r_dt.tzinfo is None else r_dt.astimezone(WIB)
-            _, last_day = calendar.monthrange(ref_dt.year, ref_dt.month)
             s_date = datetime(ref_dt.year, ref_dt.month, 1).date()
-            e_date = datetime(ref_dt.year, ref_dt.month, last_day).date()
+            if ref_dt.year == now_wib.year and ref_dt.month == now_wib.month:
+                e_date = now_wib.date()
+            else:
+                _, last_day = calendar.monthrange(ref_dt.year, ref_dt.month)
+                e_date = datetime(ref_dt.year, ref_dt.month, last_day).date()
 
         daily_records: List[Dict[str, Any]] = []
         cur_date = s_date
@@ -739,7 +961,11 @@ class SLACalculatorService:
                 if isinstance(logs, str):
                     logs = logs.strip().split("\n")
                 for line in logs:
-                    ts_str, c_down, n_down, d_down, rec = self.parse_system_log_line(str(line))
+                    parsed = self.parse_system_log_line(str(line))
+                    ts_str, c_down, n_down, d_down, rec = parsed[:5]
+                    rec_loss = parsed[5] if len(parsed) > 5 else (0.0 if rec else 1.0)
+                    cam_statuses = parsed[6] if len(parsed) > 6 else {}
+
                     if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
                         d_key = ts_str[:10]  # YYYY-MM-DD
                         min_k = ts_str[:16]  # YYYY-MM-DD HH:MM
@@ -750,7 +976,8 @@ class SLACalculatorService:
                                 bool(c_down),
                                 bool(n_down),
                                 bool(d_down),
-                                bool(rec if rec is not None else True)
+                                float(rec_loss),
+                                cam_statuses,
                             ]
                         else:
                             if c_down is not None and c_down:
@@ -759,8 +986,10 @@ class SLACalculatorService:
                                 unique_day_logs[d_key][min_k][1] = True
                             if d_down is not None and d_down:
                                 unique_day_logs[d_key][min_k][2] = True
-                            if rec is not None and not rec:
-                                unique_day_logs[d_key][min_k][3] = False
+                            if rec_loss > unique_day_logs[d_key][min_k][3]:
+                                unique_day_logs[d_key][min_k][3] = float(rec_loss)
+                                if cam_statuses:
+                                    unique_day_logs[d_key][min_k][4] = cam_statuses
 
             while cur_date <= e_date:
                 d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
@@ -771,6 +1000,7 @@ class SLACalculatorService:
                 day_cell_down_sec = 0.0
                 day_dvr_down_sec = 0.0
                 day_rec_down_sec = 0.0
+                rec_channels_info = "4 / 4 Cams"
 
                 if cur_date > now_wib.date():
                     # Hari mendatang belum diamati
@@ -781,7 +1011,17 @@ class SLACalculatorService:
                     day_cpu_down_sec = sum(60.0 for v in day_mins.values() if v[0])
                     day_cell_down_sec = sum(60.0 for v in day_mins.values() if v[1])
                     day_dvr_down_sec = sum(60.0 for v in day_mins.values() if v[2])
-                    day_rec_down_sec = sum(60.0 for v in day_mins.values() if not v[3])
+                    day_rec_down_sec = sum(60.0 * float(v[3]) for v in day_mins.values())
+
+                    # Aggregate active camera channels for this day
+                    day_cams = [v[4] for v in day_mins.values() if len(v) > 4 and v[4]]
+                    if day_cams:
+                        last_cams = day_cams[-1]
+                        tot_c = len(last_cams)
+                        rec_c = sum(1 for st in last_cams.values() if "RECORD" in str(st).upper() and "NOT" not in str(st).upper())
+                        rec_channels_info = f"{rec_c} / {tot_c} Cams"
+                    elif day_rec_down_sec >= 86400:
+                        rec_channels_info = "0 / 4 Cams"
                 else:
                     # Fallback for devices/days without recent_system_logs: interval duration calculation
                     for i in range(len(rows) - 1):
@@ -839,72 +1079,74 @@ class SLACalculatorService:
                 day_cell_down_sec = min(86400.0, max(0.0, day_cell_down_sec))
                 day_dvr_down_sec = min(86400.0, max(0.0, day_dvr_down_sec))
                 day_rec_down_sec = min(86400.0, max(0.0, day_rec_down_sec))
-
+    
                 cpu_down_min = round(day_cpu_down_sec / 60.0, 1)
                 cpu_up_min = round(max(0.0, 1440.0 - cpu_down_min), 1)
                 cpu_sr = round(max(0.0, min(100.0, 100.0 - (cpu_down_min / 1440.0 * 100.0))), 1)
                 cpu_sla_diff = round(cpu_sr - target_sla_pct, 1)
-                cpu_status = "Tercapai" if cpu_sr >= target_sla_pct else "Tidak Tercapai"
-
+                cpu_status = "Achieved" if cpu_sr >= target_sla_pct else "Not Achieved"
+    
                 cell_down_min = round(day_cell_down_sec / 60.0, 1)
                 cell_up_min = round(max(0.0, 1440.0 - cell_down_min), 1)
                 cell_sr = round(max(0.0, min(100.0, 100.0 - (cell_down_min / 1440.0 * 100.0))), 1)
                 cell_sla_diff = round(cell_sr - target_sla_pct, 1)
-                cell_status = "Tercapai" if cell_sr >= target_sla_pct else "Tidak Tercapai"
-
+                cell_status = "Achieved" if cell_sr >= target_sla_pct else "Not Achieved"
+    
                 dvr_down_min = round(day_dvr_down_sec / 60.0, 1)
                 dvr_up_min = round(max(0.0, 1440.0 - dvr_down_min), 1)
                 dvr_sr = round(max(0.0, min(100.0, 100.0 - (dvr_down_min / 1440.0 * 100.0))), 1)
                 dvr_sla_diff = round(dvr_sr - target_sla_pct, 1)
-                dvr_status = "Tercapai" if dvr_sr >= target_sla_pct else "Tidak Tercapai"
-
+                dvr_status = "Achieved" if dvr_sr >= target_sla_pct else "Not Achieved"
+    
                 rec_down_min = round(day_rec_down_sec / 60.0, 1)
                 rec_up_min = round(max(0.0, 1440.0 - rec_down_min), 1)
                 rec_sr = round(max(0.0, min(100.0, 100.0 - (rec_down_min / 1440.0 * 100.0))), 1)
                 rec_sla_diff = round(rec_sr - target_sla_pct, 1)
-                rec_status = "Tercapai" if rec_sr >= target_sla_pct else "Tidak Tercapai"
-
+                rec_status = "Achieved" if rec_sr >= target_sla_pct else "Not Achieved"
+    
                 daily_records.append({
-                    "day": day_idx,
+                    "day": cur_date.day,
                     "date": cur_date.strftime("%d %b %Y"),
                     "day_name": cur_date.strftime("%a"),
                     "target_sla": target_sla_pct,
-
+    
                     # Default / CPU - Modem table display
                     "uptime_min": cpu_up_min,
                     "downtime_min": cpu_down_min,
                     "success_rate": cpu_sr,
                     "sla_diff": cpu_sla_diff,
                     "sla_status": cpu_status,
-
+    
                     "cpu_modem_uptime_min": cpu_up_min,
                     "cpu_modem_downtime_min": cpu_down_min,
                     "cpu_modem_success_rate": cpu_sr,
                     "cpu_modem_sla_diff": cpu_sla_diff,
                     "cpu_modem_status_sla": cpu_status,
-
+    
                     # Cellular / Network metrics
                     "cellular_uptime_min": cell_up_min,
                     "cellular_downtime_min": cell_down_min,
                     "cellular_success_rate": cell_sr,
                     "cellular_sla_diff": cell_sla_diff,
                     "cellular_status_sla": cell_status,
-
+    
                     # CPU – DVR Communication metrics
                     "cpu_dvr_uptime_min": dvr_up_min,
                     "cpu_dvr_downtime_min": dvr_down_min,
                     "cpu_dvr_success_rate": dvr_sr,
                     "cpu_dvr_sla_diff": dvr_sla_diff,
                     "cpu_dvr_status_sla": dvr_status,
-
+    
                     # Recording metrics
                     "rec_uptime_min": rec_up_min,
                     "rec_downtime_min": rec_down_min,
                     "rec_success_rate": rec_sr,
                     "rec_sla_diff": rec_sla_diff,
                     "rec_status_sla": rec_status,
+                    "rec_channels": rec_channels_info,
+                    "rec_condition": "Full Recording" if rec_sr >= target_sla_pct else ("Partial Recording" if rec_sr > 0 else "Not Recording"),
                 })
-
+    
                 total_cpu_down_sec += day_cpu_down_sec
                 total_cell_down_sec += day_cell_down_sec
                 total_dvr_down_sec += day_dvr_down_sec
@@ -915,129 +1157,137 @@ class SLACalculatorService:
                 day_idx += 1
 
         else:
-            # Fallback when rows are not present: use GatewayIncidentAlerts
+                # Fallback when rows are not present: use GatewayIncidentAlerts
             cpu_raw: List[Tuple[datetime, datetime]] = []
             cell_raw: List[Tuple[datetime, datetime]] = []
             dvr_raw: List[Tuple[datetime, datetime]] = []
-
+    
             for a in alerts:
                 if a.start_time and a.end_time and a.end_time > a.start_time:
                     s = a.start_time.astimezone(WIB) if a.start_time.tzinfo else a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
                     e = a.end_time.astimezone(WIB) if a.end_time.tzinfo else a.end_time.replace(tzinfo=timezone.utc).astimezone(WIB)
-
+    
                     if a.metric == "cpu_modem":
                         cpu_raw.append((s, e))
                     elif a.metric == "cellular":
                         cell_raw.append((s, e))
                     elif a.metric == "cpu_dvr":
                         dvr_raw.append((s, e))
-
+    
             cpu_merged = self._merge_intervals(cpu_raw)
             cell_merged = self._merge_intervals(cell_raw)
             dvr_merged = self._merge_intervals(dvr_raw)
-
+    
             while cur_date <= e_date:
                 d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
                 d_end = datetime(cur_date.year, cur_date.month, cur_date.day, 23, 59, 59, tzinfo=WIB)
-
+    
                 day_cpu_down_sec = 0.0
                 for s, e in cpu_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_cpu_down_sec += (overlap_e - overlap_s).total_seconds()
-
+    
                 day_cell_down_sec = 0.0
                 for s, e in cell_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_cell_down_sec += (overlap_e - overlap_s).total_seconds()
-
+    
                 day_dvr_down_sec = 0.0
                 for s, e in dvr_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_dvr_down_sec += (overlap_e - overlap_s).total_seconds()
-
+    
                 day_cpu_down_sec = min(86400.0, day_cpu_down_sec)
                 day_cell_down_sec = min(86400.0, day_cell_down_sec)
                 day_dvr_down_sec = min(86400.0, day_dvr_down_sec)
-
+    
                 cpu_down_min = round(day_cpu_down_sec / 60.0, 1)
                 cpu_up_min = round(max(0.0, 1440.0 - cpu_down_min), 1)
                 cpu_sr = round((cpu_up_min / 1440.0) * 100.0, 1)
                 cpu_sla_diff = round(cpu_sr - target_sla_pct, 1)
-                cpu_status = "Tercapai" if cpu_sr >= target_sla_pct else "Tidak Tercapai"
-
+                cpu_status = "Achieved" if cpu_sr >= target_sla_pct else "Not Achieved"
+    
                 cell_down_min = round(day_cell_down_sec / 60.0, 1)
                 cell_up_min = round(max(0.0, 1440.0 - cell_down_min), 1)
                 cell_sr = round((cell_up_min / 1440.0) * 100.0, 1)
                 cell_sla_diff = round(cell_sr - target_sla_pct, 1)
-                cell_status = "Tercapai" if cell_sr >= target_sla_pct else "Tidak Tercapai"
-
+                cell_status = "Achieved" if cell_sr >= target_sla_pct else "Not Achieved"
+    
                 dvr_down_min = round(day_dvr_down_sec / 60.0, 1)
                 dvr_up_min = round(max(0.0, 1440.0 - dvr_down_min), 1)
                 dvr_sr = round((dvr_up_min / 1440.0) * 100.0, 1)
                 dvr_sla_diff = round(dvr_sr - target_sla_pct, 1)
-                dvr_status = "Tercapai" if dvr_sr >= target_sla_pct else "Tidak Tercapai"
-
+                dvr_status = "Achieved" if dvr_sr >= target_sla_pct else "Not Achieved"
+    
                 daily_records.append({
-                    "day": day_idx,
+                    "day": cur_date.day,
                     "date": cur_date.strftime("%d %b %Y"),
                     "day_name": cur_date.strftime("%a"),
                     "target_sla": target_sla_pct,
-
+    
                     "uptime_min": cpu_up_min,
                     "downtime_min": cpu_down_min,
                     "success_rate": cpu_sr,
                     "sla_diff": cpu_sla_diff,
                     "sla_status": cpu_status,
-
+    
                     "cpu_modem_uptime_min": cpu_up_min,
                     "cpu_modem_downtime_min": cpu_down_min,
                     "cpu_modem_success_rate": cpu_sr,
                     "cpu_modem_sla_diff": cpu_sla_diff,
                     "cpu_modem_status_sla": cpu_status,
-
+    
                     "cellular_uptime_min": cell_up_min,
                     "cellular_downtime_min": cell_down_min,
                     "cellular_success_rate": cell_sr,
                     "cellular_sla_diff": cell_sla_diff,
                     "cellular_status_sla": cell_status,
-
+    
                     "cpu_dvr_uptime_min": dvr_up_min,
                     "cpu_dvr_downtime_min": dvr_down_min,
                     "cpu_dvr_success_rate": dvr_sr,
                     "cpu_dvr_sla_diff": dvr_sla_diff,
                     "cpu_dvr_status_sla": dvr_status,
+    
+                    "rec_uptime_min": dvr_up_min,
+                    "rec_downtime_min": dvr_down_min,
+                    "rec_success_rate": dvr_sr,
+                    "rec_sla_diff": dvr_sla_diff,
+                    "rec_status_sla": dvr_status,
+                    "rec_channels": "4 / 4 Cams",
+                    "rec_condition": "Full Recording" if dvr_sr >= target_sla_pct else ("Partial Recording" if dvr_sr > 0 else "Not Recording"),
                 })
-
+    
                 total_cpu_down_sec += day_cpu_down_sec
                 total_cell_down_sec += day_cell_down_sec
                 total_dvr_down_sec += day_dvr_down_sec
                 total_obs_sec += 86400.0
-
+    
                 cur_date += timedelta(days=1)
                 day_idx += 1
-
+    
         total_cpu_up_min = round(max(0.0, (total_obs_sec - total_cpu_down_sec) / 60.0), 1)
         total_cpu_down_min = round(total_cpu_down_sec / 60.0, 1)
         avg_cpu_sr = round((total_cpu_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-
+    
         total_cell_up_min = round(max(0.0, (total_obs_sec - total_cell_down_sec) / 60.0), 1)
         total_cell_down_min = round(total_cell_down_sec / 60.0, 1)
         avg_cell_sr = round((total_cell_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-
+    
         total_dvr_up_min = round(max(0.0, (total_obs_sec - total_dvr_down_sec) / 60.0), 1)
         total_dvr_down_min = round(total_dvr_down_sec / 60.0, 1)
         avg_dvr_sr = round((total_dvr_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-
+    
         total_rec_up_min = round(max(0.0, (total_obs_sec - total_rec_down_sec) / 60.0), 1)
         total_rec_down_min = round(total_rec_down_sec / 60.0, 1)
         avg_rec_sr = round((total_rec_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-
+    
         daily_summary = {
             "total_days": len(daily_records),
             "target_sla_pct": target_sla_pct,
@@ -1045,24 +1295,24 @@ class SLACalculatorService:
             "total_cpu_modem_uptime_min": total_cpu_up_min,
             "total_cpu_modem_downtime_min": total_cpu_down_min,
             "avg_cpu_modem_success_rate": avg_cpu_sr,
-            "cpu_modem_sla_status": "Tercapai" if avg_cpu_sr >= target_sla_pct else "Tidak Tercapai",
+            "cpu_modem_sla_status": "Achieved" if avg_cpu_sr >= target_sla_pct else "Not Achieved",
             "total_cellular_uptime_min": total_cell_up_min,
             "total_cellular_downtime_min": total_cell_down_min,
             "avg_cellular_success_rate": avg_cell_sr,
-            "cellular_sla_status": "Tercapai" if avg_cell_sr >= target_sla_pct else "Tidak Tercapai",
+            "cellular_sla_status": "Achieved" if avg_cell_sr >= target_sla_pct else "Not Achieved",
             "total_cpu_dvr_uptime_min": total_dvr_up_min,
             "total_cpu_dvr_downtime_min": total_dvr_down_min,
             "avg_cpu_dvr_success_rate": avg_dvr_sr,
-            "cpu_dvr_sla_status": "Tercapai" if avg_dvr_sr >= target_sla_pct else "Tidak Tercapai",
+            "cpu_dvr_sla_status": "Achieved" if avg_dvr_sr >= target_sla_pct else "Not Achieved",
             "total_rec_uptime_min": total_rec_up_min,
             "total_rec_downtime_min": total_rec_down_min,
             "avg_rec_success_rate": avg_rec_sr,
-            "rec_sla_status": "Tercapai" if avg_rec_sr >= target_sla_pct else "Tidak Tercapai",
+            "rec_sla_status": "Achieved" if avg_rec_sr >= target_sla_pct else "Not Achieved",
         }
-
+    
         return daily_records, daily_summary
-
+    
         return daily_records, daily_summary
-
+    
 
 sla_calculator_service = SLACalculatorService()

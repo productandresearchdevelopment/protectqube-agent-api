@@ -128,6 +128,7 @@ def get_gateway_detail(gateway_id: str):
 def get_cellular_dashboard(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
+    status: Optional[str] = Query(None, description="Filter status gateway: Online, Degraded, Offline"),
     provider: Optional[str] = Query(None, description="Filter provider SIM card"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
@@ -141,6 +142,7 @@ def get_cellular_dashboard(
     dashboard_data = cellular_service.get_full_dashboard(
         search=search,
         gateway_type=gateway_type,
+        status=status,
         provider=provider,
         page=page,
         page_size=page_size,

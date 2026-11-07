@@ -36,9 +36,13 @@ class DVRService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
-                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                for dev_id in dev_ids:
-                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                latest_records = (
+                    db.query(GatewayTelemetryHistory)
+                    .distinct(GatewayTelemetryHistory.device_id)
+                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
+                    .all()
+                )
+                for latest in latest_records:
                     if latest and latest.raw_payload:
                         payload = dict(latest.raw_payload)
                         if latest.recorded_at:
@@ -90,6 +94,42 @@ class DVRService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
+        # Inspect real system logs for NVR telemetry ground truth:
+        # e.g.: [NVR-CPU: OK] and NVR RECORDING: (CAMERA 1 : NOT_RECORD, ...)
+        logs = nms_payload.get("recent_system_logs")
+        latest_log = None
+        if isinstance(logs, list) and logs:
+            for line in reversed(logs):
+                if isinstance(line, str) and ("[NVR-CPU:" in line or "NVR RECORDING:" in line or "NVR:" in line):
+                    latest_log = line
+                    break
+        elif isinstance(logs, str) and logs.strip():
+            for line in reversed(logs.strip().split("\n")):
+                if "[NVR-CPU:" in line or "NVR RECORDING:" in line or "NVR:" in line:
+                    latest_log = line.strip()
+                    break
+
+        log_cams: Dict[int, str] = {}
+        if latest_log:
+            import re
+            if "[NVR-CPU: OK]" in latest_log:
+                is_connected = True
+            elif "[NVR-CPU:" in latest_log:
+                is_connected = False
+
+            rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', latest_log, re.IGNORECASE)
+            if rec_m:
+                cams_str = rec_m.group(1)
+                cam_matches = re.findall(r'CAMERA\s+(\d+)\s*:\s*([A-Za-z0-9_]+)', cams_str, re.IGNORECASE)
+                if cam_matches:
+                    for cid, cst in cam_matches:
+                        log_cams[int(cid)] = cst.upper()
+            elif "NVR RECORDING:" in latest_log:
+                if any(w in latest_log for w in ["TERPUTUS", "LEPAS", "N/A", "OFFLINE"]):
+                    is_rec = False
+                else:
+                    is_rec = True
+
         loc_name = (
             nms_payload.get("location_name")
             or nms_payload.get("site_name")
@@ -103,20 +143,26 @@ class DVRService:
         ip_addr = nvr_endpoint.split(":")[0] if ":" in nvr_endpoint else nvr_endpoint
         port_num = nvr_endpoint.split(":")[1] if ":" in nvr_endpoint else "80"
 
-        total_kamera = cameras_info.get("total_cameras", 0)
-        kamera_online = cameras_info.get("online_count", 0)
-        kamera_offline_raw = cameras_info.get("offline_count", 0)
+        if log_cams:
+            total_kamera = len(log_cams)
+            kamera_online = sum(1 for st in log_cams.values() if "RECORD" in st and "NOT" not in st)
+            kamera_offline_raw = total_kamera - kamera_online
+            is_rec = (kamera_online > 0)
+        else:
+            total_kamera = cameras_info.get("total_cameras", 0)
+            kamera_online = cameras_info.get("online_count", 0)
+            kamera_offline_raw = cameras_info.get("offline_count", 0)
+            is_rec = recording_info.get("is_recording", False)
 
         cap_gb = float(nvr.get("total_capacity_gb", 0.0))
         used_gb = float(nvr.get("total_used_gb", 0.0))
         free_gb = float(nvr.get("total_free_gb", 0.0))
         storage_pct = int(round((used_gb / cap_gb) * 100)) if cap_gb > 0 else 0
 
-        is_rec = recording_info.get("is_recording", False)
         if is_connected:
             cpu_dvr_status = "Connected"
             if is_rec:
-                rec_status = "Normal"
+                rec_status = "Recording"
             else:
                 rec_status = "Not Recording"
 
@@ -153,7 +199,21 @@ class DVRService:
 
         raw_cam_list = cameras_info.get("camera_list", [])
         cam_previews = []
-        if raw_cam_list:
+        if log_cams:
+            for cid_int in sorted(log_cams.keys()):
+                st = log_cams[cid_int]
+                is_cam_rec = ("RECORD" in st and "NOT" not in st)
+                cam_previews.append({
+                    "channel": cid_int,
+                    "name": f"CAM {cid_int:02d} - Channel {cid_int}",
+                    "status": "Online" if (is_connected and is_cam_rec) else ("No Video" if is_connected else "Offline"),
+                    "is_recording": is_connected and is_cam_rec,
+                    "fps": 25 if (is_connected and is_cam_rec) else 0,
+                    "resolution": "1080P" if (is_connected and is_cam_rec) else "-",
+                    "bitrate": "2048 Kbps" if (is_connected and is_cam_rec) else "0 Kbps",
+                    "timestamp": clean_update,
+                })
+        elif raw_cam_list:
             for idx, c in enumerate(raw_cam_list):
                 c_online = c.get("is_online", False)
                 cam_previews.append({
@@ -199,7 +259,7 @@ class DVRService:
             "service_status": "Running" if is_connected else "Degraded",
             "cpu_dvr": {
                 "status": cpu_dvr_status,
-                "message": f"Komunikasi ISAPI/SDK terhubung stabil ke {nvr_endpoint}" if is_connected else f"Koneksi NVR gagal: {nvr.get('error_message', 'Host unreachable / Timeout')}",
+                "message": f"ISAPI/SDK protocol connected stably to {nvr_endpoint}" if is_connected else f"NVR connection failed: {nvr.get('error_message', 'Host unreachable / Timeout')}",
                 "port": f"{port_num} (HTTP ISAPI)",
                 "response_time": "< 15 ms" if is_connected else "Timeout",
                 "packet_loss": "0%" if is_connected else "100%",
@@ -223,7 +283,7 @@ class DVRService:
             },
             "dvr_health": {
                 "status": health,
-                "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} (SMART {disk_smart_status})" if disks else "Tidak Ada Disk Terdeteksi",
+                "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} (SMART {disk_smart_status})" if disks else "No Disk Detected",
                 "temperature": f"{disk_temp}°C",
                 "fan_status": "Normal" if is_connected else "N/A",
                 "bad_sector": disk_health_info.get("bad_sectors", 0),
@@ -314,9 +374,12 @@ class DVRService:
                 "storage_critical_tb": 0,
             }
 
-        rec_normal = sum(1 for g in self._live_gateways.values() if g["is_rec"])
-        issue_count = sum(1 for g in self._live_gateways.values() if g["health"] == "Warning")
-        offline_count = sum(1 for g in self._live_gateways.values() if not g["is_connected"] or g["health"] == "Critical")
+        rec_count = sum(1 for g in self._live_gateways.values() if g["table_item"]["recording_status"] == "Recording")
+        issue_count = sum(1 for g in self._live_gateways.values() if g["table_item"]["dvr_health"] == "Warning")
+        offline_count = sum(
+            1 for g in self._live_gateways.values()
+            if g["table_item"]["cpu_dvr"] in ["No Response", "Offline"] or g["table_item"]["dvr_health"] == "Critical"
+        )
 
         total_cams = sum(g["table_item"]["total_kamera"] for g in self._live_gateways.values())
         online_cams = sum(g["table_item"]["kamera_online"] for g in self._live_gateways.values())
@@ -330,8 +393,8 @@ class DVRService:
 
         return {
             "total_gateways": total_gw,
-            "recording_normal": rec_normal,
-            "recording_normal_percent": round((rec_normal / total_gw) * 100.0, 1),
+            "recording_normal": rec_count,
+            "recording_normal_percent": round((rec_count / total_gw) * 100.0, 1),
             "issue": issue_count,
             "issue_percent": round((issue_count / total_gw) * 100.0, 1),
             "offline": offline_count,
@@ -470,14 +533,23 @@ class DVRService:
         if gateway_type and gateway_type not in ["Semua Tipe", "All"]:
             filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
 
-        if status and status not in ["Semua Status", "All"]:
-            s = status.lower()
-            if s in ["normal", "online"]:
-                filtered = [g for g in filtered if g["dvr_health"] == "Good"]
+        if status and status not in ["Semua Status", "All", "All Statuses"]:
+            s = status.lower().strip()
+            if s in ["recording", "normal", "recording normal"]:
+                filtered = [
+                    g for g in filtered
+                    if g.get("recording_status") == "Recording"
+                ]
             elif s in ["issue", "warning"]:
-                filtered = [g for g in filtered if g["dvr_health"] == "Warning"]
-            elif s == "offline":
-                filtered = [g for g in filtered if g["dvr_health"] == "Critical" or g["cpu_dvr"] != "Connected"]
+                filtered = [
+                    g for g in filtered
+                    if g.get("dvr_health") == "Warning"
+                ]
+            elif s in ["offline", "critical"]:
+                filtered = [
+                    g for g in filtered
+                    if g.get("cpu_dvr") in ["No Response", "Offline"] or g.get("dvr_health") == "Critical"
+                ]
 
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
@@ -585,91 +657,119 @@ class DVRService:
         else:
             detail["recording_storage"]["sparkline"] = [float(curr_pct)]
 
-        # 3. Real Event Log from History
+        # 3. Real Event Log from Incident Alerts & MQTT System Logs (Strictly Today Only)
         real_events = []
-        disks = (raw_payload or {}).get("nvr_surveillance", {}).get("disks", [])
-        primary_disk = disks[0] if disks else {}
-        disk_health = primary_disk.get("health_info", {})
-        bad_sec = disk_health.get("bad_sectors", detail.get("dvr_health", {}).get("bad_sector", 0))
-        dvr_temp = disk_health.get("temperature_c", 36)
+        import re
+        today_iso = datetime.now().strftime("%Y-%m-%d")
+        today_display = datetime.now().strftime("%d %b")
 
-        for idx, r in enumerate(reversed(rows[-15:]), start=1):
-            dt_wib = (
-                r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
-                if r.recorded_at.tzinfo is None
-                else r.recorded_at.astimezone(WIB)
-            )
-            time_str = dt_wib.strftime("%d %b %Y, %H:%M:%S WIB")
+        # A. Trouble events calculated from GatewayIncidentAlert & SLA for today
+        try:
+            from app.services.sla_calculator_service import sla_calculator_service
+            sla = sla_calculator_service.calculate_device_sla(dev_id, live_payload=raw_payload)
+            for idx, ev in enumerate(sla.get("trouble_events", []), 1):
+                ev_date = ev.get("date_str") or ""
+                ev_start = ev.get("start_time") or ""
+                # Only include events occurring today
+                if ev_date and ev_date != today_iso:
+                    continue
+                if ev_start and not ev_start.startswith(today_display):
+                    continue
 
-            # A. NVR status & ISAPI
-            if r.nvr_status:
-                if r.nvr_status in ["OK", "Connected"]:
+                metric = (ev.get("metric") or "").lower()
+                cat = (ev.get("category") or "").lower()
+                desc = (ev.get("description") or ev.get("title") or "").lower()
+                if (
+                    "dvr" in metric
+                    or "nvr" in metric
+                    or "cam" in metric
+                    or "record" in metric
+                    or "dvr" in cat
+                    or "nvr" in cat
+                    or "modem" in metric
+                    or "power" in desc
+                ):
                     real_events.append({
-                        "id": f"evt-{idx}-isapi",
-                        "title": f"Protokol ISAPI/SDK terhubung normal ke {detail.get('dvr_model', 'NVR')} ({detail.get('ip_address', 'Host')})",
-                        "time": time_str,
-                        "status": "success",
+                        "id": f"trouble-{idx}",
+                        "title": ev.get("title") or ev.get("description") or "NVR System Incident Alert",
+                        "time": ev.get("start_time") or "Today",
+                        "status": "error" if ev.get("status") == "Active" else "warning",
+                        "duration": ev.get("duration", "-"),
                     })
-                elif r.nvr_status == "WARNING":
-                    real_events.append({
-                        "id": f"evt-{idx}-warn",
-                        "title": f"Peringatan NVR: {r.cameras_online or 2} Kamera Online dari {r.cameras_total or 4} Channel (Sinyal Sebagian Hilang)",
-                        "time": time_str,
-                        "status": "warning",
-                    })
-                else:
-                    real_events.append({
-                        "id": f"evt-{idx}-crit",
-                        "title": f"Koneksi NVR terputus / Host {detail.get('ip_address', 'Host')} unreachable",
-                        "time": time_str,
-                        "status": "error",
-                    })
+        except Exception as e:
+            logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
 
-            # B. Cameras online check
-            if r.cameras_online is not None:
-                tot = r.cameras_total or 4
-                if r.cameras_online < tot:
-                    real_events.append({
-                        "id": f"evt-{idx}-cam",
-                        "title": f"Pemeriksaan Channel Kamera: {r.cameras_online} Online, {tot - r.cameras_online} No Video signal",
-                        "time": time_str,
-                        "status": "warning" if r.cameras_online > 0 else "error",
-                    })
-                else:
-                    real_events.append({
-                        "id": f"evt-{idx}-cam",
-                        "title": f"Pemeriksaan Channel Kamera: Seluruh {tot} Kamera Aktif (1080P Live)",
-                        "time": time_str,
-                        "status": "success",
-                    })
-
-            # C. SMART Disk Health
-            if bad_sec > 0:
-                real_events.append({
-                    "id": f"evt-{idx}-hdd",
-                    "title": f"Pemeriksaan SMART status disk SATA HDD: Waspada ({bad_sec} Bad Sector, Suhu {dvr_temp}°C)",
-                    "time": time_str,
-                    "status": "error" if bad_sec > 100 else "warning",
-                })
+        # B. Parse recent_system_logs from MQTT telemetry stream for today only
+        logs = (raw_payload or {}).get("recent_system_logs", [])
+        for idx, line in enumerate(reversed(logs), 1):
+            ts_m = re.match(r"\[(\d{4}-\d{2}-\d{2})\s+([\d:]+)\]", line)
+            if ts_m:
+                d_part, t_part = ts_m.group(1), ts_m.group(2)
+                # Only include logs from today
+                if d_part != today_iso:
+                    continue
+                ts = f"{t_part} WIB"
             else:
+                ts_any = re.match(r"\[(.*?)\]", line)
+                ts = ts_any.group(1) if ts_any else "Today"
+
+            if "[NVR-CPU:" in line:
+                nvr_cpu = re.search(r"\[NVR-CPU:\s*([^\]]+)\]", line)
+                rec_m = re.search(r"NVR RECORDING:\s*\((.*?)\)", line)
+                if nvr_cpu:
+                    st = nvr_cpu.group(1).strip()
+                    real_events.append({
+                        "id": f"log-cpu-{idx}",
+                        "title": f"CPU - NVR Connection: {st} (ISAPI/SDK link)",
+                        "time": ts,
+                        "status": "success" if st == "OK" else "error",
+                    })
+                if rec_m:
+                    rec_st = rec_m.group(1).strip()
+                    is_warn = "NOT_RECORD" in rec_st
+                    real_events.append({
+                        "id": f"log-rec-{idx}",
+                        "title": f"Camera Recording Status: {rec_st}",
+                        "time": ts,
+                        "status": "warning" if is_warn else "success",
+                    })
+            elif "rekaman" in line.lower() or "kamera" in line.lower() or "harddisk" in line.lower() or "disk" in line.lower() or "flash" in line.lower():
+                clean_text = re.sub(r"^\[.*?\]\s*(\[.*?\]\s*)*", "", line).strip()
                 real_events.append({
-                    "id": f"evt-{idx}-hdd",
-                    "title": f"Pemeriksaan SMART status disk SATA HDD: PASSED (0 Bad Sector, Suhu {dvr_temp}°C)",
-                    "time": time_str,
-                    "status": "success",
+                    "id": f"log-alert-{idx}",
+                    "title": clean_text,
+                    "time": ts,
+                    "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
                 })
 
-            # D. Recording Status
-            if r.nvr_recording:
-                real_events.append({
-                    "id": f"evt-{idx}-rec",
-                    "title": f"Perekaman video kontinu (24/7 CMR) aktif pada Channel NVR",
-                    "time": time_str,
-                    "status": "success",
-                })
-
-            if len(real_events) >= 8:
+            if len(real_events) >= 20:
                 break
+
+        # Fallback if no logs available: provide authentic device status snapshot
+        if not real_events:
+            c_status = detail.get("cpu_dvr", {}).get("status", "No Response")
+            r_status = detail.get("recording_storage", {}).get("status", "Not Recording")
+            h_status = detail.get("dvr_health", {}).get("status", "Warning")
+            curr_time = detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            real_events.append({
+                "id": "evt-live-cpu",
+                "title": f"CPU - NVR Communication: {c_status}",
+                "time": curr_time,
+                "status": "success" if c_status == "Connected" else "error",
+            })
+            real_events.append({
+                "id": "evt-live-rec",
+                "title": f"Continuous Video Recording: {r_status}",
+                "time": curr_time,
+                "status": "success" if r_status == "Normal" else "warning",
+            })
+            real_events.append({
+                "id": "evt-live-health",
+                "title": f"Overall NVR Health & S.M.A.R.T: {h_status}",
+                "time": curr_time,
+                "status": "success" if h_status == "Good" else "warning",
+            })
 
         detail["events"] = real_events
         return detail

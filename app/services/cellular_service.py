@@ -31,9 +31,13 @@ class CellularService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
-                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                for dev_id in dev_ids:
-                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                latest_records = (
+                    db.query(GatewayTelemetryHistory)
+                    .distinct(GatewayTelemetryHistory.device_id)
+                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
+                    .all()
+                )
+                for latest in latest_records:
                     if latest and latest.raw_payload:
                         payload = dict(latest.raw_payload)
                         if latest.recorded_at:
@@ -203,13 +207,19 @@ class CellularService:
         }
 
         if save_cache:
-            try:
-                cache_file = self._cache_path()
-                raw_list = [g["raw"] for g in self._live_gateways.values() if "raw" in g]
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(raw_list, f, indent=2)
-            except Exception as ce:
-                logger.debug(f"Failed to write cache file: {ce}")
+            now_write = time.time()
+            last_write = getattr(self, "_last_cache_write", 0.0)
+            if (now_write - last_write) >= 60.0:
+                self._last_cache_write = now_write
+                try:
+                    cache_file = self._cache_path()
+                    tmp_file = cache_file + ".tmp"
+                    raw_list = [g["raw"] for g in self._live_gateways.values() if "raw" in g]
+                    with open(tmp_file, "w", encoding="utf-8") as f:
+                        json.dump(raw_list, f)
+                    os.replace(tmp_file, cache_file)
+                except Exception as ce:
+                    logger.debug(f"Failed to write cache file: {ce}")
 
     ONLINE_TIMEOUT_SECONDS = 600  # 10 menit tanpa data telemetri baru -> OFFLINE (2 siklus simpan)
 
@@ -462,6 +472,7 @@ class CellularService:
         self,
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
+        status: Optional[str] = None,
         provider: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
@@ -486,6 +497,12 @@ class CellularService:
             filtered = [
                 g for g in filtered
                 if g["type"].lower() == gateway_type.strip().lower()
+            ]
+
+        if status and status not in ("All Statuses", "Semua Status", "All"):
+            filtered = [
+                g for g in filtered
+                if g.get("status", "").lower() == status.strip().lower()
             ]
 
         if provider and provider != "Semua Provider":
@@ -516,6 +533,7 @@ class CellularService:
         self,
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
+        status: Optional[str] = None,
         provider: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
@@ -524,6 +542,7 @@ class CellularService:
         paged_gateways = self.get_gateways_paged(
             search=search,
             gateway_type=gateway_type,
+            status=status,
             provider=provider,
             page=page,
             page_size=page_size,
@@ -687,62 +706,124 @@ class CellularService:
             if phone:
                 detail["network_sim"]["phone_number"] = phone
 
-        # 4. Real Event Log from History & Downtime Incident Alerts
+        # 4. Real Event Log from Incident Alerts & MQTT System Logs (Strictly Today Only)
         real_events = []
+        import re
+        today_iso = datetime.now().strftime("%Y-%m-%d")
+        today_display = datetime.now().strftime("%d %b")
 
-        # 4a. Prioritaskan alert insiden downtime & masalah offline
-        for a in incident_alerts:
-            a_dt = (
-                a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
-                if a.start_time.tzinfo is None
-                else a.start_time.astimezone(WIB)
-            )
-            time_str = a_dt.strftime("%d %b %Y, %H:%M:%S WIB")
-            dur_txt = f"[{a.duration_str}] " if a.duration_str else ""
-            status_cls = "warning" if a.status == "ACTIVE" else "info"
-            real_events.append({
-                "id": f"alert-{a.id}",
-                "title": f"⚠️ {dur_txt}{a.description}",
-                "time": time_str,
-                "status": status_cls,
-                "downtime_duration": a.duration_str,
-                "category": a.metric,
-                "telemetry_history_id": a.telemetry_history_id
-            })
+        # A. Trouble events calculated from GatewayIncidentAlert & SLA for today
+        try:
+            from app.services.sla_calculator_service import sla_calculator_service
+            sla = sla_calculator_service.calculate_device_sla(dev_id, live_payload=raw_payload)
+            for idx, ev in enumerate(sla.get("trouble_events", []), 1):
+                ev_date = ev.get("date_str") or ""
+                ev_start = ev.get("start_time") or ""
+                # Only include events occurring today
+                if ev_date and ev_date != today_iso:
+                    continue
+                if ev_start and not ev_start.startswith(today_display):
+                    continue
 
-        # 4b. Event telemetri operasional berkala
-        for idx, r in enumerate(reversed(rows[-10:]), start=1):
-            dt_wib = (
-                r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB)
-                if r.recorded_at.tzinfo is None
-                else r.recorded_at.astimezone(WIB)
-            )
-            time_str = dt_wib.strftime("%d %b %Y, %H:%M:%S WIB")
+                metric = (ev.get("metric") or "").lower()
+                cat = (ev.get("category") or "").lower()
+                desc = (ev.get("description") or ev.get("title") or "").lower()
+                if (
+                    "cellular" in metric
+                    or "modem" in metric
+                    or "network" in metric
+                    or "sim" in metric
+                    or "signal" in metric
+                    or "cellular" in cat
+                    or "network" in cat
+                    or "disconnect" in desc
+                    or "offline" in desc
+                    or "power" in desc
+                ):
+                    real_events.append({
+                        "id": f"trouble-{idx}",
+                        "title": ev.get("title") or ev.get("description") or "Cellular Incident Alert",
+                        "time": ev.get("start_time") or "Today",
+                        "status": "error" if ev.get("status") == "Active" else "warning",
+                        "duration": ev.get("duration", "-"),
+                        "category": ev.get("category", "CELLULAR"),
+                    })
+        except Exception as e:
+            logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
 
-            if r.signal_rsrp is not None:
-                csq_txt = f" (CSQ {r.signal_csq})" if r.signal_csq else ""
+        # B. Parse recent_system_logs from MQTT telemetry stream for today only
+        logs = (raw_payload or {}).get("recent_system_logs", [])
+        for idx, line in enumerate(reversed(logs), 1):
+            ts_m = re.match(r"\[(\d{4}-\d{2}-\d{2})\s+([\d:]+)\]", line)
+            if ts_m:
+                d_part, t_part = ts_m.group(1), ts_m.group(2)
+                # Only include logs from today
+                if d_part != today_iso:
+                    continue
+                ts = f"{t_part} WIB"
+            else:
+                ts_any = re.match(r"\[(.*?)\]", line)
+                ts = ts_any.group(1) if ts_any else "Today"
+
+            if "[MODEM-CPU:" in line or "[SIM:" in line:
+                modem_cpu = re.search(r"\[MODEM-CPU:\s*([^\]]+)\]", line)
+                sim_m = re.search(r"\[SIM:\s*([^\]]+)\]", line)
+                if modem_cpu:
+                    st = modem_cpu.group(1).strip()
+                    real_events.append({
+                        "id": f"log-modem-cpu-{idx}",
+                        "title": f"CPU – Modem Communication: {st}",
+                        "time": ts,
+                        "status": "success" if st == "OK" else "error",
+                    })
+                if sim_m:
+                    sim_st = sim_m.group(1).strip()
+                    is_err = "NO_SIM" in sim_st or "ERR" in sim_st or "TIDAK" in sim_st.upper()
+                    real_events.append({
+                        "id": f"log-sim-{idx}",
+                        "title": f"SIM & Cellular Signal: {sim_st}",
+                        "time": ts,
+                        "status": "error" if is_err else "success",
+                    })
+            elif any(k in line.lower() for k in ["modem", "cellular", "sim", "sinyal", "network", "csq", "rsrp", "operator", "disconnect"]):
+                clean_text = re.sub(r"^\[.*?\]\s*(\[.*?\]\s*)*", "", line).strip()
                 real_events.append({
-                    "id": f"evt-{idx}-sig",
-                    "title": f"Pemeriksaan berkala sinyal: RSRP {r.signal_rsrp} dBm{csq_txt}",
-                    "time": time_str,
-                    "status": "success" if r.signal_rsrp > -85 else ("warning" if r.signal_rsrp > -100 else "error"),
+                    "id": f"log-alert-{idx}",
+                    "title": clean_text,
+                    "time": ts,
+                    "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
                 })
-            if r.temperature_c is not None:
-                real_events.append({
-                    "id": f"evt-{idx}-temp",
-                    "title": f"Monitoring temperatur termal modem/CPU: {round(r.temperature_c, 1)}°C",
-                    "time": time_str,
-                    "status": "warning" if r.temperature_c >= 75 else "info",
-                })
-            if r.cellular_ip:
-                real_events.append({
-                    "id": f"evt-{idx}-ip",
-                    "title": f"Alokasi IP interface seluler: {r.cellular_ip} ({r.operator or 'Aktif'})",
-                    "time": time_str,
-                    "status": "success",
-                })
-            if len(real_events) >= 15:
+
+            if len(real_events) >= 20:
                 break
+
+        # Fallback if no logs available: provide authentic device status snapshot
+        if not real_events:
+            c_status = detail.get("cpu_modem", {}).get("status", "No Response")
+            net_type = detail.get("network_sim", {}).get("network_type", "4G")
+            sim_st = detail.get("network_sim", {}).get("sim_status", "Aktif")
+            op = detail.get("network_sim", {}).get("operator", "N/A")
+            rsrp = detail.get("signal_strength", {}).get("rsrp", -85)
+            curr_time = detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            real_events.append({
+                "id": "evt-live-cpu",
+                "title": f"CPU – Modem Communication: {c_status}",
+                "time": curr_time,
+                "status": "success" if c_status == "Connected" else "error",
+            })
+            real_events.append({
+                "id": "evt-live-sim",
+                "title": f"Cellular SIM Card: {sim_st} ({op})",
+                "time": curr_time,
+                "status": "success" if sim_st == "Aktif" else "warning",
+            })
+            real_events.append({
+                "id": "evt-live-sig",
+                "title": f"Radio Signal Strength: {rsrp} dBm ({net_type})",
+                "time": curr_time,
+                "status": "success" if rsrp >= -85 else ("warning" if rsrp >= -100 else "error"),
+            })
 
         detail["events"] = real_events
 

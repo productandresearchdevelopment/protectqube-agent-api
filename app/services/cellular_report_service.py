@@ -36,9 +36,13 @@ class CellularReportService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
-                dev_ids = [row[0] for row in db.query(distinct(GatewayTelemetryHistory.device_id)).all()]
-                for dev_id in dev_ids:
-                    latest = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == dev_id).order_by(GatewayTelemetryHistory.recorded_at.desc()).first()
+                latest_records = (
+                    db.query(GatewayTelemetryHistory)
+                    .distinct(GatewayTelemetryHistory.device_id)
+                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
+                    .all()
+                )
+                for latest in latest_records:
                     if latest and latest.raw_payload:
                         payload = dict(latest.raw_payload)
                         if latest.recorded_at:
@@ -191,11 +195,11 @@ class CellularReportService:
                 "start_time": te.get("start_time", clean_update),
                 "end_time": te.get("end_time", "Present"),
                 "duration": te.get("duration", "15m"),
-                "category": te.get("category", "Cellular"),
+                "category": te.get("category", "Cellular Network"),
                 "metric": te.get("metric") or ("cpu_modem" if "modem" in te.get("category", "").lower() else "cellular"),
-                "title": te.get("title") or te.get("description", "Gangguan"),
-                "description": te.get("title") or te.get("description", "Gangguan"),
-                "cause": te.get("cause") or te.get("description") or "Gangguan Jaringan",
+                "title": te.get("title") or te.get("description", "Network Disruption"),
+                "description": te.get("description") or te.get("title", "Network Disruption"),
+                "cause": te.get("cause") or te.get("description") or "Network Disruption",
                 "status": te.get("status", "Resolved"),
                 "duration_minutes": te.get("duration_minutes"),
                 "date_str": te.get("date_str"),
@@ -273,9 +277,43 @@ class CellularReportService:
         """Filter & paginate 100% real fleet records for Cellular Report"""
         from app.services.sla_calculator_service import sla_calculator_service
 
-        items = []
+        # 1. Fast in-memory filtering first
+        filtered = []
         for g in self._live_gateways.values():
+            item = g["table_item"]
+
+            if search:
+                q = search.lower().strip()
+                if not (q in item["id"].lower() or q in item["location"].lower() or q in item.get("sim_number", "").lower()):
+                    continue
+
+            if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
+                if gateway_type.lower() not in item.get("type", "").lower():
+                    continue
+
+            if provider and provider not in ["Semua Provider", "All", "All Providers", "Semua"]:
+                if provider.lower() not in item.get("provider", "").lower():
+                    continue
+
+            if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
+                if location.lower() not in item.get("location", "").lower():
+                    continue
+
+            filtered.append(g)
+
+        total_items = len(filtered)
+        total_pages = max(1, (total_items + page_size - 1) // page_size)
+        page = max(1, min(page, total_pages))
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total_items)
+
+        sliced_gateways = filtered[start_idx:end_idx]
+
+        # 2. Calculate SLA ONLY for the active page slice
+        items_slice = []
+        for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["table_item"])
+            item["no"] = idx
             if date_range:
                 dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
                 sla = sla_calculator_service.calculate_device_sla(
@@ -293,36 +331,7 @@ class CellularReportService:
                 item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp"))
                 item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp"))
                 item["trouble_events_count"] = len(cell_events_r)
-            items.append(item)
-
-        for idx, it in enumerate(items, 1):
-            it["no"] = idx
-
-        filtered = items
-
-        if search:
-            q = search.lower().strip()
-            filtered = [
-                g for g in filtered
-                if q in g["id"].lower() or q in g["location"].lower() or q in g["sim_number"]
-            ]
-
-        if gateway_type and gateway_type not in ["Semua Tipe", "All", "All Types", "Semua"]:
-            filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
-
-        if provider and provider not in ["Semua Provider", "All", "All Providers", "Semua"]:
-            filtered = [g for g in filtered if provider.lower() in g["provider"].lower()]
-
-        if location and location not in ["Semua Lokasi", "All", "All Locations", "Semua"]:
-            filtered = [g for g in filtered if location.lower() in g["location"].lower()]
-
-        total_items = len(filtered)
-        total_pages = max(1, (total_items + page_size - 1) // page_size)
-        page = max(1, min(page, total_pages))
-        start_idx = (page - 1) * page_size
-        end_idx = min(start_idx + page_size, total_items)
-
-        items_slice = filtered[start_idx:end_idx]
+            items_slice.append(item)
 
         return {
             "gateways": items_slice,
@@ -418,7 +427,7 @@ class CellularReportService:
                 detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
                 if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
                     detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
-                cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network"]]
+                cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
                 detail["total_gangguan"] = f"{len(cell_events_d)} event"
                 if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
                     detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]
