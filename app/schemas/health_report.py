@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel
 from app.schemas.cellular_report import DailySlaRecord, DailySlaSummary
 
@@ -9,23 +9,23 @@ class HealthReportItem(BaseModel):
     location: str
     type: str
     
-    cpu_avg: int
-    cpu_max: int
+    cpu_avg: Union[int, float]
+    cpu_max: Union[int, float]
     cpu_gt_80_duration: str
     
-    ram_avg: int
-    ram_max: int
+    ram_avg: Union[int, float]
+    ram_max: Union[int, float]
     ram_gt_80_duration: str
     
-    sd_avg: int
-    sd_max: int
+    sd_avg: Union[int, float]
+    sd_max: Union[int, float]
     sd_gt_90_duration: str
     
     sd_health_status: str
-    sd_life_pct: int
+    sd_life_pct: Union[int, float]
     
-    temp_avg: int
-    temp_max: int
+    temp_avg: Union[int, float]
+    temp_max: Union[int, float]
     
     uptime_duration: str
     uptime_pct: float
@@ -111,16 +111,16 @@ class HealthReportGatewayDetail(BaseModel):
     sla_target_hours: Optional[str] = "-"
     sla_status: Optional[str] = "Met"
     sla_downtime_allowed: Optional[str] = "-"
-    cpu_avg: Optional[int] = 0
-    cpu_max: Optional[int] = 0
-    ram_avg: Optional[int] = 0
-    ram_max: Optional[int] = 0
-    sd_avg: Optional[int] = 0
-    sd_max: Optional[int] = 0
+    cpu_avg: Optional[Union[int, float]] = 0
+    cpu_max: Optional[Union[int, float]] = 0
+    ram_avg: Optional[Union[int, float]] = 0
+    ram_max: Optional[Union[int, float]] = 0
+    sd_avg: Optional[Union[int, float]] = 0
+    sd_max: Optional[Union[int, float]] = 0
     sd_health_status: Optional[str] = "Good"
-    sd_life_pct: Optional[int] = 100
-    temp_avg: Optional[int] = 45
-    temp_max: Optional[int] = 60
+    sd_life_pct: Optional[Union[int, float]] = 100
+    temp_avg: Optional[Union[int, float]] = 45
+    temp_max: Optional[Union[int, float]] = 60
     cpu_trend: Optional[List[HealthTrendPoint]] = []
     ram_trend: Optional[List[HealthTrendPoint]] = []
     sd_trend: Optional[List[HealthTrendPoint]] = []

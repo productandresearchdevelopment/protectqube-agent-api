@@ -359,18 +359,28 @@ def get_health_report(
     - Multi-metric historical SLAs: CPU, RAM, SD Card usage, SD Card health/life,
       System Temperature spikes, Uptime duration & percentage, Trouble events.
     """
-    report_data = health_report_service.get_report(
-        search=search,
-        gateway_type=gateway_type,
-        location=location,
-        date_range=date_range,
-        page=page,
-        page_size=page_size,
-    )
-    return {
-        "status": True,
-        "data": report_data,
-    }
+    try:
+        report_data = health_report_service.get_report(
+            search=search,
+            gateway_type=gateway_type,
+            location=location,
+            date_range=date_range,
+            page=page,
+            page_size=page_size,
+        )
+        # Test validation explicitly
+        validated = HealthReportResponse(status=True, data=report_data)
+        return validated
+    except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
+        try:
+            with open("error_health_report.log", "w", encoding="utf-8") as f:
+                f.write(err_msg)
+        except Exception:
+            pass
+        logger.error(f"Error in get_health_report: {err_msg}")
+        raise e
 
 
 @router.get("/reports/health/export")

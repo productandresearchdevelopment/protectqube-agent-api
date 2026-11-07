@@ -189,6 +189,14 @@ class DVRReportService:
             "last_seen": clean_update,
         }
 
+        active_period = get_default_period_str()
+        b_list = sla.get("daily_breakdown", [])
+        if b_list:
+            first_date = b_list[0].get("date")
+            last_date = b_list[-1].get("date")
+            if first_date and last_date:
+                active_period = f"{first_date} - {last_date}" if first_date != last_date else first_date
+
         detail = {
             "id": device_id,
             "status": "Online" if nvr_reachable else "Offline",
@@ -197,7 +205,7 @@ class DVRReportService:
             "dvr_model": dvr_model,
             "kamera_channels": f"{total_cam} Channel",
             "storage_capacity": cap_str,
-            "period": get_default_period_str(),
+            "period": active_period,
             "period_hours": sla["period_hours_str"],
 
             "cpu_dvr_uptime": up_str,
@@ -223,6 +231,9 @@ class DVRReportService:
             "trouble_events": dvr_events,
             "daily_breakdown": sla.get("daily_breakdown", []),
             "daily_summary": sla.get("daily_summary"),
+            "camera_list": cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else [],
+            "recording_info": nvr.get("recording", {}),
+            "cameras_info": cameras_info if isinstance(cameras_info, dict) else {},
         }
 
         self._live_gateways[device_id] = {
@@ -411,6 +422,12 @@ class DVRReportService:
         for gid, data in self._live_gateways.items():
             if gid.lower() == gateway_id.lower():
                 detail = dict(data["detail"])
+                raw_payload = data.get("raw_payload", {})
+                nvr = raw_payload.get("nvr_surveillance", {})
+                cameras_info = nvr.get("cameras", {})
+                detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+                detail["recording_info"] = nvr.get("recording", {})
+                detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
                 if date_range:
                     detail["period"] = date_range
                     from app.services.sla_calculator_service import sla_calculator_service
@@ -436,6 +453,12 @@ class DVRReportService:
         if self._live_gateways:
             first_gid, first_data = next(iter(self._live_gateways.items()))
             detail = dict(first_data["detail"])
+            raw_payload = first_data.get("raw_payload", {})
+            nvr = raw_payload.get("nvr_surveillance", {})
+            cameras_info = nvr.get("cameras", {})
+            detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+            detail["recording_info"] = nvr.get("recording", {})
+            detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
             if date_range:
                 detail["period"] = date_range
                 from app.services.sla_calculator_service import sla_calculator_service

@@ -79,6 +79,7 @@ class DailySlaRecord(BaseModel):
     date: str
     day_name: str
     target_sla: float = 98.0
+    observation_min: Optional[float] = None
     uptime_min: float
     downtime_min: float
     success_rate: float

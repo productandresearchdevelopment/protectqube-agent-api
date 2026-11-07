@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel
 from app.schemas.cellular_report import DailySlaRecord, DailySlaSummary
 
@@ -117,6 +117,9 @@ class DVRReportGatewayDetail(BaseModel):
     trouble_events: List[DVRReportTroubleEvent]
     daily_breakdown: Optional[List[DailySlaRecord]] = None
     daily_summary: Optional[DailySlaSummary] = None
+    camera_list: Optional[List[Dict[str, Any]]] = None
+    recording_info: Optional[Dict[str, Any]] = None
+    cameras_info: Optional[Dict[str, Any]] = None
 
 
 class DVRReportGatewayDetailResponse(BaseModel):

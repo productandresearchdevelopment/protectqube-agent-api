@@ -218,6 +218,14 @@ class CellularReportService:
                 "status": "Resolved",
             })
 
+        active_period = get_default_period_str()
+        b_list = sla.get("daily_breakdown", [])
+        if b_list:
+            first_date = b_list[0].get("date")
+            last_date = b_list[-1].get("date")
+            if first_date and last_date:
+                active_period = f"{first_date} - {last_date}" if first_date != last_date else first_date
+
         detail_obj = {
             "id": device_id,
             "status": "Online" if sim_inserted else "Offline",
@@ -230,7 +238,7 @@ class CellularReportService:
             "quota_main_gb": quota_gb,
             "quota_info": quota_info,
             "ip_address": nms_payload.get("cellular_sim", {}).get("data_traffic", {}).get("cellular_ip") or "-",
-            "period": get_default_period_str(),
+            "period": active_period,
             "period_hours": sla["period_hours_str"],
 
             "cpu_modem_uptime": up_str,

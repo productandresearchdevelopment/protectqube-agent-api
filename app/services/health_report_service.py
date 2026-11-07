@@ -101,8 +101,8 @@ class HealthReportService:
         raw_badge = flash.get("health_badge") or flash.get("fs_state", {}).get("status", sd.get("health_status", "Good"))
         if str(raw_badge).upper() in ["OK", "GOOD"]:
             sd_health = "Good"
-        elif str(raw_badge).upper() in ["WARN", "WARNING"]:
-            sd_health = "Caution"
+        elif str(raw_badge).upper() in ["WARN", "WARNING", "CAUTION"]:
+            sd_health = "Warning"
         else:
             sd_health = "Critical"
 
@@ -141,19 +141,19 @@ class HealthReportService:
             "id": device_id,
             "location": loc_name,
             "type": box_type,
-            "cpu_avg": cpu_usage,
-            "cpu_max": min(100, cpu_usage + 25),
-            "cpu_gt_80_duration": "0h 15m" if cpu_usage > 70 else "-",
-            "ram_avg": ram_usage,
-            "ram_max": min(100, ram_usage + 18),
-            "ram_gt_80_duration": "0h 30m" if ram_usage > 75 else "-",
-            "sd_avg": sd_usage,
-            "sd_max": min(100, sd_usage + 8),
-            "sd_gt_90_duration": "1h 20m" if sd_usage > 85 else "-",
+            "cpu_avg": sla.get("cpu_avg", cpu_usage),
+            "cpu_max": sla.get("cpu_max", cpu_usage),
+            "cpu_gt_80_duration": sla.get("cpu_gt_80_duration", "-"),
+            "ram_avg": sla.get("ram_avg", ram_usage),
+            "ram_max": sla.get("ram_max", ram_usage),
+            "ram_gt_80_duration": sla.get("ram_gt_80_duration", "-"),
+            "sd_avg": sla.get("sd_avg", sd_usage),
+            "sd_max": sla.get("sd_max", sd_usage),
+            "sd_gt_90_duration": sla.get("sd_gt_90_duration", "-"),
             "sd_health_status": sd_health,
             "sd_life_pct": sd_life_pct,
-            "temp_avg": cpu_temp,
-            "temp_max": cpu_temp + 12,
+            "temp_avg": int(round(float(sla.get("avg_temp", cpu_temp)))),
+            "temp_max": int(round(float(sla.get("max_temp", cpu_temp)))),
             "uptime_duration": up_str,
             "uptime_pct": uptime_pct,
             "jumlah_event": events_count,
@@ -185,16 +185,16 @@ class HealthReportService:
             "sla_target_hours": "740h 17m",
             "sla_status": "Met" if uptime_pct >= 99.5 else "Breach",
             "sla_downtime_allowed": "3h 43m",
-            "cpu_avg": cpu_usage,
-            "cpu_max": min(100, cpu_usage + 25),
-            "ram_avg": ram_usage,
-            "ram_max": min(100, ram_usage + 18),
-            "sd_avg": sd_usage,
-            "sd_max": min(100, sd_usage + 8),
+            "cpu_avg": sla.get("cpu_avg", cpu_usage),
+            "cpu_max": sla.get("cpu_max", cpu_usage),
+            "ram_avg": sla.get("ram_avg", ram_usage),
+            "ram_max": sla.get("ram_max", ram_usage),
+            "sd_avg": sla.get("sd_avg", sd_usage),
+            "sd_max": sla.get("sd_max", sd_usage),
             "sd_health_status": sd_health,
             "sd_life_pct": sd_life_pct,
-            "temp_avg": cpu_temp,
-            "temp_max": cpu_temp + 12,
+            "temp_avg": int(round(float(sla.get("avg_temp", cpu_temp)))),
+            "temp_max": int(round(float(sla.get("max_temp", cpu_temp)))),
             "cpu_trend": sla["cpu_trend"],
             "ram_trend": sla["ram_trend"],
             "sd_trend": sla["sd_trend"],
@@ -258,21 +258,43 @@ class HealthReportService:
 
         sliced_gateways = filtered[start_idx:end_idx]
 
-        # 2. Calculate SLA ONLY for the active page slice
+        # 2. Calculate SLA & Resource Averages ONLY for the active page slice
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["report_item"])
             item["no"] = idx
-            if date_range:
-                dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
-                sla = sla_calculator_service.calculate_device_sla(
-                    device_id=dev_id,
-                    live_payload=g.get("raw_payload"),
-                    date_range_str=date_range
-                )
-                item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
-                item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))
-                item["jumlah_event"] = len(sla.get("trouble_events", []))
+            dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
+            req_dr = date_range or item.get("period") or get_default_period_str()
+            sla = sla_calculator_service.calculate_device_sla(
+                device_id=dev_id,
+                live_payload=g.get("raw_payload"),
+                date_range_str=req_dr
+            )
+            item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
+            item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))
+            item["jumlah_event"] = len(sla.get("trouble_events", []))
+            if "cpu_avg" in sla:
+                item["cpu_avg"] = sla["cpu_avg"]
+            if "cpu_max" in sla:
+                item["cpu_max"] = sla["cpu_max"]
+            if "cpu_gt_80_duration" in sla:
+                item["cpu_gt_80_duration"] = sla["cpu_gt_80_duration"]
+            if "ram_avg" in sla:
+                item["ram_avg"] = sla["ram_avg"]
+            if "ram_max" in sla:
+                item["ram_max"] = sla["ram_max"]
+            if "ram_gt_80_duration" in sla:
+                item["ram_gt_80_duration"] = sla["ram_gt_80_duration"]
+            if "sd_avg" in sla:
+                item["sd_avg"] = sla["sd_avg"]
+            if "sd_max" in sla:
+                item["sd_max"] = sla["sd_max"]
+            if "sd_gt_90_duration" in sla:
+                item["sd_gt_90_duration"] = sla["sd_gt_90_duration"]
+            if "avg_temp" in sla and sla["avg_temp"] is not None:
+                item["temp_avg"] = int(round(float(sla["avg_temp"])))
+            if "max_temp" in sla and sla["max_temp"] is not None:
+                item["temp_max"] = int(round(float(sla["max_temp"])))
             items_slice.append(item)
 
         return {
@@ -448,6 +470,22 @@ class HealthReportService:
             detail["ram_trend"] = sla.get("ram_trend", [])
             detail["sd_trend"] = sla.get("sd_trend", [])
             detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+            if "cpu_avg" in sla:
+                detail["cpu_avg"] = sla["cpu_avg"]
+            if "cpu_max" in sla:
+                detail["cpu_max"] = sla["cpu_max"]
+            if "ram_avg" in sla:
+                detail["ram_avg"] = sla["ram_avg"]
+            if "ram_max" in sla:
+                detail["ram_max"] = sla["ram_max"]
+            if "sd_avg" in sla:
+                detail["sd_avg"] = sla["sd_avg"]
+            if "sd_max" in sla:
+                detail["sd_max"] = sla["sd_max"]
+            if "avg_temp" in sla:
+                detail["temp_avg"] = sla["avg_temp"]
+            if "max_temp" in sla:
+                detail["temp_max"] = sla["max_temp"]
             
             # Ensure every event has "value" to pass Pydantic validation cleanly
             raw_evs = sla.get("trouble_events", [])

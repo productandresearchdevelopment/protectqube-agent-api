@@ -364,7 +364,7 @@ class SLACalculatorService:
         self,
         rows: Optional[List[Any]] = None,
         live_payload: Optional[Dict[str, Any]] = None
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
         """Extracts real per-minute CPU, RAM, and Disk telemetry trends from recent_system_logs and database history."""
         minute_health_map: Dict[str, Dict[str, Any]] = {}
 
@@ -461,7 +461,67 @@ class SLACalculatorService:
             ram_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": r_val})
             sd_trend.append({"date": dt_label, "time": time_str, "day": day_num, "date_key": date_key, "value": d_val})
 
-        return cpu_trend, ram_trend, sd_trend
+        # Collect all points for real historical resource stats (CPU, RAM, Storage)
+        all_cpus: List[float] = []
+        all_rams: List[float] = []
+        all_disks: List[float] = []
+
+        if minute_health_map:
+            for item in minute_health_map.values():
+                if item.get("cpu") is not None:
+                    all_cpus.append(float(item["cpu"]))
+                if item.get("ram") is not None:
+                    all_rams.append(float(item["ram"]))
+                if item.get("disk") is not None:
+                    all_disks.append(float(item["disk"]))
+        elif rows:
+            for r in rows:
+                if r.cpu_percent is not None:
+                    all_cpus.append(float(r.cpu_percent))
+                if r.ram_used_mb is not None and r.ram_total_mb:
+                    all_rams.append(float(round(r.ram_used_mb / r.ram_total_mb * 100.0, 1)))
+                if r.disk_used_percent is not None:
+                    all_disks.append(float(r.disk_used_percent))
+
+        live_cpu = float(live_payload.get("gateway_system", {}).get("cpu", {}).get("usage_percent", 25.0)) if live_payload else 25.0
+        live_ram = float(live_payload.get("gateway_system", {}).get("memory", {}).get("usage_percent", 35.0)) if live_payload else 35.0
+        live_disk = float(live_payload.get("flash_storage", {}).get("partitions", [{}])[0].get("used_percent", 50.0)) if live_payload else 50.0
+
+        if not all_cpus and live_cpu is not None:
+            all_cpus.append(live_cpu)
+        if not all_rams and live_ram is not None:
+            all_rams.append(live_ram)
+        if not all_disks and live_disk is not None:
+            all_disks.append(live_disk)
+
+        avg_cpu = round(sum(all_cpus) / len(all_cpus), 1) if all_cpus else round(live_cpu, 1)
+        max_cpu = round(max(all_cpus), 1) if all_cpus else avg_cpu
+        gt_80_cpu_mins = len([v for v in all_cpus if v > 80.0])
+        cpu_gt_80_str = f"{gt_80_cpu_mins // 60}h {gt_80_cpu_mins % 60}m" if gt_80_cpu_mins > 0 else "-"
+
+        avg_ram = round(sum(all_rams) / len(all_rams), 1) if all_rams else round(live_ram, 1)
+        max_ram = round(max(all_rams), 1) if all_rams else avg_ram
+        gt_80_ram_mins = len([v for v in all_rams if v > 80.0])
+        ram_gt_80_str = f"{gt_80_ram_mins // 60}h {gt_80_ram_mins % 60}m" if gt_80_ram_mins > 0 else "-"
+
+        avg_sd = round(sum(all_disks) / len(all_disks), 1) if all_disks else round(live_disk, 1)
+        max_sd = round(max(all_disks), 1) if all_disks else avg_sd
+        gt_90_sd_mins = len([v for v in all_disks if v > 90.0])
+        sd_gt_90_str = f"{gt_90_sd_mins // 60}h {gt_90_sd_mins % 60}m" if gt_90_sd_mins > 0 else "-"
+
+        health_stats = {
+            "cpu_avg": int(round(avg_cpu)),
+            "cpu_max": int(round(max_cpu)),
+            "cpu_gt_80_duration": cpu_gt_80_str,
+            "ram_avg": int(round(avg_ram)),
+            "ram_max": int(round(max_ram)),
+            "ram_gt_80_duration": ram_gt_80_str,
+            "sd_avg": int(round(avg_sd)),
+            "sd_max": int(round(max_sd)),
+            "sd_gt_90_duration": sd_gt_90_str,
+        }
+
+        return cpu_trend, ram_trend, sd_trend, health_stats
 
     def calculate_device_sla(
         self,
@@ -629,7 +689,9 @@ class SLACalculatorService:
                 end_dt=end_dt,
                 alerts=alerts,
                 rows=rows,
-                target_sla_pct=98.0
+                target_sla_pct=98.0,
+                live_payload=live_payload,
+                kernel_uptime_sec=kernel_uptime_sec,
             )
 
             if daily_summary and daily_summary.get("total_obs_min"):
@@ -647,9 +709,9 @@ class SLACalculatorService:
                 rec_off_str = self._format_duration(daily_summary.get("total_rec_downtime_min", 0) * 60.0)
                 rec_sr = daily_summary.get("avg_rec_success_rate", 100.0)
 
-            cpu_trend, ram_trend, sd_trend = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
+            cpu_trend, ram_trend, sd_trend, health_stats = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
 
-            return {
+            res = {
                 "period_hours_str": f"({round(obs_sec / 3600, 1)} hrs)",
                 "observation_seconds": obs_sec,
 
@@ -694,6 +756,8 @@ class SLACalculatorService:
                 "daily_breakdown": daily_breakdown,
                 "daily_summary": daily_summary,
             }
+            res.update(health_stats)
+            return res
 
         first_time = rows[0].recorded_at
         last_time = rows[-1].recorded_at
@@ -779,7 +843,7 @@ class SLACalculatorService:
         ]
 
         # Collect trend points from real minute system logs or telemetry rows
-        cpu_trend, ram_trend, sd_trend = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
+        cpu_trend, ram_trend, sd_trend, health_stats = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
 
         # Urutkan trouble events secara kronologis menurun (kejadian terbaru nomor 1 di atas)
         trouble_events.sort(key=lambda x: x.get("_raw_dt") or datetime.min, reverse=True)
@@ -823,7 +887,9 @@ class SLACalculatorService:
             end_dt=end_dt,
             alerts=alerts,
             rows=rows,
-            target_sla_pct=98.0
+            target_sla_pct=98.0,
+            live_payload=live_payload,
+            kernel_uptime_sec=kernel_uptime_sec,
         )
 
         if daily_summary and daily_summary.get("total_obs_min"):
@@ -887,6 +953,7 @@ class SLACalculatorService:
             "daily_breakdown": daily_breakdown,
             "daily_summary": daily_summary,
         }
+        result.update(health_stats)
 
         if not hasattr(self, "_sla_mem_cache"):
             self._sla_mem_cache = {}
@@ -913,14 +980,16 @@ class SLACalculatorService:
         end_dt: Optional[datetime],
         alerts: List[GatewayIncidentAlert],
         rows: Optional[List[GatewayTelemetryHistory]] = None,
-        target_sla_pct: float = 98.0
+        target_sla_pct: float = 98.0,
+        live_payload: Optional[Dict[str, Any]] = None,
+        kernel_uptime_sec: int = 0
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Menghasilkan rincian SLA harian (Day 1..Day N) dengan algoritma Daily Time-Slicing:
-        Setiap hari kalender memiliki kuota waktu 1.440 menit (24 jam) dari 00:00:00 s/d 23:59:59 WIB.
-        Insiden downtime yang menyeberang tengah malam (misal 26 jam) otomatis dipotong
-        ke masing-masing hari kalender yang bersangkutan tanpa melebihi 1.440 menit per hari.
-        Rumus Success Rate per hari: 100% - (downtime_menit / 1440.0 * 100%) = (uptime_menit / 1440.0 * 100%).
+        - Hari kalender dihitung dari kemunculan data pertama / waktu boot perangkat (bukan tanggal 1 jika perangkat belum ada).
+        - Hari berjalan (hari ini) dihitung kuota berjalannya (misal 72.8m), bukan 1.440 menit.
+        - Kuota observasi per hari: day_obs_sec = d_end - d_start.
+        - Persamaan mutlak: Uptime + Downtime = Observasi.
         """
         now_wib = datetime.now(timezone.utc).astimezone(WIB)
         if start_dt and end_dt:
@@ -938,356 +1007,298 @@ class SLACalculatorService:
                 _, last_day = calendar.monthrange(ref_dt.year, ref_dt.month)
                 e_date = datetime(ref_dt.year, ref_dt.month, last_day).date()
 
+        # 1. Collect all candidate timestamps to determine the device's true first active datetime
+        candidate_dts: List[datetime] = []
+        if kernel_uptime_sec and kernel_uptime_sec > 0:
+            candidate_dts.append(now_wib - timedelta(seconds=kernel_uptime_sec))
+
+        if rows:
+            for r in rows:
+                if r.recorded_at:
+                    r_dt = r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if r.recorded_at.tzinfo is None else r.recorded_at.astimezone(WIB)
+                    candidate_dts.append(r_dt)
+
+        if alerts:
+            for a in alerts:
+                if a.start_time:
+                    a_dt = a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB) if a.start_time.tzinfo is None else a.start_time.astimezone(WIB)
+                    candidate_dts.append(a_dt)
+
+        if live_payload:
+            rec_str = live_payload.get("recorded_at") or live_payload.get("datetime_utc7")
+            if rec_str:
+                try:
+                    clean_rec = str(rec_str).split(" (")[0].strip()
+                    candidate_dts.append(datetime.strptime(clean_rec[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB))
+                except Exception:
+                    pass
+
+        # 2. Pre-parse all unique minute system logs across rows AND live_payload for exact outage accounting
+        unique_day_logs: Dict[str, Dict[str, Any]] = {}
+        all_log_sources: List[Any] = []
+        if rows:
+            for r in rows:
+                logs = r.raw_payload.get("recent_system_logs") if (r and r.raw_payload) else None
+                if logs:
+                    all_log_sources.append(logs)
+        if live_payload and live_payload.get("recent_system_logs"):
+            all_log_sources.append(live_payload.get("recent_system_logs"))
+
+        for logs in all_log_sources:
+            if isinstance(logs, str):
+                logs = logs.strip().split("\n")
+            for line in logs:
+                parsed = self.parse_system_log_line(str(line))
+                ts_str, c_down, n_down, d_down, rec = parsed[:5]
+                rec_loss = parsed[5] if len(parsed) > 5 else (0.0 if rec else 1.0)
+                cam_statuses = parsed[6] if len(parsed) > 6 else {}
+
+                if ts_str:
+                    try:
+                        candidate_dts.append(datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB))
+                    except Exception:
+                        pass
+
+                if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
+                    d_key = ts_str[:10]  # YYYY-MM-DD
+                    min_k = ts_str[:16]  # YYYY-MM-DD HH:MM
+                    if d_key not in unique_day_logs:
+                        unique_day_logs[d_key] = {}
+                    if min_k not in unique_day_logs[d_key]:
+                        unique_day_logs[d_key][min_k] = [
+                            bool(c_down),
+                            bool(n_down),
+                            bool(d_down),
+                            float(rec_loss),
+                            cam_statuses,
+                        ]
+                    else:
+                        if c_down is not None and c_down:
+                            unique_day_logs[d_key][min_k][0] = True
+                        if n_down is not None and n_down:
+                            unique_day_logs[d_key][min_k][1] = True
+                        if d_down is not None and d_down:
+                            unique_day_logs[d_key][min_k][2] = True
+                        if rec_loss > unique_day_logs[d_key][min_k][3]:
+                            unique_day_logs[d_key][min_k][3] = float(rec_loss)
+                            if cam_statuses:
+                                unique_day_logs[d_key][min_k][4] = cam_statuses
+
+        # 3. Determine device's first active datetime: never calculate fake observation days before device existed
+        device_first_dt: Optional[datetime] = min(candidate_dts) if candidate_dts else None
+        if device_first_dt:
+            s_date = max(s_date, device_first_dt.date())
+        if s_date > e_date:
+            s_date = e_date
+
         daily_records: List[Dict[str, Any]] = []
         cur_date = s_date
-        day_idx = 1
-
         total_cpu_down_sec = 0.0
         total_cell_down_sec = 0.0
         total_dvr_down_sec = 0.0
         total_rec_down_sec = 0.0
         total_obs_sec = 0.0
 
-        # Primary Calculation Path: when historical telemetry rows exist
-        if rows and len(rows) >= 2:
-            t_last_wib = rows[-1].recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if rows[-1].recorded_at.tzinfo is None else rows[-1].recorded_at.astimezone(WIB)
-
-            # Pre-parse all unique minute system logs across rows for exact outage accounting
-            unique_day_logs: Dict[str, Dict[str, Tuple[bool, bool, bool, bool]]] = {}
-            for r in rows:
-                logs = r.raw_payload.get("recent_system_logs") if r.raw_payload else None
-                if not logs:
-                    continue
-                if isinstance(logs, str):
-                    logs = logs.strip().split("\n")
-                for line in logs:
-                    parsed = self.parse_system_log_line(str(line))
-                    ts_str, c_down, n_down, d_down, rec = parsed[:5]
-                    rec_loss = parsed[5] if len(parsed) > 5 else (0.0 if rec else 1.0)
-                    cam_statuses = parsed[6] if len(parsed) > 6 else {}
-
-                    if ts_str and (c_down is not None or n_down is not None or d_down is not None or rec is not None):
-                        d_key = ts_str[:10]  # YYYY-MM-DD
-                        min_k = ts_str[:16]  # YYYY-MM-DD HH:MM
-                        if d_key not in unique_day_logs:
-                            unique_day_logs[d_key] = {}
-                        if min_k not in unique_day_logs[d_key]:
-                            unique_day_logs[d_key][min_k] = [
-                                bool(c_down),
-                                bool(n_down),
-                                bool(d_down),
-                                float(rec_loss),
-                                cam_statuses,
-                            ]
-                        else:
-                            if c_down is not None and c_down:
-                                unique_day_logs[d_key][min_k][0] = True
-                            if n_down is not None and n_down:
-                                unique_day_logs[d_key][min_k][1] = True
-                            if d_down is not None and d_down:
-                                unique_day_logs[d_key][min_k][2] = True
-                            if rec_loss > unique_day_logs[d_key][min_k][3]:
-                                unique_day_logs[d_key][min_k][3] = float(rec_loss)
-                                if cam_statuses:
-                                    unique_day_logs[d_key][min_k][4] = cam_statuses
-
-            while cur_date <= e_date:
-                d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
-                d_end = datetime(cur_date.year, cur_date.month, cur_date.day, 23, 59, 59, tzinfo=WIB)
-                d_str = cur_date.strftime("%Y-%m-%d")
-
-                day_cpu_down_sec = 0.0
-                day_cell_down_sec = 0.0
-                day_dvr_down_sec = 0.0
-                day_rec_down_sec = 0.0
-                rec_channels_info = "4 / 4 Cams"
-
-                if cur_date > now_wib.date():
-                    # Hari mendatang belum diamati
-                    pass
-                elif d_str in unique_day_logs and unique_day_logs[d_str]:
-                    # Primary Path: 100% exact minute logs captured by gateway daemon buffer
-                    day_mins = unique_day_logs[d_str]
-                    day_cpu_down_sec = sum(60.0 for v in day_mins.values() if v[0])
-                    day_cell_down_sec = sum(60.0 for v in day_mins.values() if v[1])
-                    day_dvr_down_sec = sum(60.0 for v in day_mins.values() if v[2])
-                    day_rec_down_sec = sum(60.0 * float(v[3]) for v in day_mins.values())
-
-                    # Aggregate active camera channels for this day
-                    day_cams = [v[4] for v in day_mins.values() if len(v) > 4 and v[4]]
-                    if day_cams:
-                        last_cams = day_cams[-1]
-                        tot_c = len(last_cams)
-                        rec_c = sum(1 for st in last_cams.values() if "RECORD" in str(st).upper() and "NOT" not in str(st).upper())
-                        rec_channels_info = f"{rec_c} / {tot_c} Cams"
-                    elif day_rec_down_sec >= 86400:
-                        rec_channels_info = "0 / 4 Cams"
-                else:
-                    # Fallback for devices/days without recent_system_logs: interval duration calculation
-                    for i in range(len(rows) - 1):
-                        curr_r = rows[i]
-                        next_r = rows[i + 1]
-                        t1 = curr_r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if curr_r.recorded_at.tzinfo is None else curr_r.recorded_at.astimezone(WIB)
-                        t2 = next_r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if next_r.recorded_at.tzinfo is None else next_r.recorded_at.astimezone(WIB)
-
-                        overlap_s = max(t1, d_start)
-                        overlap_e = min(t2, d_end)
-
-                        if overlap_e > overlap_s:
-                            dur = (overlap_e - overlap_s).total_seconds()
-
-                            m_up, n_up, d_up, is_rec = self.evaluate_record_status(
-                                curr_r.raw_payload,
-                                curr_r.sim_status,
-                                curr_r.signal_csq,
-                                curr_r.nvr_status,
-                                curr_r.nvr_recording
-                            )
-                            if not m_up:
-                                day_cpu_down_sec += dur
-                            if not n_up:
-                                day_cell_down_sec += dur
-                            if not d_up:
-                                day_dvr_down_sec += dur
-                            if not is_rec:
-                                day_rec_down_sec += dur
-
-                    # Jika data berhenti sebelum d_end dan tanggal ini sudah terjadi
-                    if t_last_wib < d_end and (cur_date < now_wib.date() or (cur_date == now_wib.date() and t_last_wib < now_wib)):
-                        tail_s = max(d_start, t_last_wib)
-                        tail_e = min(d_end, now_wib) if cur_date == now_wib.date() else d_end
-                        if tail_e > tail_s:
-                            tail_dur = (tail_e - tail_s).total_seconds()
-                            last_p = rows[-1].raw_payload if isinstance(rows[-1].raw_payload, dict) else {}
-                            m_up_l, n_up_l, d_up_l, is_rec_l = self.evaluate_record_status(
-                                last_p,
-                                rows[-1].sim_status,
-                                rows[-1].signal_csq,
-                                rows[-1].nvr_status,
-                                rows[-1].nvr_recording
-                            )
-                            if not m_up_l:
-                                day_cpu_down_sec += tail_dur
-                            if not n_up_l:
-                                day_cell_down_sec += tail_dur
-                            if not d_up_l:
-                                day_dvr_down_sec += tail_dur
-                            if not is_rec_l:
-                                day_rec_down_sec += tail_dur
-
-                day_cpu_down_sec = min(86400.0, max(0.0, day_cpu_down_sec))
-                day_cell_down_sec = min(86400.0, max(0.0, day_cell_down_sec))
-                day_dvr_down_sec = min(86400.0, max(0.0, day_dvr_down_sec))
-                day_rec_down_sec = min(86400.0, max(0.0, day_rec_down_sec))
-    
-                cpu_down_min = round(day_cpu_down_sec / 60.0, 1)
-                cpu_up_min = round(max(0.0, 1440.0 - cpu_down_min), 1)
-                cpu_sr = round(max(0.0, min(100.0, 100.0 - (cpu_down_min / 1440.0 * 100.0))), 1)
-                cpu_sla_diff = round(cpu_sr - target_sla_pct, 1)
-                cpu_status = "Achieved" if cpu_sr >= target_sla_pct else "Not Achieved"
-    
-                cell_down_min = round(day_cell_down_sec / 60.0, 1)
-                cell_up_min = round(max(0.0, 1440.0 - cell_down_min), 1)
-                cell_sr = round(max(0.0, min(100.0, 100.0 - (cell_down_min / 1440.0 * 100.0))), 1)
-                cell_sla_diff = round(cell_sr - target_sla_pct, 1)
-                cell_status = "Achieved" if cell_sr >= target_sla_pct else "Not Achieved"
-    
-                dvr_down_min = round(day_dvr_down_sec / 60.0, 1)
-                dvr_up_min = round(max(0.0, 1440.0 - dvr_down_min), 1)
-                dvr_sr = round(max(0.0, min(100.0, 100.0 - (dvr_down_min / 1440.0 * 100.0))), 1)
-                dvr_sla_diff = round(dvr_sr - target_sla_pct, 1)
-                dvr_status = "Achieved" if dvr_sr >= target_sla_pct else "Not Achieved"
-    
-                rec_down_min = round(day_rec_down_sec / 60.0, 1)
-                rec_up_min = round(max(0.0, 1440.0 - rec_down_min), 1)
-                rec_sr = round(max(0.0, min(100.0, 100.0 - (rec_down_min / 1440.0 * 100.0))), 1)
-                rec_sla_diff = round(rec_sr - target_sla_pct, 1)
-                rec_status = "Achieved" if rec_sr >= target_sla_pct else "Not Achieved"
-    
-                daily_records.append({
-                    "day": cur_date.day,
-                    "date": cur_date.strftime("%d %b %Y"),
-                    "day_name": cur_date.strftime("%a"),
-                    "target_sla": target_sla_pct,
-    
-                    # Default / CPU - Modem table display
-                    "uptime_min": cpu_up_min,
-                    "downtime_min": cpu_down_min,
-                    "success_rate": cpu_sr,
-                    "sla_diff": cpu_sla_diff,
-                    "sla_status": cpu_status,
-    
-                    "cpu_modem_uptime_min": cpu_up_min,
-                    "cpu_modem_downtime_min": cpu_down_min,
-                    "cpu_modem_success_rate": cpu_sr,
-                    "cpu_modem_sla_diff": cpu_sla_diff,
-                    "cpu_modem_status_sla": cpu_status,
-    
-                    # Cellular / Network metrics
-                    "cellular_uptime_min": cell_up_min,
-                    "cellular_downtime_min": cell_down_min,
-                    "cellular_success_rate": cell_sr,
-                    "cellular_sla_diff": cell_sla_diff,
-                    "cellular_status_sla": cell_status,
-    
-                    # CPU – DVR Communication metrics
-                    "cpu_dvr_uptime_min": dvr_up_min,
-                    "cpu_dvr_downtime_min": dvr_down_min,
-                    "cpu_dvr_success_rate": dvr_sr,
-                    "cpu_dvr_sla_diff": dvr_sla_diff,
-                    "cpu_dvr_status_sla": dvr_status,
-    
-                    # Recording metrics
-                    "rec_uptime_min": rec_up_min,
-                    "rec_downtime_min": rec_down_min,
-                    "rec_success_rate": rec_sr,
-                    "rec_sla_diff": rec_sla_diff,
-                    "rec_status_sla": rec_status,
-                    "rec_channels": rec_channels_info,
-                    "rec_condition": "Full Recording" if rec_sr >= target_sla_pct else ("Partial Recording" if rec_sr > 0 else "Not Recording"),
-                })
-    
-                total_cpu_down_sec += day_cpu_down_sec
-                total_cell_down_sec += day_cell_down_sec
-                total_dvr_down_sec += day_dvr_down_sec
-                total_rec_down_sec += day_rec_down_sec
-                total_obs_sec += 86400.0
-
-                cur_date += timedelta(days=1)
-                day_idx += 1
-
-        else:
-                # Fallback when rows are not present: use GatewayIncidentAlerts
-            cpu_raw: List[Tuple[datetime, datetime]] = []
-            cell_raw: List[Tuple[datetime, datetime]] = []
-            dvr_raw: List[Tuple[datetime, datetime]] = []
-    
+        # Pre-process alerts for fallback intervals
+        cpu_raw: List[Tuple[datetime, datetime]] = []
+        cell_raw: List[Tuple[datetime, datetime]] = []
+        dvr_raw: List[Tuple[datetime, datetime]] = []
+        if alerts:
             for a in alerts:
                 if a.start_time and a.end_time and a.end_time > a.start_time:
                     s = a.start_time.astimezone(WIB) if a.start_time.tzinfo else a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
                     e = a.end_time.astimezone(WIB) if a.end_time.tzinfo else a.end_time.replace(tzinfo=timezone.utc).astimezone(WIB)
-    
                     if a.metric == "cpu_modem":
                         cpu_raw.append((s, e))
                     elif a.metric == "cellular":
                         cell_raw.append((s, e))
                     elif a.metric == "cpu_dvr":
                         dvr_raw.append((s, e))
-    
-            cpu_merged = self._merge_intervals(cpu_raw)
-            cell_merged = self._merge_intervals(cell_raw)
-            dvr_merged = self._merge_intervals(dvr_raw)
-    
-            while cur_date <= e_date:
-                d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
-                d_end = datetime(cur_date.year, cur_date.month, cur_date.day, 23, 59, 59, tzinfo=WIB)
-    
-                day_cpu_down_sec = 0.0
+        cpu_merged = self._merge_intervals(cpu_raw)
+        cell_merged = self._merge_intervals(cell_raw)
+        dvr_merged = self._merge_intervals(dvr_raw)
+
+        while cur_date <= e_date:
+            d_start = datetime(cur_date.year, cur_date.month, cur_date.day, 0, 0, 0, tzinfo=WIB)
+            d_end = datetime(cur_date.year, cur_date.month, cur_date.day, 23, 59, 59, tzinfo=WIB)
+            d_str = cur_date.strftime("%Y-%m-%d")
+
+            # On first active day: observation starts at first active boot/registration time
+            if device_first_dt and cur_date == device_first_dt.date():
+                d_start = max(d_start, device_first_dt)
+
+            # On current ongoing day (today): observation ends at current time
+            if cur_date == now_wib.date():
+                d_end = min(d_end, now_wib)
+
+            day_obs_sec = min(86400.0, max(60.0, (d_end - d_start).total_seconds()))
+            day_quota_min = round(day_obs_sec / 60.0, 1)
+
+            day_cpu_down_sec = 0.0
+            day_cell_down_sec = 0.0
+            day_dvr_down_sec = 0.0
+            day_rec_down_sec = 0.0
+            rec_channels_info = "4 / 4 Cams"
+
+            if cur_date > now_wib.date():
+                pass
+            elif d_str in unique_day_logs and unique_day_logs[d_str]:
+                # Primary Path: 100% exact minute logs captured by gateway daemon buffer
+                day_mins = unique_day_logs[d_str]
+                day_cpu_down_sec = sum(60.0 for v in day_mins.values() if v[0])
+                day_cell_down_sec = sum(60.0 for v in day_mins.values() if v[1])
+                day_dvr_down_sec = sum(60.0 for v in day_mins.values() if v[2])
+                day_rec_down_sec = sum(60.0 * float(v[3]) for v in day_mins.values())
+
+                day_cams = [v[4] for v in day_mins.values() if len(v) > 4 and v[4]]
+                if day_cams:
+                    last_cams = day_cams[-1]
+                    tot_c = len(last_cams)
+                    rec_c = sum(1 for st in last_cams.values() if "RECORD" in str(st).upper() and "NOT" not in str(st).upper())
+                    rec_channels_info = f"{rec_c} / {tot_c} Cams"
+                elif day_rec_down_sec >= day_obs_sec:
+                    rec_channels_info = "0 / 4 Cams"
+            elif rows and len(rows) >= 2:
+                for i in range(len(rows) - 1):
+                    curr_r = rows[i]
+                    next_r = rows[i + 1]
+                    t1 = curr_r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if curr_r.recorded_at.tzinfo is None else curr_r.recorded_at.astimezone(WIB)
+                    t2 = next_r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if next_r.recorded_at.tzinfo is None else next_r.recorded_at.astimezone(WIB)
+                    overlap_s = max(t1, d_start)
+                    overlap_e = min(t2, d_end)
+                    if overlap_e > overlap_s:
+                        dur = (overlap_e - overlap_s).total_seconds()
+                        m_up, n_up, d_up, is_rec = self.evaluate_record_status(
+                            curr_r.raw_payload,
+                            curr_r.sim_status,
+                            curr_r.signal_csq,
+                            curr_r.nvr_status,
+                            curr_r.nvr_recording
+                        )
+                        if not m_up:
+                            day_cpu_down_sec += dur
+                        if not n_up:
+                            day_cell_down_sec += dur
+                        if not d_up:
+                            day_dvr_down_sec += dur
+                        if not is_rec:
+                            day_rec_down_sec += dur
+            elif alerts:
                 for s, e in cpu_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_cpu_down_sec += (overlap_e - overlap_s).total_seconds()
-    
-                day_cell_down_sec = 0.0
                 for s, e in cell_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_cell_down_sec += (overlap_e - overlap_s).total_seconds()
-    
-                day_dvr_down_sec = 0.0
                 for s, e in dvr_merged:
                     overlap_s = max(s, d_start)
                     overlap_e = min(e, d_end)
                     if overlap_e > overlap_s:
                         day_dvr_down_sec += (overlap_e - overlap_s).total_seconds()
-    
-                day_cpu_down_sec = min(86400.0, day_cpu_down_sec)
-                day_cell_down_sec = min(86400.0, day_cell_down_sec)
-                day_dvr_down_sec = min(86400.0, day_dvr_down_sec)
-    
-                cpu_down_min = round(day_cpu_down_sec / 60.0, 1)
-                cpu_up_min = round(max(0.0, 1440.0 - cpu_down_min), 1)
-                cpu_sr = round((cpu_up_min / 1440.0) * 100.0, 1)
-                cpu_sla_diff = round(cpu_sr - target_sla_pct, 1)
-                cpu_status = "Achieved" if cpu_sr >= target_sla_pct else "Not Achieved"
-    
-                cell_down_min = round(day_cell_down_sec / 60.0, 1)
-                cell_up_min = round(max(0.0, 1440.0 - cell_down_min), 1)
-                cell_sr = round((cell_up_min / 1440.0) * 100.0, 1)
-                cell_sla_diff = round(cell_sr - target_sla_pct, 1)
-                cell_status = "Achieved" if cell_sr >= target_sla_pct else "Not Achieved"
-    
-                dvr_down_min = round(day_dvr_down_sec / 60.0, 1)
-                dvr_up_min = round(max(0.0, 1440.0 - dvr_down_min), 1)
-                dvr_sr = round((dvr_up_min / 1440.0) * 100.0, 1)
-                dvr_sla_diff = round(dvr_sr - target_sla_pct, 1)
-                dvr_status = "Achieved" if dvr_sr >= target_sla_pct else "Not Achieved"
-    
-                daily_records.append({
-                    "day": cur_date.day,
-                    "date": cur_date.strftime("%d %b %Y"),
-                    "day_name": cur_date.strftime("%a"),
-                    "target_sla": target_sla_pct,
-    
-                    "uptime_min": cpu_up_min,
-                    "downtime_min": cpu_down_min,
-                    "success_rate": cpu_sr,
-                    "sla_diff": cpu_sla_diff,
-                    "sla_status": cpu_status,
-    
-                    "cpu_modem_uptime_min": cpu_up_min,
-                    "cpu_modem_downtime_min": cpu_down_min,
-                    "cpu_modem_success_rate": cpu_sr,
-                    "cpu_modem_sla_diff": cpu_sla_diff,
-                    "cpu_modem_status_sla": cpu_status,
-    
-                    "cellular_uptime_min": cell_up_min,
-                    "cellular_downtime_min": cell_down_min,
-                    "cellular_success_rate": cell_sr,
-                    "cellular_sla_diff": cell_sla_diff,
-                    "cellular_status_sla": cell_status,
-    
-                    "cpu_dvr_uptime_min": dvr_up_min,
-                    "cpu_dvr_downtime_min": dvr_down_min,
-                    "cpu_dvr_success_rate": dvr_sr,
-                    "cpu_dvr_sla_diff": dvr_sla_diff,
-                    "cpu_dvr_status_sla": dvr_status,
-    
-                    "rec_uptime_min": dvr_up_min,
-                    "rec_downtime_min": dvr_down_min,
-                    "rec_success_rate": dvr_sr,
-                    "rec_sla_diff": dvr_sla_diff,
-                    "rec_status_sla": dvr_status,
-                    "rec_channels": "4 / 4 Cams",
-                    "rec_condition": "Full Recording" if dvr_sr >= target_sla_pct else ("Partial Recording" if dvr_sr > 0 else "Not Recording"),
-                })
-    
-                total_cpu_down_sec += day_cpu_down_sec
-                total_cell_down_sec += day_cell_down_sec
-                total_dvr_down_sec += day_dvr_down_sec
-                total_obs_sec += 86400.0
-    
-                cur_date += timedelta(days=1)
-                day_idx += 1
-    
+                day_rec_down_sec = day_dvr_down_sec
+
+            # Clamp downtimes strictly within actual day observation seconds
+            day_cpu_down_sec = min(day_obs_sec, max(0.0, day_cpu_down_sec))
+            day_cell_down_sec = min(day_obs_sec, max(0.0, day_cell_down_sec))
+            day_dvr_down_sec = min(day_obs_sec, max(0.0, day_dvr_down_sec))
+            day_rec_down_sec = min(day_obs_sec, max(0.0, day_rec_down_sec))
+
+            cpu_down_min = round(day_cpu_down_sec / 60.0, 1)
+            cpu_up_min = round(max(0.0, day_quota_min - cpu_down_min), 1)
+            cpu_sr = round(max(0.0, min(100.0, (cpu_up_min / day_quota_min * 100.0))), 1) if day_quota_min > 0 else 100.0
+            cpu_sla_diff = round(cpu_sr - target_sla_pct, 1)
+            cpu_status = "Achieved" if cpu_sr >= target_sla_pct else "Not Achieved"
+
+            cell_down_min = round(day_cell_down_sec / 60.0, 1)
+            cell_up_min = round(max(0.0, day_quota_min - cell_down_min), 1)
+            cell_sr = round(max(0.0, min(100.0, (cell_up_min / day_quota_min * 100.0))), 1) if day_quota_min > 0 else 100.0
+            cell_sla_diff = round(cell_sr - target_sla_pct, 1)
+            cell_status = "Achieved" if cell_sr >= target_sla_pct else "Not Achieved"
+
+            dvr_down_min = round(day_dvr_down_sec / 60.0, 1)
+            dvr_up_min = round(max(0.0, day_quota_min - dvr_down_min), 1)
+            dvr_sr = round(max(0.0, min(100.0, (dvr_up_min / day_quota_min * 100.0))), 1) if day_quota_min > 0 else 100.0
+            dvr_sla_diff = round(dvr_sr - target_sla_pct, 1)
+            dvr_status = "Achieved" if dvr_sr >= target_sla_pct else "Not Achieved"
+
+            rec_down_min = round(day_rec_down_sec / 60.0, 1)
+            rec_up_min = round(max(0.0, day_quota_min - rec_down_min), 1)
+            rec_sr = round(max(0.0, min(100.0, (rec_up_min / day_quota_min * 100.0))), 1) if day_quota_min > 0 else 100.0
+            rec_sla_diff = round(rec_sr - target_sla_pct, 1)
+            rec_status = "Achieved" if rec_sr >= target_sla_pct else "Not Achieved"
+
+            daily_records.append({
+                "day": cur_date.day,
+                "date": cur_date.strftime("%d %b %Y"),
+                "day_name": cur_date.strftime("%a"),
+                "target_sla": target_sla_pct,
+                "observation_min": day_quota_min,
+
+                # Default / CPU - Modem table display
+                "uptime_min": cpu_up_min,
+                "downtime_min": cpu_down_min,
+                "success_rate": cpu_sr,
+                "sla_diff": cpu_sla_diff,
+                "sla_status": cpu_status,
+
+                "cpu_modem_uptime_min": cpu_up_min,
+                "cpu_modem_downtime_min": cpu_down_min,
+                "cpu_modem_success_rate": cpu_sr,
+                "cpu_modem_sla_diff": cpu_sla_diff,
+                "cpu_modem_status_sla": cpu_status,
+
+                # Cellular / Network metrics
+                "cellular_uptime_min": cell_up_min,
+                "cellular_downtime_min": cell_down_min,
+                "cellular_success_rate": cell_sr,
+                "cellular_sla_diff": cell_sla_diff,
+                "cellular_status_sla": cell_status,
+
+                # CPU – DVR Communication metrics
+                "cpu_dvr_uptime_min": dvr_up_min,
+                "cpu_dvr_downtime_min": dvr_down_min,
+                "cpu_dvr_success_rate": dvr_sr,
+                "cpu_dvr_sla_diff": dvr_sla_diff,
+                "cpu_dvr_status_sla": dvr_status,
+
+                # Recording metrics
+                "rec_uptime_min": rec_up_min,
+                "rec_downtime_min": rec_down_min,
+                "rec_success_rate": rec_sr,
+                "rec_sla_diff": rec_sla_diff,
+                "rec_status_sla": rec_status,
+                "rec_channels": rec_channels_info,
+                "rec_condition": "Full Recording" if rec_sr >= target_sla_pct else ("Partial Recording" if rec_sr > 0 else "Not Recording"),
+            })
+
+            total_cpu_down_sec += day_cpu_down_sec
+            total_cell_down_sec += day_cell_down_sec
+            total_dvr_down_sec += day_dvr_down_sec
+            total_rec_down_sec += day_rec_down_sec
+            total_obs_sec += day_obs_sec
+
+            cur_date += timedelta(days=1)
+
         total_cpu_up_min = round(max(0.0, (total_obs_sec - total_cpu_down_sec) / 60.0), 1)
         total_cpu_down_min = round(total_cpu_down_sec / 60.0, 1)
         avg_cpu_sr = round((total_cpu_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-    
+
         total_cell_up_min = round(max(0.0, (total_obs_sec - total_cell_down_sec) / 60.0), 1)
         total_cell_down_min = round(total_cell_down_sec / 60.0, 1)
         avg_cell_sr = round((total_cell_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-    
+
         total_dvr_up_min = round(max(0.0, (total_obs_sec - total_dvr_down_sec) / 60.0), 1)
         total_dvr_down_min = round(total_dvr_down_sec / 60.0, 1)
         avg_dvr_sr = round((total_dvr_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-    
+
         total_rec_up_min = round(max(0.0, (total_obs_sec - total_rec_down_sec) / 60.0), 1)
         total_rec_down_min = round(total_rec_down_sec / 60.0, 1)
         avg_rec_sr = round((total_rec_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
-    
+
         daily_summary = {
             "total_days": len(daily_records),
             "target_sla_pct": target_sla_pct,
@@ -1309,10 +1320,8 @@ class SLACalculatorService:
             "avg_rec_success_rate": avg_rec_sr,
             "rec_sla_status": "Achieved" if avg_rec_sr >= target_sla_pct else "Not Achieved",
         }
-    
+
         return daily_records, daily_summary
-    
-        return daily_records, daily_summary
-    
+
 
 sla_calculator_service = SLACalculatorService()
