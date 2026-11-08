@@ -50,7 +50,7 @@ class HealthReportService:
                             WIB = timezone(timedelta(hours=7))
                             t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                             payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        self.update_from_telemetry(payload)
+                        self.update_from_telemetry(payload, compute_sla=False)
                 if self._live_gateways:
                     loaded_from_db = True
                     logger.info(f"HealthReportService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
@@ -68,14 +68,14 @@ class HealthReportService:
                     if isinstance(data, list):
                         for item in data:
                             if isinstance(item, dict):
-                                self.update_from_telemetry(item)
+                                self.update_from_telemetry(item, compute_sla=False)
                     elif isinstance(data, dict):
-                        self.update_from_telemetry(data)
+                        self.update_from_telemetry(data, compute_sla=False)
                     logger.info(f"HealthReportService: Loaded {len(self._live_gateways)} live gateway(s)")
                 except Exception as e:
                     logger.warning(f"Could not load telemetry cache for health report: {e}")
 
-    def update_from_telemetry(self, nms_payload: Dict[str, Any]):
+    def update_from_telemetry(self, nms_payload: Dict[str, Any], compute_sla: bool = True):
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""
         device_id = nms_payload.get("device_id")
         if not device_id:
@@ -113,15 +113,6 @@ class HealthReportService:
             sd_life_pct = 95
 
         from app.services.sla_calculator_service import sla_calculator_service
-
-        sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
-
-        up_str = sla["gateway_uptime_str"]
-        off_str = sla["gateway_offline_str"]
-        uptime_pct = sla["gateway_sla_pct"]
-        events_count = len(sla["trouble_events"])
-
-        from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
         loc_name = (
@@ -136,33 +127,75 @@ class HealthReportService:
         sim_num = sim.get("msisdn") or sim.get("iccid") or "-"
         operator = sim.get("operator") or "-"
 
+        if compute_sla:
+            sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
+            up_str = sla["gateway_uptime_str"]
+            off_str = sla["gateway_offline_str"]
+            uptime_pct = sla["gateway_sla_pct"]
+            events_count = len(sla["trouble_events"])
+            evs = list(sla.get("trouble_events", []))
+            for ev in evs:
+                if not ev.get("value"):
+                    ev["value"] = ev.get("duration", "-")
+            cpu_avg = sla.get("cpu_avg", cpu_usage)
+            cpu_max = sla.get("cpu_max", cpu_usage)
+            ram_avg = sla.get("ram_avg", ram_usage)
+            ram_max = sla.get("ram_max", ram_usage)
+            sd_avg = sla.get("sd_avg", sd_usage)
+            sd_max = sla.get("sd_max", sd_usage)
+            temp_avg = int(round(float(sla.get("avg_temp", cpu_temp))))
+            temp_max = int(round(float(sla.get("max_temp", cpu_temp))))
+            cpu_trend = sla.get("cpu_trend", [])
+            ram_trend = sla.get("ram_trend", [])
+            sd_trend = sla.get("sd_trend", [])
+            timeline_tracks = sla.get("timeline_tracks", [])
+            daily_breakdown = sla.get("daily_breakdown", [])
+            daily_summary = sla.get("daily_summary")
+            period_hours_str = sla.get("period_hours_str", "744.0 Hours")
+        else:
+            up_str = "744h 00m"
+            off_str = "0h 00m"
+            uptime_pct = 100.0
+            events_count = 0
+            evs = []
+            cpu_avg = cpu_usage
+            cpu_max = cpu_usage
+            ram_avg = ram_usage
+            ram_max = ram_usage
+            sd_avg = sd_usage
+            sd_max = sd_usage
+            temp_avg = cpu_temp
+            temp_max = cpu_temp
+            cpu_trend = []
+            ram_trend = []
+            sd_trend = []
+            timeline_tracks = []
+            daily_breakdown = []
+            daily_summary = None
+            period_hours_str = "744.0 Hours"
+
         report_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
             "location": loc_name,
             "type": box_type,
-            "cpu_avg": sla.get("cpu_avg", cpu_usage),
-            "cpu_max": sla.get("cpu_max", cpu_usage),
-            "cpu_gt_80_duration": sla.get("cpu_gt_80_duration", "-"),
-            "ram_avg": sla.get("ram_avg", ram_usage),
-            "ram_max": sla.get("ram_max", ram_usage),
-            "ram_gt_80_duration": sla.get("ram_gt_80_duration", "-"),
-            "sd_avg": sla.get("sd_avg", sd_usage),
-            "sd_max": sla.get("sd_max", sd_usage),
-            "sd_gt_90_duration": sla.get("sd_gt_90_duration", "-"),
+            "cpu_avg": cpu_avg,
+            "cpu_max": cpu_max,
+            "cpu_gt_80_duration": "-",
+            "ram_avg": ram_avg,
+            "ram_max": ram_max,
+            "ram_gt_80_duration": "-",
+            "sd_avg": sd_avg,
+            "sd_max": sd_max,
+            "sd_gt_90_duration": "-",
             "sd_health_status": sd_health,
             "sd_life_pct": sd_life_pct,
-            "temp_avg": int(round(float(sla.get("avg_temp", cpu_temp)))),
-            "temp_max": int(round(float(sla.get("max_temp", cpu_temp)))),
+            "temp_avg": temp_avg,
+            "temp_max": temp_max,
             "uptime_duration": up_str,
             "uptime_pct": uptime_pct,
             "jumlah_event": events_count,
         }
-
-        evs = list(sla.get("trouble_events", []))
-        for ev in evs:
-            if not ev.get("value"):
-                ev["value"] = ev.get("duration", "-")
 
         detail = {
             "id": device_id,
@@ -175,7 +208,7 @@ class HealthReportService:
             "modem_spec": modem_model,
             "provider_spec": f"{operator} ({sim_num})",
             "period": get_default_period_str(),
-            "period_hours": sla["period_hours_str"],
+            "period_hours": period_hours_str,
 
             "uptime_duration": up_str,
             "uptime_pct": f"{uptime_pct}%",
@@ -185,23 +218,23 @@ class HealthReportService:
             "sla_target_hours": "740h 17m",
             "sla_status": "Met" if uptime_pct >= 99.5 else "Breach",
             "sla_downtime_allowed": "3h 43m",
-            "cpu_avg": sla.get("cpu_avg", cpu_usage),
-            "cpu_max": sla.get("cpu_max", cpu_usage),
-            "ram_avg": sla.get("ram_avg", ram_usage),
-            "ram_max": sla.get("ram_max", ram_usage),
-            "sd_avg": sla.get("sd_avg", sd_usage),
-            "sd_max": sla.get("sd_max", sd_usage),
+            "cpu_avg": cpu_avg,
+            "cpu_max": cpu_max,
+            "ram_avg": ram_avg,
+            "ram_max": ram_max,
+            "sd_avg": sd_avg,
+            "sd_max": sd_max,
             "sd_health_status": sd_health,
             "sd_life_pct": sd_life_pct,
-            "temp_avg": int(round(float(sla.get("avg_temp", cpu_temp)))),
-            "temp_max": int(round(float(sla.get("max_temp", cpu_temp)))),
-            "cpu_trend": sla["cpu_trend"],
-            "ram_trend": sla["ram_trend"],
-            "sd_trend": sla["sd_trend"],
-            "timeline_tracks": sla["timeline_tracks"],
+            "temp_avg": temp_avg,
+            "temp_max": temp_max,
+            "cpu_trend": cpu_trend,
+            "ram_trend": ram_trend,
+            "sd_trend": sd_trend,
+            "timeline_tracks": timeline_tracks,
             "events": evs,
-            "daily_breakdown": sla.get("daily_breakdown", []),
-            "daily_summary": sla.get("daily_summary"),
+            "daily_breakdown": daily_breakdown,
+            "daily_summary": daily_summary,
         }
 
         self._live_gateways[device_id] = {
@@ -375,6 +408,39 @@ class HealthReportService:
             ])
 
         return output.getvalue()
+
+    def export_excel(
+        self,
+        search: Optional[str] = None,
+        gateway_type: Optional[str] = None,
+        location: Optional[str] = None,
+        date_range: Optional[str] = None,
+    ) -> io.BytesIO:
+        """Export real System Health report data to Excel (.xlsx) format"""
+        from app.utils.export.excel_helper import build_health_report_excel
+        report = self.get_report(
+            search=search,
+            gateway_type=gateway_type,
+            location=location,
+            page=1,
+            page_size=5000,
+            date_range=date_range,
+        )
+        return build_health_report_excel(
+            gateways=report.get("gateways", []),
+            summary=report.get("summary"),
+            date_range=date_range,
+        )
+
+    def export_detail_pdf(
+        self,
+        gateway_id: str,
+        date_range: Optional[str] = None,
+    ) -> io.BytesIO:
+        """Export detailed System Health performance report to PDF (.pdf) format"""
+        from app.utils.export.pdf_builder import build_health_detail_pdf
+        detail = self.get_gateway_detail(gateway_id, date_range=date_range)
+        return build_health_detail_pdf(detail, gateway_id, date_range=date_range)
 
     def get_gateway_detail(self, gateway_id: str, date_range: Optional[str] = None) -> Dict[str, Any]:
         """

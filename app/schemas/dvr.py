@@ -6,8 +6,12 @@ class DVRSummary(BaseModel):
     total_gateways: int
     recording_normal: int
     recording_normal_percent: float
+    good: Optional[int] = None
+    good_percent: Optional[float] = None
     issue: int
     issue_percent: float
+    warning: Optional[int] = None
+    warning_percent: Optional[float] = None
     offline: int
     offline_percent: float
     total_kamera: int
@@ -155,6 +159,7 @@ class DVRGatewayDetailData(BaseModel):
     dvr_model: str
     ip_address: str
     last_update: str
+    status: Optional[str] = "Online"
     service_status: str
     cpu_dvr: CPUDVRDetail
     camera_status: CameraStatusDetail

@@ -82,9 +82,23 @@ class CellularService:
         cpu = gw_sys.get("cpu", {})
         hw = gw_sys.get("hardware", {})
 
-        sim_inserted = sim.get("sim_inserted", False)
+        # Resolusi status dari System Log per-menit MQTT (Prioritas Utama)
+        modem_connected, sim_inserted, log_modem_cpu, log_sim = self._parse_cellular_from_logs(nms_payload)
+
         operator = sim.get("operator", "N/A")
+        if (not operator or operator == "N/A") and log_sim and "Telkomsel" in log_sim:
+            operator = "IND TELKOMSEL"
+        elif (not operator or operator == "N/A") and log_sim and "XL" in log_sim:
+            operator = "XL Axiata"
+        elif (not operator or operator == "N/A") and log_sim and "Indosat" in log_sim:
+            operator = "Indosat Ooredoo"
+
         csq = sim.get("signal", {}).get("csq", 0)
+        if csq == 0 and log_sim:
+            import re
+            csq_m = re.search(r'CSQ\s*(\d+)', log_sim)
+            if csq_m:
+                csq = int(csq_m.group(1))
         
         if csq > 0:
             rsrp_val = -(113 - 2 * csq)
@@ -106,12 +120,11 @@ class CellularService:
             or f"Gateway {device_id}"
         )
 
-        modem_connected = modem.get("connected", True)
         if sim_inserted and modem_connected:
             status = "Online"
             cpu_modem_status = "Connected"
         elif modem_connected:
-            status = "Degraded"
+            status = "Warning"
             cpu_modem_status = "Connected"
         else:
             status = "Offline"
@@ -128,8 +141,8 @@ class CellularService:
             "type": box_type,
             "model": hw.get("model") or hw.get("type") or "-",
             "modem": modem.get("model") or "-",
-            "provider": operator if operator != "N/A" else "Tanpa SIM",
-            "sim_status": "Aktif" if sim_inserted else "Tidak Terdeteksi",
+            "provider": operator if operator != "N/A" else "No SIM",
+            "sim_status": "Ready" if sim_inserted else "Not Detected",
             "cpu_modem": cpu_modem_status,
             "network": sim.get("network_mode", "4G LTE") if sim_inserted else "No Service",
             "signal_rsrp": rsrp_str,
@@ -154,14 +167,15 @@ class CellularService:
             "type": gw_item["type"],
             "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
             "modem": modem.get("model", "Quectel EG95 LTE Cat 4"),
-            "provider": operator,
-            "sim_card": "Aktif" if sim_inserted else "Tidak Terdeteksi",
+            "provider": operator if operator != "N/A" else "No SIM",
+            "sim_card": "Active" if sim_inserted else "Not Detected",
             "ip_address": cellular_ip,
             "last_update": ts_str,
-            "service_status": "Running" if status != "Offline" else "Stopped",
+            "status": status,
+            "service_status": "Running" if status == "Online" else ("Warning" if status == "Warning" else "Stopped"),
             "cpu_modem": {
                 "status": "Connected" if modem_connected else "No Response",
-                "message": f"CPU terhubung ke Quectel Modem via serial ports ({port_range})" if modem_connected else "Komunikasi dengan modem terputus",
+                "message": f"CPU connected to Quectel Modem via serial ports ({port_range})" if modem_connected else "Communication with modem lost",
                 "port": active_port,
                 "baudrate": 115200,
                 "driver": modem.get("usb_hardware", {}).get("driver", "usbserial_generic"),
@@ -178,14 +192,14 @@ class CellularService:
             "network_sim": {
                 "network_type": "4G" if "4G" in str(sim.get("network_mode")) else ("3G" if "3G" in str(sim.get("network_mode")) else "N/A"),
                 "network_sub": "(LTE)" if "4G" in str(sim.get("network_mode")) else "",
-                "operator": operator,
-                "sim_status": "Aktif" if sim_inserted else "Tidak Terdeteksi",
+                "operator": operator if operator != "N/A" else "No SIM",
+                "sim_status": "Ready" if sim_inserted else "Not Detected",
                 "imsi": sim.get("imsi", "N/A"),
                 "iccid": sim.get("iccid", "N/A"),
                 "phone_number": sim.get("msisdn", "N/A"),
                 "data_upload": data_traffic.get("tx_human", "0 B"),
                 "data_download": data_traffic.get("rx_human", "0 B"),
-                "roaming": "Tidak",
+                "roaming": "No",
             },
             "modem_temperature": {
                 "temperature": temp_c,
@@ -221,7 +235,7 @@ class CellularService:
                 except Exception as ce:
                     logger.debug(f"Failed to write cache file: {ce}")
 
-    ONLINE_TIMEOUT_SECONDS = 600  # 10 menit tanpa data telemetri baru -> OFFLINE (2 siklus simpan)
+    ONLINE_TIMEOUT_SECONDS = 1800  # 30 menit toleransi jika ada jeda transmisi jaringan seluler
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -243,6 +257,40 @@ class CellularService:
                     pass
         return time.time()
 
+    @staticmethod
+    def _parse_cellular_from_logs(raw: Dict[str, Any]) -> tuple:
+        """
+        Menganalisis telemetry system logs per-menit dari MQTT:
+        Mengekstrak status aktual [MODEM-CPU: ...] dan [SIM: ...].
+        Returns: (modem_connected: bool, sim_inserted: bool, modem_cpu_st: str, sim_log_st: str)
+        """
+        logs = raw.get("recent_system_logs", [])
+        modem_cpu_st = None
+        sim_log_st = None
+        import re
+
+        for l in reversed(logs):
+            m_modem = re.search(r'\[MODEM-CPU:\s*([^\]]+)\]', l)
+            m_sim = re.search(r'\[SIM:\s*([^\]]+)\]', l)
+            if m_modem and not modem_cpu_st:
+                modem_cpu_st = m_modem.group(1).strip()
+            if m_sim and not sim_log_st:
+                sim_log_st = m_sim.group(1).strip()
+            if modem_cpu_st and sim_log_st:
+                break
+
+        if modem_cpu_st:
+            modem_connected = (modem_cpu_st.upper() == "OK")
+        else:
+            modem_connected = raw.get("modem_usb", {}).get("connected", True)
+
+        if sim_log_st:
+            sim_inserted = not any(err in sim_log_st.upper() for err in ["NO_SIM", "ERR", "TIDAK", "DISCONNECT", "NONE", "BELUM", "DICABUT"])
+        else:
+            sim_inserted = raw.get("cellular_sim", {}).get("sim_inserted", False)
+
+        return modem_connected, sim_inserted, modem_cpu_st, sim_log_st
+
     def _sync_freshness(self):
         """
         Secara dinamis memverifikasi kebaruan data telemetri setiap gateway.
@@ -262,36 +310,42 @@ class CellularService:
             item = gdata.get("item", {})
             detail = gdata.get("detail", {})
             raw = gdata.get("raw", {})
-            sim = raw.get("cellular_sim", {})
-            modem = raw.get("modem_usb", {})
-            sim_inserted = sim.get("sim_inserted", False)
-            modem_connected = modem.get("connected", True)
+            modem_connected, sim_inserted, _, _ = self._parse_cellular_from_logs(raw)
             
             if age_sec > self.ONLINE_TIMEOUT_SECONDS:
                 # Gateway sudah tidak menerima data telemetri lagi -> OFFLINE
                 item["status"] = "Offline"
-                item["cpu_modem"] = "No Response"
+                # Pertahankan status fisik port CPU-Modem dari system log hardware terakhir
+                item["cpu_modem"] = "Connected" if modem_connected else "No Response"
+                detail["status"] = "Offline"
                 detail["service_status"] = "Stopped"
                 if "cpu_modem" in detail:
-                    detail["cpu_modem"]["status"] = "No Response"
-                    detail["cpu_modem"]["message"] = f"Tidak ada telemetri masuk ({int(age_sec // 60)}m lalu)"
+                    detail["cpu_modem"]["status"] = "Connected" if modem_connected else "No Response"
+                    detail["cpu_modem"]["message"] = (
+                        f"CPU connected to modem (Gateway offline: no data for {int(age_sec // 60)}m)"
+                        if modem_connected
+                        else f"No communication with modem ({int(age_sec // 60)}m ago)"
+                    )
             else:
-                # Masih aktif menerima telemetri secara real-time
+                # Masih aktif menerima telemetri secara real-time dari per-menit system logs
                 if sim_inserted and modem_connected:
                     item["status"] = "Online"
                     item["cpu_modem"] = "Connected"
+                    detail["status"] = "Online"
                     detail["service_status"] = "Running"
                     if "cpu_modem" in detail:
                         detail["cpu_modem"]["status"] = "Connected"
                 elif modem_connected:
-                    item["status"] = "Degraded"
+                    item["status"] = "Warning"
                     item["cpu_modem"] = "Connected"
-                    detail["service_status"] = "Running"
+                    detail["status"] = "Warning"
+                    detail["service_status"] = "Warning"
                     if "cpu_modem" in detail:
                         detail["cpu_modem"]["status"] = "Connected"
                 else:
                     item["status"] = "Offline"
                     item["cpu_modem"] = "No Response"
+                    detail["status"] = "Offline"
                     detail["service_status"] = "Stopped"
                     if "cpu_modem" in detail:
                         detail["cpu_modem"]["status"] = "No Response"
@@ -311,23 +365,25 @@ class CellularService:
                 "offline_percent": 0.0,
                 "degraded": 0,
                 "degraded_percent": 0.0,
-                "smartbox_hitam": {"name": "SmartBox Hitam", "model": "Raspberry Pi 3B+", "total": 0, "online": 0, "offline": 0, "degraded": 0},
-                "smartbox_putih": {"name": "SmartBox Putih", "model": "Rockchip RK3328", "total": 0, "online": 0, "offline": 0, "degraded": 0},
+                "warning": 0,
+                "warning_percent": 0.0,
+                "smartbox_hitam": {"name": "SmartBox Hitam", "model": "Raspberry Pi 3B+", "total": 0, "online": 0, "offline": 0, "degraded": 0, "warning": 0},
+                "smartbox_putih": {"name": "SmartBox Putih", "model": "Rockchip RK3328", "total": 0, "online": 0, "offline": 0, "degraded": 0, "warning": 0},
             }
 
         online = sum(1 for g in gateways if g["status"] == "Online")
         offline = sum(1 for g in gateways if g["status"] == "Offline")
-        degraded = sum(1 for g in gateways if g["status"] == "Degraded")
+        warning = sum(1 for g in gateways if g["status"] in ("Warning", "Degraded"))
 
         hitam_total = sum(1 for g in gateways if "Hitam" in g["type"])
         hitam_online = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] == "Online")
         hitam_offline = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] == "Offline")
-        hitam_degraded = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] == "Degraded")
+        hitam_warning = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] in ("Warning", "Degraded"))
 
         putih_total = total - hitam_total
         putih_online = online - hitam_online
         putih_offline = offline - hitam_offline
-        putih_degraded = degraded - hitam_degraded
+        putih_warning = warning - hitam_warning
 
         return {
             "total_gateways": total,
@@ -335,15 +391,18 @@ class CellularService:
             "online_percent": round((online / total) * 100, 1),
             "offline": offline,
             "offline_percent": round((offline / total) * 100, 1),
-            "degraded": degraded,
-            "degraded_percent": round((degraded / total) * 100, 1),
+            "degraded": warning,
+            "degraded_percent": round((warning / total) * 100, 1),
+            "warning": warning,
+            "warning_percent": round((warning / total) * 100, 1),
             "smartbox_hitam": {
                 "name": "SmartBox Hitam",
                 "model": "Raspberry Pi 3B+",
                 "total": hitam_total,
                 "online": hitam_online,
                 "offline": hitam_offline,
-                "degraded": hitam_degraded,
+                "degraded": hitam_warning,
+                "warning": hitam_warning,
             },
             "smartbox_putih": {
                 "name": "SmartBox Putih",
@@ -351,7 +410,8 @@ class CellularService:
                 "total": putih_total,
                 "online": putih_online,
                 "offline": putih_offline,
-                "degraded": putih_degraded,
+                "degraded": putih_warning,
+                "warning": putih_warning,
             },
         }
 
@@ -500,10 +560,17 @@ class CellularService:
             ]
 
         if status and status not in ("All Statuses", "Semua Status", "All"):
-            filtered = [
-                g for g in filtered
-                if g.get("status", "").lower() == status.strip().lower()
-            ]
+            st_query = status.strip().lower()
+            if st_query in ("warning", "degraded"):
+                filtered = [
+                    g for g in filtered
+                    if g.get("status", "").lower() in ("warning", "degraded")
+                ]
+            else:
+                filtered = [
+                    g for g in filtered
+                    if g.get("status", "").lower() == st_query
+                ]
 
         if provider and provider != "Semua Provider":
             filtered = [
@@ -620,8 +687,8 @@ class CellularService:
                 "max_temp": f"{max_t[1]}°C",
                 "min_temp": f"{min_t[1]}°C",
                 "avg_temp": f"{avg_t}°C",
-                "max_time": f"Puncak Jam {max_t[0].strftime('%H:%M')}",
-                "min_time": f"Terendah Jam {min_t[0].strftime('%H:%M')}",
+                "max_time": f"Peak at {max_t[0].strftime('%H:%M')}",
+                "min_time": f"Lowest at {min_t[0].strftime('%H:%M')}",
                 "sparkline": spark_t,
             }
         else:
@@ -631,9 +698,9 @@ class CellularService:
                 "max_temp": f"{curr_temp}°C",
                 "min_temp": f"{curr_temp}°C",
                 "avg_temp": f"{curr_temp}°C",
-                "max_time": "Data saat ini",
-                "min_time": "Data saat ini",
-                "sparkline": [curr_temp],
+                "max_time": "Current Data",
+                "min_time": "Current Data",
+                "sparkline": [curr_temp, curr_temp],
             }
 
         # 2. Real RSRP / Signal Strength Calculation
@@ -672,8 +739,8 @@ class CellularService:
                 "max_rsrp": f"{best_r[1]} dBm",
                 "min_rsrp": f"{worst_r[1]} dBm",
                 "avg_rsrp": f"{avg_r} dBm",
-                "max_time": f"Terbaik Jam {best_r[0].strftime('%H:%M')}",
-                "min_time": f"Terendah Jam {worst_r[0].strftime('%H:%M')}",
+                "max_time": f"Best at {best_r[0].strftime('%H:%M')}",
+                "min_time": f"Lowest at {worst_r[0].strftime('%H:%M')}",
                 "csq": latest_csq,
                 "sparkline": spark_r,
             }
@@ -684,10 +751,10 @@ class CellularService:
                 "max_rsrp": f"{curr_rsrp} dBm",
                 "min_rsrp": f"{curr_rsrp} dBm",
                 "avg_rsrp": f"{curr_rsrp} dBm",
-                "max_time": "Data saat ini",
-                "min_time": "Data saat ini",
+                "max_time": "Current Data",
+                "min_time": "Current Data",
                 "csq": latest_csq,
-                "sparkline": [float(curr_rsrp)],
+                "sparkline": [float(curr_rsrp), float(curr_rsrp)],
             }
 
         # 3. Real SIM Quota & Traffic Info
@@ -801,7 +868,7 @@ class CellularService:
         if not real_events:
             c_status = detail.get("cpu_modem", {}).get("status", "No Response")
             net_type = detail.get("network_sim", {}).get("network_type", "4G")
-            sim_st = detail.get("network_sim", {}).get("sim_status", "Aktif")
+            sim_st = detail.get("network_sim", {}).get("sim_status", "Ready")
             op = detail.get("network_sim", {}).get("operator", "N/A")
             rsrp = detail.get("signal_strength", {}).get("rsrp", -85)
             curr_time = detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -816,7 +883,7 @@ class CellularService:
                 "id": "evt-live-sim",
                 "title": f"Cellular SIM Card: {sim_st} ({op})",
                 "time": curr_time,
-                "status": "success" if sim_st == "Aktif" else "warning",
+                "status": "success" if sim_st in ("Ready", "Active", "Aktif") else "warning",
             })
             real_events.append({
                 "id": "evt-live-sig",
@@ -866,13 +933,14 @@ class CellularService:
             "model": "-",
             "modem": "-",
             "provider": "N/A",
-            "sim_card": "Tidak Terdeteksi",
+            "sim_card": "Not Detected",
             "ip_address": "N/A",
             "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "status": "Offline",
             "service_status": "Stopped",
             "cpu_modem": {
                 "status": "No Response",
-                "message": "Belum ada data masuk dari MQTT",
+                "message": "No telemetry received from MQTT",
                 "port": "/dev/ttyUSB3",
                 "baudrate": 115200,
                 "driver": "usbserial_generic",
@@ -884,19 +952,19 @@ class CellularService:
                 "max_rsrp": "N/A",
                 "min_rsrp": "N/A",
                 "avg_rsrp": "N/A",
-                "sparkline": [],
+                "sparkline": [-115.0, -115.0],
             },
             "network_sim": {
                 "network_type": "N/A",
                 "network_sub": "",
                 "operator": "N/A",
-                "sim_status": "Tidak Terdeteksi",
+                "sim_status": "Not Detected",
                 "imsi": "N/A",
                 "iccid": "N/A",
                 "phone_number": "N/A",
                 "data_upload": "0 B",
                 "data_download": "0 B",
-                "roaming": "Tidak",
+                "roaming": "No",
             },
             "modem_temperature": {
                 "temperature": 0,
@@ -904,7 +972,7 @@ class CellularService:
                 "max_temp": "0°C",
                 "min_temp": "0°C",
                 "avg_temp": "0°C",
-                "sparkline": [],
+                "sparkline": [0.0, 0.0],
             },
         }
 

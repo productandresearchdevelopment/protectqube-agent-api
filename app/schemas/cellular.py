@@ -9,6 +9,7 @@ class DeviceSummary(BaseModel):
     online: int
     offline: int
     degraded: int
+    warning: Optional[int] = None
 
 
 class CellularSummary(BaseModel):
@@ -19,6 +20,8 @@ class CellularSummary(BaseModel):
     offline_percent: float
     degraded: int
     degraded_percent: float
+    warning: Optional[int] = None
+    warning_percent: Optional[float] = None
     smartbox_hitam: DeviceSummary
     smartbox_putih: DeviceSummary
 
@@ -161,6 +164,7 @@ class CellularGatewayDetailData(BaseModel):
     sim_card: str
     ip_address: str
     last_update: str
+    status: Optional[str] = "Online"
     service_status: str
     cpu_modem: CPUModemDetail
     signal_strength: SignalStrengthDetail

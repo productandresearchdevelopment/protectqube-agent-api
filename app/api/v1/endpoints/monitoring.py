@@ -236,7 +236,8 @@ def get_cellular_report(
 
 
 @router.get("/reports/cellular/export")
-def export_cellular_report_csv(
+@router.get("/reports/cellular/export-excel")
+def export_cellular_report_excel(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     provider: Optional[str] = Query(None, description="Filter provider SIM card"),
@@ -244,19 +245,39 @@ def export_cellular_report_csv(
     date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
     """
-    Exports fleet cellular telemetry data to CSV file.
+    Exports fleet cellular telemetry data to professional Excel (.xlsx) file.
     """
-    csv_data = cellular_report_service.export_csv(
+    excel_stream = cellular_report_service.export_excel(
         search=search,
         gateway_type=gateway_type,
         provider=provider,
         location=location,
         date_range=date_range,
     )
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"Cellular_SLA_Report_{safe_range}.xlsx"
     return Response(
-        content=csv_data,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=cellular_fleet_report.csv"},
+        content=excel_stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/cellular/gateway/{gateway_id}/export-pdf")
+def export_cellular_detail_pdf(
+    gateway_id: str,
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
+):
+    """
+    Exports detailed Cellular performance report to PDF (.pdf) format.
+    """
+    pdf_stream = cellular_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"Cellular_Detail_{gateway_id}_{safe_range}.pdf"
+    return Response(
+        content=pdf_stream.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -306,27 +327,48 @@ def get_dvr_report(
 
 
 @router.get("/reports/dvr/export")
-def export_dvr_report_csv(
+@router.get("/reports/dvr/export-excel")
+def export_dvr_report_excel(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
-    dvr_brand: Optional[str] = Query(None, description="Filter merek DVR/NVR"),
+    status: Optional[str] = Query(None, description="Filter status DVR/recording"),
     location: Optional[str] = Query(None, description="Filter lokasi/kota"),
     date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
     """
-    Exports fleet DVR telemetry data to CSV file.
+    Exports fleet DVR telemetry data to professional Excel (.xlsx) file.
     """
-    csv_data = dvr_report_service.export_csv(
+    excel_stream = dvr_report_service.export_excel(
         search=search,
         gateway_type=gateway_type,
-        dvr_brand=dvr_brand,
+        status=status,
         location=location,
         date_range=date_range,
     )
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"DVR_Recording_Report_{safe_range}.xlsx"
     return Response(
-        content=csv_data,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=dvr_fleet_report.csv"},
+        content=excel_stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/dvr/gateway/{gateway_id}/export-pdf")
+def export_dvr_detail_pdf(
+    gateway_id: str,
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
+):
+    """
+    Exports detailed DVR performance report to PDF (.pdf) format.
+    """
+    pdf_stream = dvr_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"DVR_Detail_{gateway_id}_{safe_range}.pdf"
+    return Response(
+        content=pdf_stream.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -384,23 +426,46 @@ def get_health_report(
 
 
 @router.get("/reports/health/export")
-def export_health_report_csv(
+@router.get("/reports/health/export-excel")
+def export_health_report_excel(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     location: Optional[str] = Query(None, description="Filter lokasi/kota"),
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
     """
-    Exports fleet System Health telemetry data to CSV file.
+    Exports fleet System Health telemetry data to professional Excel (.xlsx) file.
     """
-    csv_data = health_report_service.export_csv(
+    excel_stream = health_report_service.export_excel(
         search=search,
         gateway_type=gateway_type,
         location=location,
+        date_range=date_range,
     )
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"System_Health_Report_{safe_range}.xlsx"
     return Response(
-        content=csv_data,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=system_health_fleet_report.csv"},
+        content=excel_stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/health/gateway/{gateway_id}/export-pdf")
+def export_health_detail_pdf(
+    gateway_id: str,
+    date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
+):
+    """
+    Exports detailed System Health performance report to PDF (.pdf) format.
+    """
+    pdf_stream = health_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+    filename = f"Health_Detail_{gateway_id}_{safe_range}.pdf"
+    return Response(
+        content=pdf_stream.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

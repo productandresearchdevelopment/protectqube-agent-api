@@ -49,7 +49,7 @@ class SystemHealthService:
                             WIB = timezone(timedelta(hours=7))
                             t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                             payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        self.update_from_telemetry(payload)
+                        self.update_from_telemetry(payload, compute_sla=False)
                 if self._live_gateways:
                     loaded_from_db = True
                     logger.info(f"SystemHealthService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
@@ -67,14 +67,14 @@ class SystemHealthService:
                     if isinstance(data, list):
                         for item in data:
                             if isinstance(item, dict):
-                                self.update_from_telemetry(item)
+                                self.update_from_telemetry(item, compute_sla=False)
                     elif isinstance(data, dict):
-                        self.update_from_telemetry(data)
+                        self.update_from_telemetry(data, compute_sla=False)
                     logger.info(f"SystemHealthService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
                 except Exception as e:
                     logger.warning(f"Could not load telemetry cache for system health: {e}")
 
-    def update_from_telemetry(self, nms_payload: Dict[str, Any]):
+    def update_from_telemetry(self, nms_payload: Dict[str, Any], compute_sla: bool = True):
         """Ingests live MQTT telemetry and updates system health item & detailed diagnostic structures."""
         device_id = nms_payload.get("device_id")
         if not device_id:
@@ -156,8 +156,12 @@ class SystemHealthService:
             "last_update": clean_update,
         }
 
-        sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
-        downtime_events = sla.get("trouble_events", [])
+        if compute_sla:
+            sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
+            downtime_events = sla.get("trouble_events", [])
+        else:
+            sla = {}
+            downtime_events = []
 
         # Dynamic month & cutoff time calculation (WIB)
         now_wib = datetime.now(timezone.utc).astimezone(WIB)
