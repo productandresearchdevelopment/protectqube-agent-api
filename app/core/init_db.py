@@ -11,13 +11,17 @@ from app.models.base_models import (
     EmailVerificationStatus,
     GatewayTelemetryHistory,
 )
+from app.models.notification_models import (
+    NotificationEvent,
+    NotificationDestination,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables verified/created successfully.")
+    logger.info("Database tables verified successfully.")
 
     db: Session = SessionLocal()
     try:
@@ -73,6 +77,8 @@ def init_db():
                 {"name": "Connectivity Agent", "route": "/monitoring/connectivity", "icon": "Radio"},
                 {"name": "DVR Health Agent", "route": "/monitoring/dvr", "icon": "Video"},
                 {"name": "System Health Agent", "route": "/monitoring/system", "icon": "Cpu"},
+                {"name": "Integrations", "route": "/integrations", "icon": "Link"},
+                {"name": "Notifications", "route": "/notifications", "icon": "Bell"},
                 {"name": "Settings", "route": "/settings", "icon": "Settings"},
             ]
 
@@ -90,6 +96,53 @@ def init_db():
                 rm = RoleModule(role_id=admin_role.id, module_id=m.id, checked=True)
                 db.add(rm)
             db.commit()
+
+        events_data = [
+            {
+                "event_code": "gateway_cellular_down",
+                "name": "Cellular Connection Down",
+                "category": "cellular",
+                "description": "Triggered when SIM is removed, no signal, or PPP drops",
+            },
+            {
+                "event_code": "gateway_cellular_recovered",
+                "name": "Cellular Connection Recovered",
+                "category": "cellular",
+                "description": "Triggered when cellular connection returns to normal",
+            },
+            {
+                "event_code": "gateway_modem_disconnected",
+                "name": "Modem-CPU Disconnected",
+                "category": "hardware",
+                "description": "Triggered when modem USB port is unplugged or hardware lost",
+            },
+            {
+                "event_code": "gateway_modem_reconnected",
+                "name": "Modem-CPU Reconnected",
+                "category": "hardware",
+                "description": "Triggered when modem hardware reconnects to CPU",
+            },
+            {
+                "event_code": "gateway_dvr_offline",
+                "name": "NVR / Camera Offline",
+                "category": "dvr",
+                "description": "Triggered when NVR or camera becomes unreachable over LAN",
+            },
+            {
+                "event_code": "gateway_dvr_recovered",
+                "name": "NVR / Camera Recovered",
+                "category": "dvr",
+                "description": "Triggered when NVR resumes recording or becomes online",
+            },
+        ]
+
+        for ed in events_data:
+            existing_ev = db.query(NotificationEvent).filter(NotificationEvent.event_code == ed["event_code"]).first()
+            if not existing_ev:
+                ev = NotificationEvent(**ed)
+                db.add(ev)
+        db.commit()
+
 
     except Exception as e:
         logger.error(f"Error during db initialization/seeding: {e}")
