@@ -683,6 +683,16 @@ class DVRService:
             r'Camera #\1 (\2) disconnected / NO VIDEO (cable detached or camera offline).',
             t, flags=re.IGNORECASE
         )
+        t = re.sub(
+            r'Perekaman\s+video\s+NVR\s+macet!?',
+            'NVR video recording stalled!',
+            t, flags=re.IGNORECASE
+        )
+        t = re.sub(
+            r'Rekaman\s+terakhir\s+tersimpan\s*:',
+            'Last recording saved:',
+            t, flags=re.IGNORECASE
+        )
 
         # 2. General fragments
         t = re.sub(r'Pemeriksaan\s+rekaman\s+kamera\s+selesai', 'Camera recording health check completed', t, flags=re.IGNORECASE)
@@ -779,8 +789,14 @@ class DVRService:
         # 3. Real Event Log from Incident Alerts & MQTT System Logs (Strictly Today Only)
         real_events = []
         import re
-        today_iso = datetime.now().strftime("%Y-%m-%d")
-        today_display = datetime.now().strftime("%d %b")
+        from app.services.sla_calculator_service import WIB
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        today_iso = now_wib.strftime("%Y-%m-%d")
+        today_display = now_wib.strftime("%d %b")
+
+        payload_epoch = self._parse_payload_epoch(raw_payload or {})
+        dt_payload_wib = datetime.fromtimestamp(payload_epoch, timezone.utc).astimezone(WIB)
+        payload_wib_str = dt_payload_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
 
         # A. Trouble events calculated from GatewayIncidentAlert & SLA for today
         try:
@@ -792,7 +808,7 @@ class DVRService:
                 # Only include events occurring today
                 if ev_date and ev_date != today_iso:
                     continue
-                if ev_start and not ev_start.startswith(today_display):
+                if ev_start and today_iso not in ev_start and not ev_start.startswith(today_display):
                     continue
 
                 metric = (ev.get("metric") or "").lower()
@@ -807,12 +823,25 @@ class DVRService:
                     or "nvr" in cat
                 ):
                     raw_title = ev.get("title") or ev.get("description") or "NVR System Incident Alert"
+                    ev_epoch = ev.get("epoch")
+                    if not ev_epoch:
+                        raw_dt = ev.get("_raw_dt")
+                        if raw_dt:
+                            ev_epoch = raw_dt.replace(tzinfo=timezone.utc).timestamp() if raw_dt.tzinfo is None else raw_dt.timestamp()
+                        else:
+                            ev_epoch = payload_epoch
+
+                    ev_time = ev.get("start_time")
+                    if not ev_time or "WIB" not in str(ev_time) or len(str(ev_time)) < 19:
+                        ev_time = datetime.fromtimestamp(ev_epoch, timezone.utc).astimezone(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+
                     real_events.append({
                         "id": f"trouble-{idx}",
                         "title": self._translate_log_to_en(raw_title),
-                        "time": ev.get("start_time") or "Today",
+                        "time": ev_time,
                         "status": "error" if ev.get("status") == "Active" else "warning",
                         "duration": ev.get("duration", "-"),
+                        "epoch": ev_epoch,
                     })
         except Exception as e:
             logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
@@ -826,10 +855,26 @@ class DVRService:
                 # Only include logs from today
                 if d_part != today_iso:
                     continue
-                ts = f"{t_part} WIB"
+                try:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                except ValueError:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
+                log_epoch = log_dt.timestamp()
+                ts = f"{d_part} {t_part} WIB" if len(t_part) == 8 else f"{d_part} {t_part}:00 WIB"
             else:
-                ts_any = re.match(r"\[(.*?)\]", line)
-                ts = ts_any.group(1) if ts_any else "Today"
+                ts_any = re.match(r"\[([\d:]+)\]", line)
+                if ts_any:
+                    t_str = ts_any.group(1)
+                    try:
+                        t_obj = datetime.strptime(t_str, "%H:%M:%S").time()
+                    except ValueError:
+                        t_obj = datetime.strptime(t_str, "%H:%M").time()
+                    log_dt = datetime.combine(now_wib.date(), t_obj).replace(tzinfo=WIB)
+                    log_epoch = log_dt.timestamp()
+                    ts = log_dt.strftime("%Y-%m-%d %H:%M:%S WIB")
+                else:
+                    log_epoch = payload_epoch
+                    ts = payload_wib_str
 
             if "[NVR-CPU:" in line:
                 nvr_cpu = re.search(r"\[NVR-CPU:\s*([^\]]+)\]", line)
@@ -841,6 +886,7 @@ class DVRService:
                         "title": f"CPU - NVR Connection: {st} (ISAPI/SDK link)",
                         "time": ts,
                         "status": "success" if st == "OK" else "error",
+                        "epoch": log_epoch,
                     })
                 if rec_m:
                     rec_st = rec_m.group(1).strip()
@@ -850,6 +896,7 @@ class DVRService:
                         "title": f"Camera Recording Status: {rec_st}",
                         "time": ts,
                         "status": "warning" if is_warn else "success",
+                        "epoch": log_epoch,
                     })
             elif any(k in line.lower() for k in ["kamera", "camera", "nvr", "dvr", "cctv", "harddisk nvr", "hdd1", "rekaman"]):
                 if any(bad in line.lower() for bad in ["flash:", "disk /", "ram:", "modem-cpu", "sim:", "power:", "cpu:", "flash storage", "/dev/root", "/dev/mmcblk"]):
@@ -860,10 +907,37 @@ class DVRService:
                     "title": self._translate_log_to_en(clean_text),
                     "time": ts,
                     "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
+                    "epoch": log_epoch,
                 })
 
-            if len(real_events) >= 20:
+            if len(real_events) >= 30:
                 break
+
+        # Fallback if no logs available: provide authentic device status snapshot
+        if not real_events:
+            c_status = detail.get("cpu_dvr", {}).get("status", "No Response")
+            nvr_ip = detail.get("nvr_endpoint", "172.16.57.106:80")
+            real_events.append({
+                "id": "evt-live-nvr",
+                "title": f"NVR Surveillance Connectivity ({nvr_ip}): {c_status}",
+                "time": payload_wib_str,
+                "status": "success" if c_status in ["Healthy", "Connected", "Running", "OK"] else "warning",
+                "epoch": payload_epoch,
+            })
+
+        # Deduplicate events by normalized title to prevent duplicate entries
+        seen_titles = set()
+        deduped_events = []
+        for ev in real_events:
+            norm_key = re.sub(r"[^a-zA-Z0-9]", "", ev["title"].lower())
+            if norm_key in seen_titles:
+                continue
+            seen_titles.add(norm_key)
+            deduped_events.append(ev)
+        real_events = deduped_events
+
+        # STRICTLY SORT DESCENDING: Newest/latest on top
+        real_events.sort(key=lambda x: x.get("epoch", 0.0), reverse=True)
 
         # Fallback if no logs available: provide authentic device status snapshot
         if not real_events:
@@ -939,6 +1013,74 @@ class DVRService:
                 }
 
         return self._enrich_detail_with_history(matched_gw, matched_gid or gateway_id, raw_payload)
+
+    def reboot_gateway_nvr(self, gateway_id: str) -> Dict[str, Any]:
+        """
+        Publishes REBOOT_NVR command to MQTT Broker topic: pqube/nms/{gateway_id}/command
+        Equivalent to:
+        mosquitto_pub -h $MQTT_BROKER_HOST -p $MQTT_BROKER_PORT -u $MQTT_USERNAME -P $MQTT_PASSWORD -t pqube/nms/{gateway_id}/command -q 1 -m '{"action":"REBOOT_NVR"}'
+        """
+        import json
+        from app.core.config import settings
+        import paho.mqtt.publish as publish
+
+        target_id = gateway_id.strip()
+        topic = f"pqube/nms/{target_id}/command"
+        payload_data = {"action": "REBOOT_NVR"}
+        payload_str = json.dumps(payload_data)
+
+        # 1. First priority: publish via persistent live MQTT client from agent_manager (reuses existing broker connection)
+        published = False
+        try:
+            from app.agents.agent_manager import agent_manager
+            if agent_manager and agent_manager._mqtt_client and agent_manager._mqtt_client.is_connected():
+                info = agent_manager._mqtt_client.publish(topic, payload_str, qos=1)
+                info.wait_for_publish(timeout=3.0)
+                published = True
+                logger.info(f"MQTT REBOOT_NVR command dispatched via persistent agent client to topic '{topic}' with QoS 1")
+        except Exception as e_agent:
+            logger.debug(f"Persistent agent client publish not available, falling back to publish.single: {e_agent}")
+
+        # 2. Second priority: publish via standalone publish.single with config from .env / settings
+        if not published:
+            auth = None
+            if settings.MQTT_USERNAME and settings.MQTT_PASSWORD:
+                auth = {
+                    "username": settings.MQTT_USERNAME,
+                    "password": settings.MQTT_PASSWORD,
+                }
+            try:
+                publish.single(
+                    topic,
+                    payload=payload_str,
+                    hostname=settings.MQTT_BROKER_HOST,
+                    port=settings.MQTT_BROKER_PORT,
+                    auth=auth,
+                    qos=1,
+                )
+                published = True
+                logger.info(f"MQTT REBOOT_NVR command dispatched via publish.single to '{settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}' topic '{topic}' with QoS 1")
+            except Exception as e_single:
+                logger.error(f"Failed to publish MQTT REBOOT_NVR command to '{topic}': {e_single}")
+                return {
+                    "success": False,
+                    "device_id": target_id,
+                    "topic": topic,
+                    "action": "REBOOT_NVR",
+                    "broker": f"{settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}",
+                    "message": f"Failed to dispatch MQTT reboot command: {str(e_single)}",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+
+        return {
+            "success": True,
+            "device_id": target_id,
+            "topic": topic,
+            "action": "REBOOT_NVR",
+            "broker": f"{settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}",
+            "message": f"Reboot instruction successfully dispatched to {target_id} via MQTT (Topic: {topic}, QoS: 1). NVR is restarting (estimated 60–90 seconds).",
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
 
 dvr_service = DVRService()

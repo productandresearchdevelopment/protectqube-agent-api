@@ -98,19 +98,20 @@ class HealthReportService:
         ram_usage = int(round(mem.get("usage_percent", mem.get("used_pct", 35.0))))
         sd_usage = int(round(float(p0.get("used_percent", sd.get("used_pct", 50.0)))))
         
-        raw_badge = flash.get("health_badge") or flash.get("fs_state", {}).get("status", sd.get("health_status", "Good"))
-        if str(raw_badge).upper() in ["OK", "GOOD"]:
+        sd_life = flash.get("health_percent") or sd.get("life_used_pct", 100)
+        if isinstance(sd_life, (int, float)):
+            sd_life_pct = int(round(sd_life)) if sd_life <= 100 else 100
+        else:
+            sd_life_pct = 100
+
+        # Health status evaluated purely from health percentage:
+        # >= 90%: Good, 75% - 89%: Warning, < 75%: Critical
+        if sd_life_pct >= 90:
             sd_health = "Good"
-        elif str(raw_badge).upper() in ["WARN", "WARNING", "CAUTION"]:
+        elif sd_life_pct >= 75:
             sd_health = "Warning"
         else:
             sd_health = "Critical"
-
-        sd_life = flash.get("health_percent") or sd.get("life_used_pct", 95)
-        if isinstance(sd_life, (int, float)):
-            sd_life_pct = int(sd_life) if sd_life <= 100 else 95
-        else:
-            sd_life_pct = 95
 
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)

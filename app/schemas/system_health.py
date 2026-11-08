@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 
 
@@ -48,12 +48,13 @@ class GatewayItem(BaseModel):
     location: str
     type: str
     model: str
-    cpu: int
-    ram: int
-    sd_used_gb: int
-    sd_total_gb: int
-    sd_percent: int
+    cpu: Union[int, float]
+    ram: Union[int, float]
+    sd_used_gb: Union[int, float]
+    sd_total_gb: Union[int, float]
+    sd_percent: Union[int, float]
     sd_health: str
+    sd_health_percent: Optional[Union[int, float]] = 100
     uptime: str
     status: str
     last_update: str
@@ -82,10 +83,11 @@ class SystemHealthDashboardResponse(BaseModel):
 
 class SDHealthDetails(BaseModel):
     status: str
-    bad_sector: int
-    wear_level: str
-    temperature: str
-    io_error: int
+    health_percent: Optional[Union[int, float]] = 100
+    bad_sector: Optional[int] = 0
+    wear_level: Optional[str] = "0%"
+    temperature: Optional[str] = "45°C"
+    io_error: Optional[int] = 0
 
 
 class DowntimeEvent(BaseModel):
@@ -93,10 +95,10 @@ class DowntimeEvent(BaseModel):
     start_time: str
     end_time: str
     duration: str
-    accumulated_hours: str
+    accumulated_hours: Optional[str] = "-"
     category: str
     reason: str
-    sla_impact_pct: float
+    sla_impact_pct: Optional[float] = 0.0
     status: str
 
 
@@ -107,6 +109,7 @@ class SystemHealthEventItem(BaseModel):
     status: str = "success"
     duration: Optional[str] = None
     category: Optional[str] = None
+    epoch: Optional[float] = None
 
 
 class GatewayDetailData(BaseModel):
@@ -118,17 +121,20 @@ class GatewayDetailData(BaseModel):
     uptime: str
     last_update: str
     service_status: str
-    cpu_percent: int
+    cpu_percent: Union[int, float]
     cpu_min: str
     cpu_max: str
     cpu_sparkline: List[float]
-    ram_percent: int
+    ram_percent: Union[int, float]
     ram_min: str
     ram_max: str
     ram_sparkline: List[float]
-    sd_percent: int
-    sd_used_gb: int
-    sd_total_gb: int
+    ram_total_gb: Optional[float] = None
+    ram_used_gb: Optional[float] = None
+    ram_free_gb: Optional[float] = None
+    sd_percent: Union[int, float]
+    sd_used_gb: Union[int, float]
+    sd_total_gb: Union[int, float]
     sd_sparkline: List[float]
     sd_health: SDHealthDetails
     uptime_days: int
@@ -148,6 +154,8 @@ class GatewayDetailData(BaseModel):
     sla_downtime_allowed: Optional[str] = "3h 43m"
     downtime_events: Optional[List[DowntimeEvent]] = None
     events: Optional[List[SystemHealthEventItem]] = None
+    status: Optional[str] = "Healthy"
+    daily_uptime: Optional[Dict[str, Any]] = None
 
 
 class GatewayDetailResponse(BaseModel):

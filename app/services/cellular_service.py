@@ -622,6 +622,26 @@ class CellularService:
             "pagination": paged_gateways["pagination"],
         }
 
+    @staticmethod
+    def _translate_log_to_en(text: str) -> str:
+        if not text:
+            return "Normal Operation"
+        import re
+        t = str(text)
+        t = re.sub(r'Komunikasi\s+Port\s+USB\s+Modem\s+dengan\s+CPU\s+Terputus', 'Modem USB Port Communication Lost', t, flags=re.IGNORECASE)
+        t = re.sub(r'Koneksi\s+Jaringan\s+Seluler\s+Terputus', 'Cellular Network Connection Disconnected', t, flags=re.IGNORECASE)
+        t = re.sub(r'Aliran\s+Data\s+Internet\s+Mati', 'No Internet Data Connection', t, flags=re.IGNORECASE)
+        t = re.sub(r'SIM\s+Card\s+Tidak\s+Terdeteksi', 'SIM Card Not Detected', t, flags=re.IGNORECASE)
+        t = re.sub(r'Sinyal\s+Seluler\s+Sangat\s+Lemah', 'Cellular Signal Very Weak', t, flags=re.IGNORECASE)
+        t = re.sub(r'Terhubung\s+normal', 'Connected normally', t, flags=re.IGNORECASE)
+        t = re.sub(r'Aliran\s+data\s+seluler\s+aktif', 'Cellular data traffic active', t, flags=re.IGNORECASE)
+        t = re.sub(r'Pemeriksaan\s+koneksi\s+seluler', 'Cellular connection check', t, flags=re.IGNORECASE)
+        t = re.sub(r'selama\s+(\d+)\s*Menit', r'for \1m', t, flags=re.IGNORECASE)
+        t = re.sub(r'selama\s+(\d+)\s*Jam\s*(\d+)\s*Menit', r'for \1h \2m', t, flags=re.IGNORECASE)
+        t = re.sub(r'Gangguan\s+Jaringan', 'Network Disruption', t, flags=re.IGNORECASE)
+        t = re.sub(r'Gangguan', 'Incident', t, flags=re.IGNORECASE)
+        return t
+
     def _enrich_detail_with_history(
         self,
         base_detail: Dict[str, Any],
@@ -776,8 +796,14 @@ class CellularService:
         # 4. Real Event Log from Incident Alerts & MQTT System Logs (Strictly Today Only)
         real_events = []
         import re
-        today_iso = datetime.now().strftime("%Y-%m-%d")
-        today_display = datetime.now().strftime("%d %b")
+        from app.services.sla_calculator_service import WIB
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        today_iso = now_wib.strftime("%Y-%m-%d")
+        today_display = now_wib.strftime("%d %b")
+
+        payload_epoch = self._parse_payload_epoch(raw_payload or {})
+        dt_payload_wib = datetime.fromtimestamp(payload_epoch, timezone.utc).astimezone(WIB)
+        payload_wib_str = dt_payload_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
 
         # A. Trouble events calculated from GatewayIncidentAlert & SLA for today
         try:
@@ -789,7 +815,7 @@ class CellularService:
                 # Only include events occurring today
                 if ev_date and ev_date != today_iso:
                     continue
-                if ev_start and not ev_start.startswith(today_display):
+                if ev_start and today_iso not in ev_start and not ev_start.startswith(today_display):
                     continue
 
                 metric = (ev.get("metric") or "").lower()
@@ -807,13 +833,27 @@ class CellularService:
                     or "offline" in desc
                     or "power" in desc
                 ):
+                    raw_title = ev.get("title") or ev.get("description") or "Cellular Incident Alert"
+                    ev_epoch = ev.get("epoch")
+                    if not ev_epoch:
+                        raw_dt = ev.get("_raw_dt")
+                        if raw_dt:
+                            ev_epoch = raw_dt.replace(tzinfo=timezone.utc).timestamp() if raw_dt.tzinfo is None else raw_dt.timestamp()
+                        else:
+                            ev_epoch = payload_epoch
+
+                    ev_time = ev.get("start_time")
+                    if not ev_time or "WIB" not in str(ev_time) or len(str(ev_time)) < 19:
+                        ev_time = datetime.fromtimestamp(ev_epoch, timezone.utc).astimezone(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+
                     real_events.append({
                         "id": f"trouble-{idx}",
-                        "title": ev.get("title") or ev.get("description") or "Cellular Incident Alert",
-                        "time": ev.get("start_time") or "Today",
+                        "title": raw_title,
+                        "time": ev_time,
                         "status": "error" if ev.get("status") == "Active" else "warning",
                         "duration": ev.get("duration", "-"),
                         "category": ev.get("category", "CELLULAR"),
+                        "epoch": ev_epoch,
                     })
         except Exception as e:
             logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
@@ -827,10 +867,26 @@ class CellularService:
                 # Only include logs from today
                 if d_part != today_iso:
                     continue
-                ts = f"{t_part} WIB"
+                try:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                except ValueError:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
+                log_epoch = log_dt.timestamp()
+                ts = f"{d_part} {t_part} WIB" if len(t_part) == 8 else f"{d_part} {t_part}:00 WIB"
             else:
-                ts_any = re.match(r"\[(.*?)\]", line)
-                ts = ts_any.group(1) if ts_any else "Today"
+                ts_any = re.match(r"\[([\d:]+)\]", line)
+                if ts_any:
+                    t_str = ts_any.group(1)
+                    try:
+                        t_obj = datetime.strptime(t_str, "%H:%M:%S").time()
+                    except ValueError:
+                        t_obj = datetime.strptime(t_str, "%H:%M").time()
+                    log_dt = datetime.combine(now_wib.date(), t_obj).replace(tzinfo=WIB)
+                    log_epoch = log_dt.timestamp()
+                    ts = log_dt.strftime("%Y-%m-%d %H:%M:%S WIB")
+                else:
+                    log_epoch = payload_epoch
+                    ts = payload_wib_str
 
             if "[MODEM-CPU:" in line or "[SIM:" in line:
                 modem_cpu = re.search(r"\[MODEM-CPU:\s*([^\]]+)\]", line)
@@ -842,6 +898,7 @@ class CellularService:
                         "title": f"CPU – Modem Communication: {st}",
                         "time": ts,
                         "status": "success" if st == "OK" else "error",
+                        "epoch": log_epoch,
                     })
                 if sim_m:
                     sim_st = sim_m.group(1).strip()
@@ -851,18 +908,49 @@ class CellularService:
                         "title": f"SIM & Cellular Signal: {sim_st}",
                         "time": ts,
                         "status": "error" if is_err else "success",
+                        "epoch": log_epoch,
                     })
-            elif any(k in line.lower() for k in ["modem", "cellular", "sim", "sinyal", "network", "csq", "rsrp", "operator", "disconnect"]):
+            elif any(k in line.lower() for k in ["modem", "cellular", "sim", "sinyal", "network", "csq", "rsrp", "operator", "ppp", "qmi", "disconnect"]):
+                if any(bad in line.lower() for bad in ["kamera", "camera", "nvr", "dvr", "cctv", "rekaman", "recording", "harddisk nvr", "hdd1", "disk /", "flash storage", "undervoltage"]):
+                    continue
                 clean_text = re.sub(r"^\[.*?\]\s*(\[.*?\]\s*)*", "", line).strip()
                 real_events.append({
                     "id": f"log-alert-{idx}",
-                    "title": clean_text,
+                    "title": self._translate_log_to_en(clean_text),
                     "time": ts,
                     "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
+                    "epoch": log_epoch,
                 })
 
-            if len(real_events) >= 20:
+            if len(real_events) >= 30:
                 break
+
+        # Fallback if no logs available: provide authentic device status snapshot
+        if not real_events:
+            c_status = detail.get("cpu_modem", {}).get("status", "No Response")
+            net_type = detail.get("network_sim", {}).get("network_type", "4G")
+            oper = detail.get("network_sim", {}).get("operator", "Telkomsel")
+            real_events.append({
+                "id": "evt-live-modem",
+                "title": f"Cellular Modem & SIM ({oper} {net_type}): {c_status}",
+                "time": payload_wib_str,
+                "status": "success" if c_status in ["Healthy", "Connected", "Running", "OK"] else "warning",
+                "epoch": payload_epoch,
+            })
+
+        # Deduplicate events by normalized title to prevent duplicate entries
+        seen_titles = set()
+        deduped_events = []
+        for ev in real_events:
+            norm_key = re.sub(r"[^a-zA-Z0-9]", "", ev["title"].lower())
+            if norm_key in seen_titles:
+                continue
+            seen_titles.add(norm_key)
+            deduped_events.append(ev)
+        real_events = deduped_events
+
+        # STRICTLY SORT DESCENDING: Newest/latest on top
+        real_events.sort(key=lambda x: x.get("epoch", 0.0), reverse=True)
 
         # Fallback if no logs available: provide authentic device status snapshot
         if not real_events:

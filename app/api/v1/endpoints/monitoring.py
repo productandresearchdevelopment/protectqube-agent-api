@@ -205,6 +205,21 @@ def get_dvr_gateway_detail(gateway_id: str):
     }
 
 
+@router.post("/dvr/gateway/{gateway_id}/reboot")
+def reboot_dvr_gateway(gateway_id: str):
+    """
+    Publishes MQTT command 'REBOOT_NVR' to topic pqube/nms/{gateway_id}/command
+    """
+    from fastapi import HTTPException
+    res = dvr_service.reboot_gateway_nvr(gateway_id)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("message"))
+    return {
+        "status": True,
+        "data": res,
+    }
+
+
 @router.get("/reports/cellular", response_model=CellularReportResponse)
 def get_cellular_report(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),

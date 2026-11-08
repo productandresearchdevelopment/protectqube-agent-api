@@ -12,7 +12,7 @@ GAP_THRESHOLD_SECONDS = 600  # 10 Menit: ambang batas offline valid (2 siklus si
 WIB = timezone(timedelta(hours=7))
 
 
-def _to_wib_str(dt: Optional[datetime], fmt: str = "%d %b %H:%M") -> str:
+def _to_wib_str(dt: Optional[datetime], fmt: str = "%Y-%m-%d %H:%M:%S WIB") -> str:
     """Mengonversi UTC/naive datetime dari database ke jam lokal WIB (UTC+7)."""
     if not dt:
         return ""
@@ -117,12 +117,14 @@ class SLACalculatorService:
             return None, None, None, None, None, 0.0, {}
         ts_str = m.group(1)
 
-        # 1. CPU - Modem
+        # 1. CPU - Modem & Gateway Heartbeat
         cpu_down = None
         if "[MODEM-CPU: TERPUTUS]" in line_str:
             cpu_down = True
-        elif "[MODEM-CPU: OK]" in line_str:
+        elif "[MODEM-CPU: OK]" in line_str or "[MQTT OK]" in line_str:
             cpu_down = False
+        elif "[MQTT FAIL]" in line_str or "[MQTT ERROR]" in line_str:
+            cpu_down = True
 
         # 2. Network Connection
         net_down = None
@@ -236,10 +238,10 @@ class SLACalculatorService:
         is_recording: Optional[bool] = None
 
         if latest_log:
-            # 1. CPU - Modem
-            if "[MODEM-CPU: OK]" in latest_log:
+            # 1. CPU - Modem & Gateway Heartbeat
+            if "[MODEM-CPU: OK]" in latest_log or "[MQTT OK]" in latest_log:
                 cpu_modem_up = True
-            elif "[MODEM-CPU: TERPUTUS]" in latest_log:
+            elif "[MODEM-CPU: TERPUTUS]" in latest_log or "[MQTT FAIL]" in latest_log or "[MQTT ERROR]" in latest_log:
                 cpu_modem_up = False
 
             # 2. CPU – DVR Communication
@@ -626,8 +628,8 @@ class SLACalculatorService:
         trouble_events: List[Dict[str, Any]] = []
 
         for idx, al in enumerate(alerts, 1):
-            st_str = _to_wib_str(al.start_time, fmt="%d %b %H:%M")
-            et_str = _to_wib_str(al.end_time, fmt="%d %b %H:%M") if al.end_time else "Active"
+            st_str = _to_wib_str(al.start_time, fmt="%Y-%m-%d %H:%M:%S WIB")
+            et_str = _to_wib_str(al.end_time, fmt="%Y-%m-%d %H:%M:%S WIB") if al.end_time else "Active"
             
             dur_m = round(al.duration_minutes or 0)
             if al.duration_minutes and al.duration_minutes > 0:
@@ -643,6 +645,10 @@ class SLACalculatorService:
             cat_label = "CPU - Modem" if al.metric == "cpu_modem" else ("Cellular Network" if al.metric == "cellular" else ("CCTV Recording" if al.metric == "recording" else "CPU - DVR"))
             date_key = (al.start_time + timedelta(hours=7)).strftime("%Y-%m-%d") if al.start_time else None
             desc_en = self._to_english_incident_desc(al.description, al.metric)
+
+            ev_epoch = 0.0
+            if al.start_time:
+                ev_epoch = al.start_time.replace(tzinfo=timezone.utc).timestamp() if al.start_time.tzinfo is None else al.start_time.timestamp()
 
             trouble_events.append({
                 "no": idx,
@@ -661,6 +667,7 @@ class SLACalculatorService:
                 "status": "Resolved" if al.status == "RESOLVED" else "Active",
                 "telemetry_history_id": al.telemetry_history_id,
                 "_raw_dt": al.start_time,
+                "epoch": ev_epoch,
             })
 
 

@@ -152,6 +152,7 @@ class CellularEventItem(BaseModel):
     status: str = "success"
     duration: Optional[str] = None
     category: Optional[str] = None
+    epoch: Optional[float] = None
 
 
 class CellularGatewayDetailData(BaseModel):

@@ -109,28 +109,124 @@ class SystemHealthService:
         cpu_pct = int(round(cpu.get("usage_percent", 25.0)))
         cpu_temp = float(cpu.get("temperature_c", 45.0))
         ram_pct = int(round(mem.get("usage_percent", 35.0)))
+        ram_total_mb = float(mem.get("total_mb", 966.0))
+        ram_used_mb = float(mem.get("used_mb", (ram_total_mb * ram_pct) / 100.0))
+        ram_free_mb = float(mem.get("free_mb", max(0.0, ram_total_mb - ram_used_mb)))
+        ram_total_gb = round(ram_total_mb / 1024.0, 1)
+        ram_used_gb = round(ram_used_mb / 1024.0, 1)
+        ram_free_gb = round(ram_free_mb / 1024.0, 1)
 
         sd_total_gb = int(round(float(p0.get("total_gb", flash.get("hardware", {}).get("total_disk_gb", 8.0)))))
         sd_used_gb = int(round(float(p0.get("used_gb", 4.0))))
         sd_pct = int(round(float(p0.get("used_percent", 50.0))))
 
-        raw_badge = flash.get("health_badge") or flash.get("fs_state", {}).get("status", "GOOD")
-        if raw_badge.upper() in ["OK", "GOOD"]:
+        raw_health_pct = flash.get("health_percent")
+        if raw_health_pct is not None and isinstance(raw_health_pct, (int, float)):
+            flash_health_percent = int(round(float(raw_health_pct)))
+        else:
+            flash_health_percent = 100
+
+        # Health status evaluated purely from health percentage:
+        # >= 90%: Good, 75% - 89%: Warning, < 75%: Critical
+        if flash_health_percent >= 90:
             sd_health_label = "Good"
-        elif raw_badge.upper() in ["WARN", "WARNING"]:
+        elif flash_health_percent >= 75:
             sd_health_label = "Warning"
         else:
             sd_health_label = "Critical"
+        wear_level_str = f"{max(0, 100 - flash_health_percent)}%"
 
-        overall_status = str(nms_payload.get("overall_status", "HEALTHY")).upper()
-        if overall_status in ["CRITICAL", "BAD"] or cpu_temp >= 85.0:
+        # Inspect recent_system_logs for ground truth telemetry:
+        # e.g.: [#56] [MQTT OK] CPU: 27.6% (38.6°C) | RAM: 42.8% | Power: AC ... | Flash: 94% [WARN] | Disk /: 85.6%
+        logs = nms_payload.get("recent_system_logs", [])
+        log_lines: List[str] = []
+        if isinstance(logs, list):
+            log_lines = [l for l in logs if isinstance(l, str)]
+        elif isinstance(logs, str) and logs.strip():
+            log_lines = logs.strip().split("\n")
+
+        import re
+        log_cpu_pct = None
+        log_cpu_temp = None
+        log_ram_pct = None
+        log_flash_pct = None
+        log_disk_pct = None
+        mqtt_ok_count = 0
+        max_seq_num = 0
+
+        for line in reversed(log_lines):
+            if "[MQTT OK]" in line:
+                mqtt_ok_count += 1
+                seq_m = re.search(r'\[#(\d+)\]\s*\[MQTT OK\]', line)
+                if seq_m:
+                    seq_val = int(seq_m.group(1))
+                    if seq_val > max_seq_num:
+                        max_seq_num = seq_val
+
+            if "CPU:" in line and "RAM:" in line:
+                c_m = re.search(r"CPU:\s*([0-9\.]+)\%\s*(?:\(([0-9\.]+)°C\))?", line)
+                if c_m and log_cpu_pct is None:
+                    log_cpu_pct = float(c_m.group(1))
+                    if c_m.group(2):
+                        log_cpu_temp = float(c_m.group(2))
+
+                r_m = re.search(r"RAM:\s*([0-9\.]+)\%", line)
+                if r_m and log_ram_pct is None:
+                    log_ram_pct = float(r_m.group(1))
+
+                f_m = re.search(r"Flash:\s*([0-9\.]+)\%", line)
+                if f_m and log_flash_pct is None:
+                    log_flash_pct = float(f_m.group(1))
+
+                d_m = re.search(r"Disk\s*/?\s*:\s*([0-9\.]+)\%", line)
+                if d_m and log_disk_pct is None:
+                    log_disk_pct = float(d_m.group(1))
+
+        if log_cpu_pct is not None:
+            cpu_pct = int(round(log_cpu_pct))
+        if log_cpu_temp is not None:
+            cpu_temp = log_cpu_temp
+        if log_ram_pct is not None:
+            ram_pct = int(round(log_ram_pct))
+            ram_used_mb = float((ram_total_mb * ram_pct) / 100.0)
+            ram_free_mb = max(0.0, ram_total_mb - ram_used_mb)
+            ram_used_gb = round(ram_used_mb / 1024.0, 1)
+            ram_free_gb = round(ram_free_mb / 1024.0, 1)
+
+        # Storage & Flash Health from system logs:
+        # Evaluate health status strictly from health percentage:
+        if log_flash_pct is not None:
+            flash_health_percent = int(round(log_flash_pct))
+            if flash_health_percent >= 90:
+                sd_health_label = "Good"
+            elif flash_health_percent >= 75:
+                sd_health_label = "Warning"
+            else:
+                sd_health_label = "Critical"
+            wear_level_pct = max(0, 100 - flash_health_percent)
+            wear_level_str = f"{wear_level_pct}%"
+
+        if log_disk_pct is not None:
+            sd_pct = int(round(log_disk_pct))
+            sd_used_gb = round(sd_total_gb * (sd_pct / 100.0), 1)
+
+        # Evaluate real-time gateway condition from the latest per-minute system log:
+        has_crit_log = False
+        has_warn_log = False
+        latest_logs = log_lines[-10:] if len(log_lines) >= 10 else log_lines
+        for line in reversed(latest_logs):
+            l_lower = line.lower()
+            if any(k in l_lower for k in ["[err", "[crit", "panic", "out of memory", "oom-killer", "reboot loop", "[mqtt fail]"]):
+                has_crit_log = True
+            elif any(k in l_lower for k in ["[warn", "[alert]", "pernah drop", "undervoltage", "kapasitas partisi"]):
+                has_warn_log = True
+
+        if has_crit_log or cpu_temp >= 85.0 or (log_flash_pct is not None and log_flash_pct < 75):
             status_label = "Critical"
-        elif overall_status in ["WARNING", "WARN"] or cpu_pct > 75 or ram_pct > 80 or cpu_temp > 75.0 or sd_pct > 85:
+        elif has_warn_log or (log_flash_pct is not None and log_flash_pct < 90) or cpu_pct > 75 or ram_pct > 80 or cpu_temp > 75.0 or sd_pct > 85:
             status_label = "Warning"
-        elif overall_status in ["HEALTHY", "GOOD", "OK"]:
-            status_label = "Healthy"
         else:
-            status_label = overall_status.capitalize()
+            status_label = "Healthy"
 
         uptime_str = gw_sys.get("uptime", "3d 12h")
         ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -151,6 +247,7 @@ class SystemHealthService:
             "sd_total_gb": sd_total_gb,
             "sd_percent": sd_pct,
             "sd_health": sd_health_label,
+            "sd_health_percent": flash_health_percent,
             "uptime": uptime_str,
             "status": status_label,
             "last_update": clean_update,
@@ -224,6 +321,19 @@ class SystemHealthService:
         sla_target_hours_str = f"{int(min_sla_uptime_hours)}h {int(round((min_sla_uptime_hours % 1) * 60)):02d}m"
         sla_downtime_allowed_str = f"{int(max_sla_downtime_hours)}h {int(round((max_sla_downtime_hours % 1) * 60)):02d}m"
 
+        # Synchronize uptime from SLA Calculator (which aggregates telemetry history & MQTT OK cycles)
+        if compute_sla and sla:
+            sla_up = sla.get("gateway_uptime_str")
+            sla_pct = sla.get("gateway_sla_pct")
+            sla_off = sla.get("gateway_offline_str")
+            if sla_up:
+                uptime_duration_str = sla_up
+            if sla_pct is not None:
+                uptime_pct_val = float(sla_pct)
+                is_sla_met = uptime_pct_val >= 99.5
+            if sla_off:
+                downtime_duration_str = sla_off
+
         detail_item = {
             "id": device_id,
             "location": loc_name,
@@ -232,6 +342,7 @@ class SystemHealthService:
             "ip_address": ip_addr,
             "uptime": uptime_str,
             "last_update": clean_update,
+            "status": status_label,
             "service_status": "Running" if status_label != "Critical" else "Degraded",
             "cpu_percent": cpu_pct,
             "cpu_min": f"Min {max(5, cpu_pct - 15)}%",
@@ -241,21 +352,25 @@ class SystemHealthService:
             "ram_min": f"Min {max(10, ram_pct - 10)}%",
             "ram_max": f"Max {min(98, ram_pct + 20)}%",
             "ram_sparkline": [max(10.0, ram_pct - 8.0), max(10.0, ram_pct - 2.0), float(ram_pct), min(98.0, ram_pct + 5.0), float(ram_pct)],
+            "ram_total_gb": ram_total_gb,
+            "ram_used_gb": ram_used_gb,
+            "ram_free_gb": ram_free_gb,
             "sd_percent": sd_pct,
             "sd_used_gb": sd_used_gb,
             "sd_total_gb": sd_total_gb,
             "sd_sparkline": [max(5.0, sd_pct - 2.0), max(5.0, sd_pct - 1.0), float(sd_pct), float(sd_pct)],
             "sd_health": {
                 "status": sd_health_label,
+                "health_percent": flash_health_percent,
                 "bad_sector": flash.get("bad_sectors", {}).get("error_count", 0),
-                "wear_level": f"{100 - flash.get('health_percent', 100)}%",
+                "wear_level": wear_level_str,
                 "temperature": f"{int(cpu_temp)}°C",
                 "io_error": 0,
             },
             "uptime_days": session_days,
             "uptime_hours": session_hours,
             "uptime_status": "Running",
-            "uptime_subtext": "Normal Operation (SBC Linux)",
+            "uptime_subtext": f"Normal Operation ({max_seq_num or mqtt_ok_count} MQTT OK Cycles Verified)" if (max_seq_num or mqtt_ok_count) else "Normal Operation (SBC Linux)",
             "month_period": get_default_period_str(),
             "month_total_hours": month_total_hours,
             "uptime_duration": uptime_duration_str,
@@ -518,6 +633,191 @@ class SystemHealthService:
             "pagination": gateways_data["pagination"],
         }
 
+    @staticmethod
+    def _translate_log_to_en(text: str) -> str:
+        if not text:
+            return "Normal Operation"
+        import re
+        t = str(text)
+
+        # Power & undervoltage
+        t = re.sub(r'Terdeteksi\s+tegangan\s+listrik\s+drop\s*\((.*?)\)\s+pada\s+adaptor\s+gateway!?', r'Detected power voltage drop (\1) on gateway adapter!', t, flags=re.IGNORECASE)
+        t = re.sub(r'Catu\s+daya\s+adaptor\s+drop\s+di\s+bawah\s+([0-9\.]+V)', r'Adapter power supply dropped below \1', t, flags=re.IGNORECASE)
+        t = re.sub(r'Adaptor\s+Listrik\s+Drop\s*/\s*Goyang', 'Power Adapter Voltage Dropped / Unstable', t, flags=re.IGNORECASE)
+        t = re.sub(r'Adaptor\s+Listrik', 'Power Adapter', t, flags=re.IGNORECASE)
+
+        # Storage & partition
+        t = re.sub(r'Kapasitas\s+partisi\s*\'(.*?)\'\s+mencapai\s*([0-9\.]+%?)\s*\(Sisa:\s*([^)]+)\)\.?', r"Partition '\1' capacity reached \2 (Remaining: \3).", t, flags=re.IGNORECASE)
+        t = re.sub(r'Kapasitas\s+partisi\s*\'(.*?)\'', r"Partition '\1' capacity", t, flags=re.IGNORECASE)
+        t = re.sub(r'Kondisi\s+flash\s+storage\s+gateway\s+menurun\s+ke\s*([0-9\.]+%?)\s*\((.*?)\)\.?', r'Gateway flash storage health degraded to \1 (\2).', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kondisi\s+flash\s+storage\s+gateway\s+menurun', 'Gateway flash storage health degraded', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kesehatan\s+Flash', 'Flash Storage Health', t, flags=re.IGNORECASE)
+        t = re.sub(r'Partisi\s+/', 'Root Partition /', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kapasitas\s+Root\s+Waspada', 'Root Capacity Warning', t, flags=re.IGNORECASE)
+
+        # General fragments
+        t = re.sub(r'Terdeteksi\s+(\d+)\s+Bad\s+Sector', r'Detected \1 Bad Sectors', t, flags=re.IGNORECASE)
+        t = re.sub(r'Periksa\s+colokan\s+dan\s+adaptor\s+listrik\s+gateway', 'Check gateway power plug and adapter', t, flags=re.IGNORECASE)
+        t = re.sub(r'Segera\s+bersihkan\s+file\s+sementara\s+atau\s+log', 'Clean temporary files or logs immediately', t, flags=re.IGNORECASE)
+        t = re.sub(r'Komunikasi\s+Port\s+USB\s+Modem\s+dengan\s+CPU\s+Terputus', 'Modem USB Port Communication Lost', t, flags=re.IGNORECASE)
+        t = re.sub(r'Koneksi\s+Jaringan\s+Seluler\s+Terputus', 'Cellular Network Connection Disconnected', t, flags=re.IGNORECASE)
+        t = re.sub(r'Aliran\s+Data\s+Internet\s+Mati', 'No Internet Data', t, flags=re.IGNORECASE)
+        t = re.sub(r'Komunikasi\s+Gateway\s+CPU\s+ke\s+NVR\s+Surveillance\s+Terputus', 'Gateway CPU to NVR Communication Lost', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kamera\s+Hilang\s+Sinyal\s*/\s*No\s+Video', 'Camera Signal Loss / No Video', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kamera\s+Terputus\s*/\s*Offline', 'Camera Disconnected / Offline', t, flags=re.IGNORECASE)
+        t = re.sub(r'Kamera\s+#?(\d+)\s*\((.*?)\)\s+terputus\s*/\s*NO\s+VIDEO\s*\(Kabel\s+lepas\s+atau\s+kamera\s+mati\)\.?', r'Camera #\1 (\2) disconnected / NO VIDEO (cable detached or camera offline).', t, flags=re.IGNORECASE)
+        t = re.sub(r'Perekaman\s+video\s+NVR\s+macet!?', 'NVR video recording stalled!', t, flags=re.IGNORECASE)
+        t = re.sub(r'NVR\s+dalam\s+kondisi\s+online\s+tetapi\s+TIDAK\s+sedang\s+merekam\s+video!?', 'NVR is online but NOT actively recording video!', t, flags=re.IGNORECASE)
+        t = re.sub(r'\bBaik\b', 'Good', t, flags=re.IGNORECASE)
+        t = re.sub(r'\bWaspada\b', 'Warning', t, flags=re.IGNORECASE)
+        t = re.sub(r'\bKritis\b', 'Critical', t, flags=re.IGNORECASE)
+        t = re.sub(r'\bBahaya\b', 'Danger', t, flags=re.IGNORECASE)
+        return t
+
+    def _calculate_daily_uptime_from_logs(
+        self,
+        raw_payload: Optional[Dict[str, Any]],
+        dev_id: str,
+    ) -> Dict[str, Any]:
+        """
+        Calculates 100% real Daily Uptime & Downtime directly from MQTT per-minute system logs:
+        - Each '[MQTT OK]' entry counts as 1 minute of uptime (+1m).
+        - Any '[MQTT FAIL]' or time gap (>2 minutes) between logs counts as downtime.
+        - Observation period: Today (00:00 WIB to now, max 1440 min / 24 hours).
+        - Contract SLA 99.5% daily tolerance threshold: 7.2 minutes max downtime.
+        """
+        import re
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        today_iso = now_wib.strftime("%Y-%m-%d")
+        today_display = now_wib.strftime("%d %b %Y")
+
+        logs = (raw_payload or {}).get("recent_system_logs", [])
+        if isinstance(logs, str):
+            logs = logs.strip().split("\n")
+
+        # Total observation period today:
+        elapsed_minutes = min(1440, max(60, now_wib.hour * 60 + now_wib.minute))
+
+        parsed_entries = []
+        for line in logs:
+            ts_m = re.match(r"\[(\d{4}-\d{2}-\d{2})\s+([\d:]+)\]", line)
+            if not ts_m:
+                continue
+            d_str, t_str = ts_m.group(1), ts_m.group(2)
+            if d_str != today_iso:
+                continue
+            try:
+                dt = datetime.strptime(f"{d_str} {t_str}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(f"{d_str} {t_str}", "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
+                except ValueError:
+                    continue
+
+            is_ok = "[MQTT OK]" in line
+            is_fail = any(f in line for f in ["[MQTT FAIL]", "[MQTT ERR]"])
+            parsed_entries.append({
+                "dt": dt,
+                "time_str": dt.strftime("%Y-%m-%d %H:%M:%S WIB"),
+                "line": line,
+                "is_ok": is_ok,
+                "is_fail": is_fail,
+            })
+
+        parsed_entries.sort(key=lambda x: x["dt"])
+
+        downtime_minutes = 0.0
+        downtime_incidents = []
+        inc_counter = 1
+
+        # Check explicit failed logs:
+        for entry in parsed_entries:
+            if entry["is_fail"]:
+                downtime_minutes += 1.0
+                downtime_incidents.append({
+                    "no": inc_counter,
+                    "start_time": entry["time_str"],
+                    "end_time": (entry["dt"] + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S WIB"),
+                    "duration": "1m",
+                    "accumulated_hours": f"{downtime_minutes / 60.0:.2f}h",
+                    "category": "MQTT Telemetry",
+                    "reason": "MQTT Connection Failed / Daemon Telemetry Drop",
+                    "sla_impact_pct": round((1.0 / elapsed_minutes) * 100.0, 2),
+                    "status": "Resolved",
+                })
+                inc_counter += 1
+
+        # Check time gaps between consecutive MQTT OK logs (> 2 minutes):
+        ok_entries = [e for e in parsed_entries if e["is_ok"]]
+        for i in range(len(ok_entries) - 1):
+            prev_e = ok_entries[i]
+            curr_e = ok_entries[i + 1]
+            gap_sec = (curr_e["dt"] - prev_e["dt"]).total_seconds()
+            gap_min = gap_sec / 60.0
+            if gap_min >= 2.0:
+                down_min = round(gap_min - 1.0)
+                downtime_minutes += down_min
+                dur_str = f"{int(down_min)}m" if down_min < 60 else f"{int(down_min // 60)}h {int(down_min % 60)}m"
+                downtime_incidents.append({
+                    "no": inc_counter,
+                    "start_time": (prev_e["dt"] + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S WIB"),
+                    "end_time": curr_e["time_str"],
+                    "duration": dur_str,
+                    "accumulated_hours": f"{downtime_minutes / 60.0:.2f}h",
+                    "category": "System Heartbeat",
+                    "reason": "MQTT Telemetry Gap (Daemon Offline / Power Cut)",
+                    "sla_impact_pct": round((down_min / elapsed_minutes) * 100.0, 2),
+                    "status": "Resolved",
+                })
+                inc_counter += 1
+
+        def fmt_hm(m_val: float) -> str:
+            m = int(round(m_val))
+            h = m // 60
+            rem_m = m % 60
+            if h > 0 and rem_m > 0:
+                return f"{h}h {rem_m}m"
+            elif h > 0:
+                return f"{h}h"
+            return f"{rem_m}m"
+
+        uptime_minutes = max(0.0, elapsed_minutes - downtime_minutes)
+        uptime_pct = round(max(0.0, min(100.0, (uptime_minutes / elapsed_minutes) * 100.0)), 1)
+        downtime_pct = round(100.0 - uptime_pct, 1)
+
+        sla_target_pct = 99.5
+        sla_min_up_min = elapsed_minutes * (sla_target_pct / 100.0)
+        sla_max_down_min = elapsed_minutes * ((100.0 - sla_target_pct) / 100.0)
+
+        is_sla_met = uptime_pct >= sla_target_pct
+        diff_pct = round(uptime_pct - sla_target_pct, 1)
+
+        down_diff = downtime_minutes - sla_max_down_min
+        if down_diff > 0:
+            tolerance_text = f"Downtime exceeded daily tolerance limit by {fmt_hm(down_diff)}"
+        else:
+            tolerance_text = f"Downtime within daily tolerance limit ({fmt_hm(abs(down_diff))} remaining)"
+
+        return {
+            "date_str": today_display,
+            "total_period_hours": round(elapsed_minutes / 60.0, 1),
+            "total_period_str": f"{round(elapsed_minutes / 60.0, 1)} Hours",
+            "total_period_minutes": elapsed_minutes,
+            "uptime_minutes": int(round(uptime_minutes)),
+            "uptime_text": fmt_hm(uptime_minutes),
+            "uptime_pct": uptime_pct,
+            "downtime_minutes": int(round(downtime_minutes)),
+            "downtime_text": fmt_hm(downtime_minutes),
+            "downtime_pct": downtime_pct,
+            "sla_target_pct": sla_target_pct,
+            "sla_min_uptime_text": fmt_hm(sla_min_up_min),
+            "sla_max_down_text": fmt_hm(sla_max_down_min),
+            "is_sla_met": is_sla_met,
+            "sla_diff_pct": f"+{diff_pct}" if diff_pct >= 0 else f"{diff_pct}",
+            "tolerance_text": tolerance_text,
+            "incidents": downtime_incidents,
+        }
+
     def _enrich_detail_with_history(
         self,
         base_detail: Dict[str, Any],
@@ -526,34 +826,89 @@ class SystemHealthService:
     ) -> Dict[str, Any]:
         """Calculates 100% REAL event logs and SLA trouble events directly from MQTT telemetry."""
         detail = dict(base_detail)
+
+        # 0. Daily Uptime & Downtime directly from per-minute system logs:
+        daily_uptime = self._calculate_daily_uptime_from_logs(raw_payload, dev_id)
+        detail["daily_uptime"] = daily_uptime
+        detail["uptime_duration"] = daily_uptime["uptime_text"]
+        detail["uptime_pct"] = f"{daily_uptime['uptime_pct']}%"
+        detail["downtime_duration"] = daily_uptime["downtime_text"]
+        detail["downtime_pct"] = f"{daily_uptime['downtime_pct']}%"
+        detail["sla_target_hours"] = daily_uptime["sla_min_uptime_text"]
+        detail["sla_downtime_allowed"] = daily_uptime["sla_max_down_text"]
+        detail["sla_status"] = "Achieved" if daily_uptime["is_sla_met"] else "Breach"
+        detail["downtime_events"] = daily_uptime["incidents"]
+
         real_events = []
         import re
-        today_iso = datetime.now().strftime("%Y-%m-%d")
-        today_display = datetime.now().strftime("%d %b")
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        today_iso = now_wib.strftime("%Y-%m-%d")
+        today_display = now_wib.strftime("%d %b")
+
+        payload_epoch = self._parse_payload_epoch(raw_payload or {})
+        dt_payload_wib = datetime.fromtimestamp(payload_epoch, timezone.utc).astimezone(WIB)
+        payload_wib_str = dt_payload_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
 
         # 1. Trouble events calculated from SLA calculator for today
         try:
             sla = sla_calculator_service.calculate_device_sla(dev_id, live_payload=raw_payload)
-            detail["downtime_events"] = sla.get("trouble_events", [])
             for idx, ev in enumerate(sla.get("trouble_events", []), 1):
                 ev_date = ev.get("date_str") or ""
                 ev_start = ev.get("start_time") or ""
+                ev_metric = str(ev.get("metric", "")).lower()
                 # Only include events occurring today
                 if ev_date and ev_date != today_iso:
                     continue
-                if ev_start and not ev_start.startswith(today_display):
+                if ev_start and today_iso not in ev_start and not ev_start.startswith(today_display):
                     continue
+                # For System Health: skip cellular and DVR camera metrics here so they belong strictly to their respective pages
+                if ev_metric in ["cellular", "cpu_modem", "modem", "dvr", "recording", "camera"]:
+                    continue
+
+                raw_title = ev.get("title") or ev.get("description") or "System Health Incident Alert"
+                ev_epoch = ev.get("epoch")
+                if not ev_epoch:
+                    raw_dt = ev.get("_raw_dt")
+                    if raw_dt:
+                        ev_epoch = raw_dt.replace(tzinfo=timezone.utc).timestamp() if raw_dt.tzinfo is None else raw_dt.timestamp()
+                    else:
+                        ev_epoch = payload_epoch
+
+                ev_time = ev.get("start_time")
+                if not ev_time or "WIB" not in str(ev_time) or len(str(ev_time)) < 19:
+                    ev_time = datetime.fromtimestamp(ev_epoch, timezone.utc).astimezone(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
 
                 real_events.append({
                     "id": f"trouble-{idx}",
-                    "title": ev.get("title") or ev.get("description") or "System Health Incident Alert",
-                    "time": ev.get("start_time") or "Today",
+                    "title": self._translate_log_to_en(raw_title),
+                    "time": ev_time,
                     "status": "error" if ev.get("status") == "Active" else "warning",
                     "duration": ev.get("duration", "-"),
                     "category": ev.get("category", "SYSTEM"),
+                    "epoch": ev_epoch,
                 })
         except Exception as e:
             logger.debug(f"Could not extract trouble events for {dev_id}: {e}")
+
+        # 1b. Active hardware alerts from MQTT payload (undervoltage, partition space, degraded flash)
+        active_alerts = (raw_payload or {}).get("active_alerts", {}).get("all", [])
+        for a_idx, alert in enumerate(active_alerts, 1):
+            cat = str(alert.get("category", "")).lower()
+            # For System Health: skip NVR/DVR cameras and cellular alerts
+            if cat in ["nvr", "dvr", "camera", "cctv", "cellular", "modem"]:
+                continue
+            msg = alert.get("message") or alert.get("terminal_note") or alert.get("component")
+            if msg:
+                trans_msg = self._translate_log_to_en(msg)
+                sev = str(alert.get("severity", "WARNING")).upper()
+                real_events.append({
+                    "id": f"active-alert-{a_idx}",
+                    "title": trans_msg,
+                    "time": payload_wib_str,
+                    "status": "error" if sev in ["CRITICAL", "HIGH"] else "warning",
+                    "category": alert.get("category_label") or alert.get("category") or "SYSTEM",
+                    "epoch": payload_epoch,
+                })
 
         # 2. Parse recent_system_logs from MQTT telemetry stream for today only
         logs = (raw_payload or {}).get("recent_system_logs", [])
@@ -564,10 +919,26 @@ class SystemHealthService:
                 # Only include logs from today
                 if d_part != today_iso:
                     continue
-                ts = f"{t_part} WIB"
+                try:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                except ValueError:
+                    log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
+                log_epoch = log_dt.timestamp()
+                ts = f"{d_part} {t_part} WIB" if len(t_part) == 8 else f"{d_part} {t_part}:00 WIB"
             else:
-                ts_any = re.match(r"\[(.*?)\]", line)
-                ts = ts_any.group(1) if ts_any else "Today"
+                ts_any = re.match(r"\[([\d:]+)\]", line)
+                if ts_any:
+                    t_str = ts_any.group(1)
+                    try:
+                        t_obj = datetime.strptime(t_str, "%H:%M:%S").time()
+                    except ValueError:
+                        t_obj = datetime.strptime(t_str, "%H:%M").time()
+                    log_dt = datetime.combine(now_wib.date(), t_obj).replace(tzinfo=WIB)
+                    log_epoch = log_dt.timestamp()
+                    ts = log_dt.strftime("%Y-%m-%d %H:%M:%S WIB")
+                else:
+                    log_epoch = payload_epoch
+                    ts = payload_wib_str
 
             if "CPU:" in line or "RAM:" in line or "Power:" in line:
                 cpu_m = re.search(r"CPU:\s*([^\|]+)", line)
@@ -584,6 +955,7 @@ class SystemHealthService:
                         "title": f"CPU Telemetry & Temperature: {cpu_txt}",
                         "time": ts,
                         "status": "warning" if is_hot else "success",
+                        "epoch": log_epoch,
                     })
 
                 if pwr_m:
@@ -594,6 +966,7 @@ class SystemHealthService:
                         "title": f"Power System Status: {pwr_txt}",
                         "time": ts,
                         "status": "success" if is_ac else "warning",
+                        "epoch": log_epoch,
                     })
 
                 if disk_m or flash_m:
@@ -608,17 +981,23 @@ class SystemHealthService:
                         "title": f"Storage Status: {storage_str}",
                         "time": ts,
                         "status": "warning" if "[WARN" in line else "success",
+                        "epoch": log_epoch,
                     })
-            elif any(k in line.lower() for k in ["reboot", "power", "temperature", "throttling", "oom", "disk", "flash"]):
+            elif any(k in line.lower() for k in ["reboot", "power", "temperature", "throttling", "oom", "disk", "flash", "kapasitas", "tegangan"]):
+                # Skip camera/NVR/modem alerts from System Health
+                if any(c in line.lower() for c in ["kamera", "camera", "nvr", "harddisk", "cctv", "modem", "sim:"]):
+                    continue
                 clean_text = re.sub(r"^\[.*?\]\s*(\[.*?\]\s*)*", "", line).strip()
+                trans_text = self._translate_log_to_en(clean_text)
                 real_events.append({
                     "id": f"log-alert-{idx}",
-                    "title": clean_text,
+                    "title": trans_text,
                     "time": ts,
                     "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
+                    "epoch": log_epoch,
                 })
 
-            if len(real_events) >= 20:
+            if len(real_events) >= 30:
                 break
 
         # Fallback if no logs available today: provide authentic device status snapshot
@@ -628,26 +1007,42 @@ class SystemHealthService:
             s_pct = detail.get("sd_percent", 50)
             h_stat = detail.get("sd_health", {}).get("status", "Good")
             temp = detail.get("sd_health", {}).get("temperature", "45°C")
-            curr_time = detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             real_events.append({
                 "id": "evt-live-cpu",
                 "title": f"Processor Load & CPU Temperature: CPU {c_pct}% ({temp})",
-                "time": curr_time,
+                "time": payload_wib_str,
                 "status": "success" if c_pct < 75 else "warning",
+                "epoch": payload_epoch,
             })
             real_events.append({
                 "id": "evt-live-ram",
                 "title": f"Memory RAM Utilization: {r_pct}% in-use",
-                "time": curr_time,
+                "time": payload_wib_str,
                 "status": "success" if r_pct < 80 else "warning",
+                "epoch": payload_epoch,
             })
             real_events.append({
                 "id": "evt-live-storage",
                 "title": f"Storage Capacity & Health Status: {s_pct}% used ({h_stat})",
-                "time": curr_time,
+                "time": payload_wib_str,
                 "status": "success" if h_stat == "Good" else "warning",
+                "epoch": payload_epoch,
             })
+
+        # Deduplicate events by normalized title to prevent identical alerts from appearing twice
+        seen_titles = set()
+        deduped_events = []
+        for ev in real_events:
+            norm_key = re.sub(r"[^a-zA-Z0-9]", "", ev["title"].lower())
+            if norm_key in seen_titles:
+                continue
+            seen_titles.add(norm_key)
+            deduped_events.append(ev)
+        real_events = deduped_events
+
+        # STRICTLY SORT DESCENDING: Newest/latest on top
+        real_events.sort(key=lambda x: x.get("epoch", 0.0), reverse=True)
 
         detail["events"] = real_events
         return detail
@@ -684,7 +1079,7 @@ class SystemHealthService:
             "sd_used_gb": 4,
             "sd_total_gb": 8,
             "sd_sparkline": [48.0, 49.0, 50.0, 50.0],
-            "sd_health": {"status": "Good", "bad_sector": 0, "wear_level": "0%", "temperature": "45°C", "io_error": 0},
+            "sd_health": {"status": "Good", "health_percent": 100, "bad_sector": 0, "wear_level": "0%", "temperature": "45°C", "io_error": 0},
             "uptime_days": 1,
             "uptime_hours": 0,
             "uptime_status": "Running",
