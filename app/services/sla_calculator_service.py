@@ -12,8 +12,8 @@ GAP_THRESHOLD_SECONDS = 600  # 10 Menit: ambang batas offline valid (2 siklus si
 WIB = timezone(timedelta(hours=7))
 
 
-def _to_wib_str(dt: Optional[datetime], fmt: str = "%Y-%m-%d %H:%M:%S WIB") -> str:
-    """Mengonversi UTC/naive datetime dari database ke jam lokal WIB (UTC+7)."""
+def _to_wib_str(dt: Optional[datetime], fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+    """Mengonversi UTC/naive datetime dari database ke jam lokal WIB (UTC+7) tanpa embel-embel WIB."""
     if not dt:
         return ""
     if dt.tzinfo is None:
@@ -628,8 +628,8 @@ class SLACalculatorService:
         trouble_events: List[Dict[str, Any]] = []
 
         for idx, al in enumerate(alerts, 1):
-            st_str = _to_wib_str(al.start_time, fmt="%Y-%m-%d %H:%M:%S WIB")
-            et_str = _to_wib_str(al.end_time, fmt="%Y-%m-%d %H:%M:%S WIB") if al.end_time else "Active"
+            st_str = _to_wib_str(al.start_time, fmt="%Y-%m-%d %H:%M:%S")
+            et_str = _to_wib_str(al.end_time, fmt="%Y-%m-%d %H:%M:%S") if al.end_time else "Active"
             
             dur_m = round(al.duration_minutes or 0)
             if al.duration_minutes and al.duration_minutes > 0:
@@ -669,6 +669,84 @@ class SLACalculatorService:
                 "_raw_dt": al.start_time,
                 "epoch": ev_epoch,
             })
+
+        # Fallback: if database alerts table is empty for this gateway, extract real incident alerts from telemetry logs
+        if not trouble_events and live_payload:
+            logs = live_payload.get("recent_system_logs", [])
+            if isinstance(logs, str):
+                logs = logs.strip().split("\n")
+            fb_no = 1
+            seen_events = set()
+            for line in logs:
+                line_str = str(line)
+                m = re.search(r'\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]', line_str)
+                if not m:
+                    continue
+                ts_str = m.group(1)
+                metric = None
+                desc = None
+                category = None
+
+                if "[MODEM-CPU: TERPUTUS]" in line_str or "[MQTT FAIL]" in line_str:
+                    metric = "cpu_modem"
+                    category = "CPU - Modem"
+                    desc = "Modem USB Port Communication Lost"
+                elif "[SIM: N/A" in line_str or "[SIM: TIDAK TERDETEKSI]" in line_str or "[SIM: DICABUT]" in line_str or "CSQ 99" in line_str or "Koneksi Jaringan Seluler Terputus" in line_str:
+                    metric = "cellular"
+                    category = "Cellular Network"
+                    desc = "Cellular Network Connection Disconnected"
+                elif "[NVR-CPU: TERPUTUS]" in line_str or "NVR: OFFLINE" in line_str or "Komunikasi Gateway CPU ke NVR" in line_str:
+                    metric = "cpu_dvr"
+                    category = "CPU - DVR"
+                    desc = "Gateway CPU to NVR Communication Lost"
+                elif "Kamera #" in line_str and ("terputus" in line_str or "NO VIDEO" in line_str or "mati" in line_str):
+                    metric = "recording"
+                    category = "CCTV Recording"
+                    cam_m = re.search(r'Kamera\s*#(\d+)', line_str)
+                    cam_id = f"Camera #{cam_m.group(1)}" if cam_m else "Camera"
+                    desc = f"{cam_id} Signal Loss / No Video"
+                elif "TIDAK MASUK ke Harddisk" in line_str or "READ-ONLY" in line_str or "Bad Sector" in line_str:
+                    metric = "recording"
+                    category = "CCTV Recording"
+                    desc = "Camera Recording Storage Error / Harddisk Issue"
+                elif "Tegangan listrik" in line_str or "drop" in line_str.lower() or "undervoltage" in line_str.lower():
+                    metric = "cpu_modem"
+                    category = "CPU - Modem"
+                    desc = "Power Voltage Drop / Brownout"
+
+                if metric and desc:
+                    dedup_key = (ts_str, metric, desc)
+                    if dedup_key in seen_events:
+                        continue
+                    seen_events.add(dedup_key)
+                    try:
+                        log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                        if start_dt and end_dt:
+                            if log_dt < start_dt or log_dt > end_dt:
+                                continue
+                        date_key = ts_str.split(" ")[0]
+                        trouble_events.append({
+                            "no": fb_no,
+                            "start_time": ts_str,
+                            "end_time": (log_dt + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S"),
+                            "duration": "1m",
+                            "duration_minutes": 1.0,
+                            "category": category,
+                            "metric": metric,
+                            "date_str": date_key,
+                            "day_downtime_minutes": 1.0,
+                            "title": desc,
+                            "description": desc,
+                            "cause": desc,
+                            "reason": desc,
+                            "status": "Resolved",
+                            "telemetry_history_id": None,
+                            "_raw_dt": log_dt,
+                            "epoch": log_dt.timestamp(),
+                        })
+                        fb_no += 1
+                    except Exception:
+                        pass
 
 
         if not rows:

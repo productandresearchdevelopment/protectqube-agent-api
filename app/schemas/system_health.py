@@ -58,6 +58,12 @@ class GatewayItem(BaseModel):
     uptime: str
     status: str
     last_update: str
+    power_source: Optional[str] = "AC"
+    power_status: Optional[str] = "Normal"
+    power_badge: Optional[str] = "Normal"
+    power_text: Optional[str] = "AC [OK]"
+    battery_percent: Optional[Union[int, float]] = None
+    is_power_drop: Optional[bool] = False
 
 
 class PaginationInfo(BaseModel):
@@ -156,6 +162,7 @@ class GatewayDetailData(BaseModel):
     events: Optional[List[SystemHealthEventItem]] = None
     status: Optional[str] = "Healthy"
     daily_uptime: Optional[Dict[str, Any]] = None
+    power_info: Optional[Dict[str, Any]] = None
 
 
 class GatewayDetailResponse(BaseModel):

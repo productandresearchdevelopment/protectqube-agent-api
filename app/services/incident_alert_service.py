@@ -981,8 +981,8 @@ class IncidentAlertService:
                 "duration_minutes": r.duration_minutes,
                 "downtime_duration": r.duration_str,
                 "start_time_utc": r.start_time.strftime("%Y-%m-%d %H:%M:%S") if r.start_time else None,
-                "start_time_wib": start_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if start_wib else None,
-                "end_time_wib": end_wib.strftime("%Y-%m-%d %H:%M:%S WIB") if end_wib else None,
+                "start_time_wib": start_wib.strftime("%Y-%m-%d %H:%M:%S") if start_wib else None,
+                "end_time_wib": end_wib.strftime("%Y-%m-%d %H:%M:%S") if end_wib else None,
                 "status": r.status,
                 "telemetry_history_id": r.telemetry_history_id,
             })

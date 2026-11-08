@@ -796,7 +796,7 @@ class DVRService:
 
         payload_epoch = self._parse_payload_epoch(raw_payload or {})
         dt_payload_wib = datetime.fromtimestamp(payload_epoch, timezone.utc).astimezone(WIB)
-        payload_wib_str = dt_payload_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
+        payload_wib_str = dt_payload_wib.strftime("%Y-%m-%d %H:%M:%S")
 
         # A. Trouble events calculated from GatewayIncidentAlert & SLA for today
         try:
@@ -832,8 +832,8 @@ class DVRService:
                             ev_epoch = payload_epoch
 
                     ev_time = ev.get("start_time")
-                    if not ev_time or "WIB" not in str(ev_time) or len(str(ev_time)) < 19:
-                        ev_time = datetime.fromtimestamp(ev_epoch, timezone.utc).astimezone(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+                    if not ev_time or len(str(ev_time)) < 19:
+                        ev_time = datetime.fromtimestamp(ev_epoch, timezone.utc).astimezone(WIB).strftime("%Y-%m-%d %H:%M:%S")
 
                     real_events.append({
                         "id": f"trouble-{idx}",
@@ -860,7 +860,7 @@ class DVRService:
                 except ValueError:
                     log_dt = datetime.strptime(f"{d_part} {t_part}", "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
                 log_epoch = log_dt.timestamp()
-                ts = f"{d_part} {t_part} WIB" if len(t_part) == 8 else f"{d_part} {t_part}:00 WIB"
+                ts = f"{d_part} {t_part}" if len(t_part) == 8 else f"{d_part} {t_part}:00"
             else:
                 ts_any = re.match(r"\[([\d:]+)\]", line)
                 if ts_any:
@@ -871,7 +871,7 @@ class DVRService:
                         t_obj = datetime.strptime(t_str, "%H:%M").time()
                     log_dt = datetime.combine(now_wib.date(), t_obj).replace(tzinfo=WIB)
                     log_epoch = log_dt.timestamp()
-                    ts = log_dt.strftime("%Y-%m-%d %H:%M:%S WIB")
+                    ts = log_dt.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     log_epoch = payload_epoch
                     ts = payload_wib_str
