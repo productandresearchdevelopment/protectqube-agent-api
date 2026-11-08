@@ -292,7 +292,12 @@ class HealthReportService:
 
         sliced_gateways = filtered[start_idx:end_idx]
 
-        # 2. Calculate SLA & Resource Averages ONLY for the active page slice
+        # 1. Batch preload alerts for all devices on this page in ONE single SQL query
+        page_dev_ids = [g.get("raw_payload", {}).get("device_id") or g["report_item"].get("id") for g in sliced_gateways]
+        req_dr_filter = date_range or get_default_period_str()
+        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=req_dr_filter)
+
+        # 2. Calculate authentic MQTT SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["report_item"])
@@ -302,7 +307,9 @@ class HealthReportService:
             sla = sla_calculator_service.calculate_device_sla(
                 device_id=dev_id,
                 live_payload=g.get("raw_payload"),
-                date_range_str=req_dr
+                date_range_str=req_dr,
+                skip_history_rows=True,
+                preloaded_alerts=preloaded_alerts.get(dev_id, []),
             )
             item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
             item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))

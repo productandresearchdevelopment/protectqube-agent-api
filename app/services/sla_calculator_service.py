@@ -525,12 +525,205 @@ class SLACalculatorService:
 
         return cpu_trend, ram_trend, sd_trend, health_stats
 
+    def get_fast_batch_sla_summary(
+        self,
+        device_ids: List[str],
+        date_range_str: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Blazing fast batch SLA summary for paginated table listings.
+        Uses a SINGLE SQL aggregate query across all device IDs instead of looping heavy log parsing.
+        """
+        import time as _time
+        now_ts = _time.time()
+
+        if not device_ids:
+            return {}
+
+        results: Dict[str, Dict[str, Any]] = {}
+        uncached_ids: List[str] = []
+
+        if not hasattr(self, "_sla_mem_cache"):
+            self._sla_mem_cache = {}
+
+        for dev_id in device_ids:
+            cache_key = f"{dev_id}_{date_range_str or ''}"
+            if cache_key in self._sla_mem_cache:
+                entry_ts, cached_val = self._sla_mem_cache[cache_key]
+                if (now_ts - entry_ts) < 45.0:
+                    results[dev_id] = {
+                        "gateway_uptime_str": cached_val.get("gateway_uptime_str", "0m"),
+                        "gateway_offline_str": cached_val.get("gateway_offline_str", "0m"),
+                        "gateway_sla_pct": cached_val.get("gateway_sla_pct", 100.0),
+                        "cellular_uptime_str": cached_val.get("cellular_uptime_str", "0m"),
+                        "cellular_offline_str": cached_val.get("cellular_offline_str", "0m"),
+                        "cellular_sla_pct": cached_val.get("cellular_sla_pct", 100.0),
+                        "cpu_dvr_uptime_str": cached_val.get("cpu_dvr_uptime_str", "0m"),
+                        "cpu_dvr_offline_str": cached_val.get("cpu_dvr_offline_str", "0m"),
+                        "cpu_dvr_success_rate": cached_val.get("cpu_dvr_success_rate", 100.0),
+                        "dvr_uptime_str": cached_val.get("dvr_uptime_str", "0m"),
+                        "dvr_offline_str": cached_val.get("dvr_offline_str", "0m"),
+                        "dvr_sla_pct": cached_val.get("dvr_sla_pct", 100.0),
+                        "events_count": len(cached_val.get("trouble_events", [])),
+                    }
+                    continue
+            uncached_ids.append(dev_id)
+
+        if not uncached_ids:
+            return results
+
+        start_dt, end_dt = self._parse_date_range(date_range_str)
+        if not start_dt or not end_dt:
+            from datetime import datetime, timezone, timedelta
+            WIB = timezone(timedelta(hours=7))
+            now_wib = datetime.now(timezone.utc).astimezone(WIB)
+            start_dt = datetime(now_wib.year, now_wib.month, 1, 0, 0, 0, tzinfo=WIB)
+            end_dt = now_wib
+
+        total_obs_sec = max(3600.0, (end_dt - start_dt).total_seconds())
+        total_obs_min = total_obs_sec / 60.0
+
+        db = None
+        device_metric_down: Dict[str, Dict[str, float]] = {d: {} for d in uncached_ids}
+        device_metric_counts: Dict[str, Dict[str, int]] = {d: {} for d in uncached_ids}
+
+        db_available = getattr(self, "_db_available", True)
+        last_db_err = getattr(self, "_last_db_err_time", 0.0)
+
+        if db_available or (now_ts - last_db_err) >= 30.0:
+            try:
+                db = SessionLocal()
+                from datetime import timedelta, timezone
+                s_utc = start_dt.astimezone(timezone.utc) if start_dt.tzinfo else (start_dt - timedelta(hours=7))
+                e_utc = end_dt.astimezone(timezone.utc) if end_dt.tzinfo else (end_dt - timedelta(hours=7))
+                
+                from sqlalchemy import func
+                alert_aggregates = (
+                    db.query(
+                        GatewayIncidentAlert.device_id,
+                        GatewayIncidentAlert.metric,
+                        func.count(GatewayIncidentAlert.id).label("cnt"),
+                        func.sum(GatewayIncidentAlert.duration_minutes).label("tot_down"),
+                    )
+                    .filter(
+                        GatewayIncidentAlert.device_id.in_(uncached_ids),
+                        GatewayIncidentAlert.start_time >= s_utc,
+                        GatewayIncidentAlert.start_time <= e_utc,
+                    )
+                    .group_by(GatewayIncidentAlert.device_id, GatewayIncidentAlert.metric)
+                    .all()
+                )
+
+                for dev_id, metric, cnt, tot_down in alert_aggregates:
+                    if dev_id in device_metric_down:
+                        device_metric_down[dev_id][metric] = float(tot_down or 0.0)
+                        device_metric_counts[dev_id][metric] = int(cnt or 0)
+                self._db_available = True
+            except Exception as e:
+                self._db_available = False
+                self._last_db_err_time = _time.time()
+                logger.debug(f"Fast batch SLA query fallback: {e}")
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+
+        for dev_id in uncached_ids:
+            m_down = device_metric_down.get(dev_id, {})
+            m_cnt = device_metric_counts.get(dev_id, {})
+
+            cpu_modem_down_min = m_down.get("cpu_modem", 0.0)
+            cell_down_min = m_down.get("cellular", 0.0)
+            cpu_dvr_down_min = m_down.get("cpu_dvr", 0.0)
+            rec_down_min = m_down.get("recording", 0.0)
+            tot_events = sum(m_cnt.values())
+
+            up_cpu_modem_min = max(0.0, total_obs_min - cpu_modem_down_min)
+            sr_cpu_modem = round(max(0.0, min(100.0, (up_cpu_modem_min / max(1.0, total_obs_min)) * 100.0)), 1)
+
+            up_cell_min = max(0.0, total_obs_min - cell_down_min)
+            sr_cell = round(max(0.0, min(100.0, (up_cell_min / max(1.0, total_obs_min)) * 100.0)), 1)
+
+            up_cpu_dvr_min = max(0.0, total_obs_min - cpu_dvr_down_min)
+            sr_cpu_dvr = round(max(0.0, min(100.0, (up_cpu_dvr_min / max(1.0, total_obs_min)) * 100.0)), 1)
+
+            up_rec_min = max(0.0, total_obs_min - rec_down_min)
+            sr_rec = round(max(0.0, min(100.0, (up_rec_min / max(1.0, total_obs_min)) * 100.0)), 1)
+
+            fast_item = {
+                "gateway_uptime_str": self._format_duration(up_cpu_modem_min * 60.0),
+                "gateway_offline_str": self._format_duration(cpu_modem_down_min * 60.0),
+                "gateway_sla_pct": sr_cpu_modem,
+                "cellular_uptime_str": self._format_duration(up_cell_min * 60.0),
+                "cellular_offline_str": self._format_duration(cell_down_min * 60.0),
+                "cellular_sla_pct": sr_cell,
+                "cpu_dvr_uptime_str": self._format_duration(up_cpu_dvr_min * 60.0),
+                "cpu_dvr_offline_str": self._format_duration(cpu_dvr_down_min * 60.0),
+                "cpu_dvr_success_rate": sr_cpu_dvr,
+                "dvr_uptime_str": self._format_duration(up_rec_min * 60.0),
+                "dvr_offline_str": self._format_duration(rec_down_min * 60.0),
+                "dvr_sla_pct": sr_rec,
+                "events_count": tot_events,
+            }
+            results[dev_id] = fast_item
+
+        return results
+
+    def preload_alerts_for_devices(
+        self,
+        device_ids: List[str],
+        date_range_str: Optional[str] = None
+    ) -> Dict[str, List[GatewayIncidentAlert]]:
+        """Batch preloads incident alerts for a list of device IDs in 1 single database query."""
+        if not device_ids:
+            return {}
+        start_dt, end_dt = self._parse_date_range(date_range_str)
+        alerts_by_dev: Dict[str, List[GatewayIncidentAlert]] = {d: [] for d in device_ids}
+
+        db_available = getattr(self, "_db_available", True)
+        last_db_err = getattr(self, "_last_db_err_time", 0.0)
+        import time as _time
+        now_ts = _time.time()
+
+        if db_available or (now_ts - last_db_err) >= 30.0:
+            db = None
+            try:
+                db = SessionLocal()
+                query = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id.in_(device_ids))
+                if start_dt and end_dt:
+                    from datetime import timedelta, timezone
+                    s_utc = start_dt.astimezone(timezone.utc) if start_dt.tzinfo else (start_dt - timedelta(hours=7))
+                    e_utc = end_dt.astimezone(timezone.utc) if end_dt.tzinfo else (end_dt - timedelta(hours=7))
+                    query = query.filter(
+                        (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
+                    )
+                all_alerts = query.order_by(GatewayIncidentAlert.start_time.desc()).all()
+                for a in all_alerts:
+                    if a.device_id in alerts_by_dev:
+                        alerts_by_dev[a.device_id].append(a)
+                self._db_available = True
+            except Exception as e:
+                self._db_available = False
+                self._last_db_err_time = _time.time()
+                logger.debug(f"Error preloading alerts: {e}")
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+        return alerts_by_dev
+
     def calculate_device_sla(
         self,
         device_id: str,
         live_payload: Optional[Dict[str, Any]] = None,
         date_range_str: Optional[str] = None,
         date_range: Optional[str] = None,
+        skip_history_rows: bool = False,
+        preloaded_alerts: Optional[List[GatewayIncidentAlert]] = None,
     ) -> Dict[str, Any]:
         if not date_range_str and date_range:
             date_range_str = date_range
@@ -538,7 +731,7 @@ class SLACalculatorService:
         # 1. Fast in-memory cache check (45s TTL)
         import time as _time
         now_ts = _time.time()
-        cache_key = f"{device_id}_{date_range_str or ''}"
+        cache_key = f"{device_id}_{date_range_str or ''}_{skip_history_rows}"
         if hasattr(self, "_sla_mem_cache") and cache_key in self._sla_mem_cache:
             entry_ts, cached_val = self._sla_mem_cache[cache_key]
             if (now_ts - entry_ts) < 45.0:
@@ -548,60 +741,73 @@ class SLACalculatorService:
         db_available = getattr(self, "_db_available", True)
         last_db_err = getattr(self, "_last_db_err_time", 0.0)
         db = None
-        if db_available or (now_ts - last_db_err) >= 30.0:
-            try:
-                db = SessionLocal()
-            except Exception:
-                self._db_available = False
-                self._last_db_err_time = now_ts
-                db = None
 
         rows: List[GatewayTelemetryHistory] = []
-        alerts: List[GatewayIncidentAlert] = []
+        alerts: List[GatewayIncidentAlert] = preloaded_alerts if preloaded_alerts is not None else []
         start_dt, end_dt = self._parse_date_range(date_range_str)
-        if db:
-            try:
-                query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
-                alert_q = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id == device_id)
-                if start_dt and end_dt:
-                    s_utc = start_dt - timedelta(hours=7)
-                    e_utc = end_dt - timedelta(hours=7)
-                    s_date_str = start_dt.strftime("%Y-%m-%d")
-                    e_date_str = end_dt.strftime("%Y-%m-%d")
-                    # Prepend the single row immediately preceding s_utc so intervals spanning across start_dt are preserved
-                    prev_row = (
-                        db.query(GatewayTelemetryHistory)
-                        .filter(GatewayTelemetryHistory.device_id == device_id, GatewayTelemetryHistory.recorded_at < s_utc)
-                        .order_by(GatewayTelemetryHistory.recorded_at.desc())
-                        .first()
-                    )
-                    range_rows = (
-                        db.query(GatewayTelemetryHistory)
-                        .filter(
-                            GatewayTelemetryHistory.device_id == device_id,
-                            GatewayTelemetryHistory.recorded_at >= s_utc,
-                            GatewayTelemetryHistory.recorded_at <= e_utc
-                        )
-                        .order_by(GatewayTelemetryHistory.recorded_at.asc())
-                        .all()
-                    )
-                    rows = ([prev_row] if prev_row else []) + range_rows
-                    alert_q = alert_q.filter(
-                        (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
-                    )
-                else:
-                    rows = query.order_by(GatewayTelemetryHistory.recorded_at.asc()).all()
-                alerts = alert_q.order_by(GatewayIncidentAlert.start_time.desc()).all()
-                self._db_available = True
-            except Exception as e:
-                self._db_available = False
-                self._last_db_err_time = _time.time()
-                logger.debug(f"Error querying telemetry/alert history for {device_id}: {e}")
-            finally:
+
+        # Only query database if history is needed or alerts were not preloaded
+        if (not skip_history_rows) or (preloaded_alerts is None):
+            if db_available or (now_ts - last_db_err) >= 30.0:
                 try:
-                    db.close()
+                    db = SessionLocal()
                 except Exception:
-                    pass
+                    self._db_available = False
+                    self._last_db_err_time = now_ts
+                    db = None
+
+            if db:
+                try:
+                    if not skip_history_rows:
+                        query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
+                        if start_dt and end_dt:
+                            s_utc = start_dt - timedelta(hours=7)
+                            e_utc = end_dt - timedelta(hours=7)
+                            s_date_str = start_dt.strftime("%Y-%m-%d")
+                            e_date_str = end_dt.strftime("%Y-%m-%d")
+                            prev_row = (
+                                db.query(GatewayTelemetryHistory)
+                                .filter(GatewayTelemetryHistory.device_id == device_id, GatewayTelemetryHistory.recorded_at < s_utc)
+                                .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                                .first()
+                            )
+                            range_rows = (
+                                db.query(GatewayTelemetryHistory)
+                                .filter(
+                                    GatewayTelemetryHistory.device_id == device_id,
+                                    GatewayTelemetryHistory.recorded_at >= s_utc,
+                                    GatewayTelemetryHistory.recorded_at <= e_utc
+                                )
+                                .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                                .limit(1000)
+                                .all()
+                            )
+                            range_rows.reverse()
+                            rows = ([prev_row] if prev_row else []) + range_rows
+                        else:
+                            rows = query.order_by(GatewayTelemetryHistory.recorded_at.desc()).limit(1000).all()
+                            rows.reverse()
+
+                    if preloaded_alerts is None:
+                        alert_q = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id == device_id)
+                        if start_dt and end_dt:
+                            s_utc = start_dt - timedelta(hours=7)
+                            e_utc = end_dt - timedelta(hours=7)
+                            alert_q = alert_q.filter(
+                                (GatewayIncidentAlert.start_time >= s_utc) & (GatewayIncidentAlert.start_time <= e_utc)
+                            )
+                        alerts = alert_q.order_by(GatewayIncidentAlert.start_time.desc()).all()
+
+                    self._db_available = True
+                except Exception as e:
+                    self._db_available = False
+                    self._last_db_err_time = _time.time()
+                    logger.debug(f"Error querying telemetry/alert history for {device_id}: {e}")
+                finally:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
 
         kernel_uptime_sec = 0
         if live_payload:
@@ -842,6 +1048,9 @@ class SLACalculatorService:
                 "daily_summary": daily_summary,
             }
             res.update(health_stats)
+            if not hasattr(self, "_sla_mem_cache"):
+                self._sla_mem_cache = {}
+            self._sla_mem_cache[cache_key] = (now_ts, res)
             return res
 
         first_time = rows[0].recorded_at

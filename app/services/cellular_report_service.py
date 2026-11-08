@@ -337,7 +337,11 @@ class CellularReportService:
 
         sliced_gateways = filtered[start_idx:end_idx]
 
-        # 2. Calculate SLA ONLY for the active page slice
+        # 1. Batch preload alerts for all devices on this page in ONE single SQL query
+        page_dev_ids = [g.get("raw_payload", {}).get("device_id") or g["table_item"].get("id") for g in sliced_gateways]
+        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=date_range) if date_range else {}
+
+        # 2. Calculate authentic MQTT SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["table_item"])
@@ -347,7 +351,9 @@ class CellularReportService:
                 sla = sla_calculator_service.calculate_device_sla(
                     device_id=dev_id,
                     live_payload=g.get("raw_payload"),
-                    date_range_str=date_range
+                    date_range_str=date_range,
+                    skip_history_rows=True,
+                    preloaded_alerts=preloaded_alerts.get(dev_id, []),
                 )
                 item["cpu_modem_uptime"] = sla["gateway_uptime_str"]
                 item["cpu_modem_offline"] = sla["gateway_offline_str"]
