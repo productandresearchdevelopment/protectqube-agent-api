@@ -347,6 +347,7 @@ def export_dvr_report_excel(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     status: Optional[str] = Query(None, description="Filter status DVR/recording"),
+    dvr_brand: Optional[str] = Query(None, description="Filter merek DVR/NVR"),
     location: Optional[str] = Query(None, description="Filter lokasi/kota"),
     date_range: Optional[str] = Query(None, description="Filter rentang tanggal"),
 ):
@@ -357,6 +358,7 @@ def export_dvr_report_excel(
         search=search,
         gateway_type=gateway_type,
         status=status,
+        dvr_brand=dvr_brand,
         location=location,
         date_range=date_range,
     )

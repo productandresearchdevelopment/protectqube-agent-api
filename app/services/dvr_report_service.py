@@ -443,15 +443,17 @@ class DVRReportService:
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
         status: Optional[str] = None,
+        dvr_brand: Optional[str] = None,
         location: Optional[str] = None,
         date_range: Optional[str] = None,
     ) -> io.BytesIO:
         """Export real DVR report data to Excel (.xlsx) format"""
         from app.utils.export.excel_helper import build_dvr_report_excel
+        brand = dvr_brand or status
         report = self.get_report(
             search=search,
             gateway_type=gateway_type,
-            status=status,
+            dvr_brand=brand,
             location=location,
             date_range=date_range,
             page=1,
