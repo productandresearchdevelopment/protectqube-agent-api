@@ -8,10 +8,21 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
-import qrcode
-from neonize.client import NewClient
-from neonize.events import ConnectedEv, PairStatusEv, LoggedOutEv
-from neonize.utils.jid import build_jid
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
+
+try:
+    from neonize.client import NewClient
+    from neonize.events import ConnectedEv, PairStatusEv, LoggedOutEv
+    from neonize.utils.jid import build_jid
+except ImportError:
+    NewClient = None
+    ConnectedEv = None
+    PairStatusEv = None
+    LoggedOutEv = None
+    build_jid = None
 from app.core.database import SessionLocal
 from app.models.notification_models import NotificationDestination
 
@@ -72,6 +83,8 @@ class WhatsAppSessionManager:
             logger.error(f"Failed to update WhatsApp destination status: {e}")
 
     def _on_qr(self, client: NewClient, data_qr: bytes):
+        if qrcode is None:
+            return
         try:
             qr = qrcode.QRCode(box_size=10, border=3)
             qr.add_data(data_qr.decode("utf-8", errors="ignore"))
@@ -123,6 +136,9 @@ class WhatsAppSessionManager:
         self._update_db_status("NOT_CONFIGURED", {})
 
     def start_session(self):
+        if NewClient is None:
+            logger.warning("neonize is not installed, cannot start WhatsApp session")
+            return
         with self._lock:
             if self._client is not None and self._client.is_connected:
                 return
@@ -244,6 +260,8 @@ class WhatsAppSessionManager:
         }
 
     def send_message(self, recipient: str, body: str) -> Tuple[bool, str, Any]:
+        if NewClient is None or build_jid is None:
+            return False, "neonize library is not installed", None
         if not self._client or not self._client.is_logged_in:
             if os.path.exists(self.db_path):
                 self.ensure_connected(timeout_sec=5.0)
