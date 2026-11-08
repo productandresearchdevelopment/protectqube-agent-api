@@ -48,6 +48,13 @@ async def lifespan(app: FastAPI):
         start_worker()
     except Exception as e:
         logger.error(f"Worker start error: {e}")
+    try:
+        import os
+        from app.services.notification.whatsapp_session import whatsapp_session_manager
+        if os.path.exists(whatsapp_session_manager.db_path):
+            whatsapp_session_manager.start_session()
+    except Exception as e:
+        logger.error(f"WhatsApp background start error: {e}")
     yield
     try:
         stop_worker()

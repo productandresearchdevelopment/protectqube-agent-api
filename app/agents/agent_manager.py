@@ -154,6 +154,18 @@ class GatewayAgentManager:
                     )
                 except Exception as alert_err:
                     logger.warning(f"[AlertService] Failed to evaluate incident alerts for '{dev_id}': {alert_err}")
+
+                try:
+                    from app.services.notification.notification_service import notification_service
+                    notification_service.process_telemetry_for_notifications(
+                        db=db,
+                        dev_id=dev_id,
+                        loc_name=loc_name,
+                        payload=payload,
+                        rec_dt=rec_dt
+                    )
+                except Exception as notif_err:
+                    logger.warning(f"[NotificationService] Failed to evaluate notifications for '{dev_id}': {notif_err}")
             finally:
                 db.close()
         except Exception as dbe:
