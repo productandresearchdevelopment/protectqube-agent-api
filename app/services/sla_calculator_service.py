@@ -1016,49 +1016,97 @@ class SLACalculatorService:
 
         # Build authentic trouble events directly from GatewayIncidentAlert
         trouble_events: List[Dict[str, Any]] = []
+        ev_no = 1
 
-        for idx, al in enumerate(alerts, 1):
-            st_str = _to_wib_str(al.start_time, fmt="%Y-%m-%d %H:%M:%S")
-            et_str = _to_wib_str(al.end_time, fmt="%Y-%m-%d %H:%M:%S") if al.end_time else "Active"
-            
-            dur_m = round(al.duration_minutes or 0)
-            if al.duration_minutes and al.duration_minutes > 0:
-                if dur_m >= 60:
-                    dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m % 60 else f"{dur_m // 60}h"
-                else:
-                    dur_str = f"{dur_m}m"
-            elif al.duration_str:
-                dur_str = al.duration_str.replace("Menit", "m").replace("menit", "m").replace("Jam", "h").replace("jam", "h").replace("Detik", "s").replace("detik", "s").strip()
-            else:
-                dur_str = "1m"
+        for al in alerts:
+            s_wib = al.start_time.replace(tzinfo=timezone.utc).astimezone(WIB) if al.start_time and al.start_time.tzinfo is None else (al.start_time.astimezone(WIB) if al.start_time else None)
+            e_wib = al.end_time.replace(tzinfo=timezone.utc).astimezone(WIB) if al.end_time and al.end_time.tzinfo is None else (al.end_time.astimezone(WIB) if al.end_time else None)
 
             cat_label = "CPU - Modem" if al.metric == "cpu_modem" else ("Cellular Network" if al.metric == "cellular" else ("CCTV Recording" if al.metric == "recording" else "CPU - DVR"))
-            date_key = (al.start_time + timedelta(hours=7)).strftime("%Y-%m-%d") if al.start_time else None
-            desc_en = self._to_english_incident_desc(al.description, al.metric)
 
-            ev_epoch = 0.0
-            if al.start_time:
-                ev_epoch = al.start_time.replace(tzinfo=timezone.utc).timestamp() if al.start_time.tzinfo is None else al.start_time.timestamp()
+            if not s_wib or not e_wib or s_wib.date() == e_wib.date():
+                st_str = _to_wib_str(al.start_time, fmt="%Y-%m-%d %H:%M:%S")
+                et_str = _to_wib_str(al.end_time, fmt="%Y-%m-%d %H:%M:%S") if al.end_time else "Active"
+                
+                dur_m = round(al.duration_minutes or 0)
+                if al.duration_minutes and al.duration_minutes > 0:
+                    if dur_m >= 60:
+                        dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m % 60 else f"{dur_m // 60}h"
+                    else:
+                        dur_str = f"{dur_m}m"
+                elif al.duration_str:
+                    dur_str = al.duration_str.replace("Menit", "m").replace("menit", "m").replace("Jam", "h").replace("jam", "h").replace("Detik", "s").replace("detik", "s").strip()
+                else:
+                    dur_str = "1m"
 
-            trouble_events.append({
-                "no": idx,
-                "start_time": st_str,
-                "end_time": et_str,
-                "duration": dur_str,
-                "duration_minutes": al.duration_minutes or 0.0,
-                "category": cat_label,
-                "metric": al.metric,
-                "date_str": date_key,
-                "day_downtime_minutes": al.duration_minutes or 0.0,
-                "title": desc_en,
-                "description": desc_en,
-                "cause": desc_en,
-                "reason": desc_en,
-                "status": "Resolved" if al.status == "RESOLVED" else "Active",
-                "telemetry_history_id": al.telemetry_history_id,
-                "_raw_dt": al.start_time,
-                "epoch": ev_epoch,
-            })
+                date_key = s_wib.strftime("%Y-%m-%d") if s_wib else None
+                desc_en = self._to_english_incident_desc(al.description, al.metric)
+                ev_epoch = s_wib.timestamp() if s_wib else 0.0
+
+                trouble_events.append({
+                    "no": ev_no,
+                    "start_time": st_str,
+                    "end_time": et_str,
+                    "duration": dur_str,
+                    "duration_minutes": float(dur_m),
+                    "category": cat_label,
+                    "metric": al.metric,
+                    "date_str": date_key,
+                    "day_downtime_minutes": float(dur_m),
+                    "title": desc_en,
+                    "description": desc_en,
+                    "cause": desc_en,
+                    "reason": desc_en,
+                    "status": "Resolved" if al.status == "RESOLVED" else "Active",
+                    "telemetry_history_id": al.telemetry_history_id,
+                    "_raw_dt": al.start_time,
+                    "epoch": ev_epoch,
+                })
+                ev_no += 1
+            else:
+                # Alert crosses midnight: split cleanly per calendar day so each day's incident history aligns with its daily SLA breakdown
+                cur_s = s_wib
+                while cur_s < e_wib:
+                    next_midnight = datetime(cur_s.year, cur_s.month, cur_s.day, 23, 59, 59, tzinfo=WIB)
+                    next_day_start = datetime(cur_s.year, cur_s.month, cur_s.day, 0, 0, 0, tzinfo=WIB) + timedelta(days=1)
+                    cur_e = min(e_wib, next_day_start)
+
+                    dur_sec = max(60.0, (cur_e - cur_s).total_seconds())
+                    dur_m = max(1.0, round(dur_sec / 60.0))
+                    dur_int = int(round(dur_m))
+                    if dur_int >= 60:
+                        dur_str = f"{dur_int // 60}h {dur_int % 60}m" if dur_int % 60 else f"{dur_int // 60}h"
+                    else:
+                        dur_str = f"{dur_int}m"
+
+                    display_end = min(e_wib, next_midnight)
+
+                    desc_en = self._to_english_incident_desc(al.description, al.metric)
+                    if desc_en:
+                        desc_en = re.sub(r'for\s+\d+m', f'for {dur_int}m', desc_en, flags=re.IGNORECASE)
+                        desc_en = re.sub(r'selama\s+\d+\s*Menit', f'selama {dur_int} Menit', desc_en, flags=re.IGNORECASE)
+
+                    trouble_events.append({
+                        "no": ev_no,
+                        "start_time": cur_s.strftime("%Y-%m-%d %H:%M:%S"),
+                        "end_time": display_end.strftime("%Y-%m-%d %H:%M:%S"),
+                        "duration": dur_str,
+                        "duration_minutes": float(dur_m),
+                        "category": cat_label,
+                        "metric": al.metric,
+                        "date_str": cur_s.strftime("%Y-%m-%d"),
+                        "day_downtime_minutes": float(dur_m),
+                        "title": desc_en,
+                        "description": desc_en,
+                        "cause": desc_en,
+                        "reason": desc_en,
+                        "status": "Resolved" if al.status == "RESOLVED" else "Active",
+                        "telemetry_history_id": al.telemetry_history_id,
+                        "_raw_dt": cur_s,
+                        "epoch": cur_s.timestamp(),
+                    })
+                    ev_no += 1
+                    cur_s = next_day_start
 
         # Fallback: if database alerts table is empty for this gateway, extract real incident alerts from telemetry logs
         if not trouble_events and live_payload:
@@ -1650,46 +1698,75 @@ class SLACalculatorService:
 
             if cur_date > now_wib.date():
                 pass
-            elif d_str in unique_day_logs and unique_day_logs[d_str]:
-                # Primary Path: 100% exact minute logs captured by gateway daemon buffer
-                day_mins = unique_day_logs[d_str]
-                day_cpu_down_sec = sum(60.0 for v in day_mins.values() if v[0])
-                day_cell_down_sec = sum(60.0 for v in day_mins.values() if v[1])
-                day_dvr_down_sec = sum(60.0 for v in day_mins.values() if v[2])
-                day_rec_down_sec = sum(60.0 * float(v[3]) for v in day_mins.values())
+            elif alerts or (d_str in unique_day_logs and unique_day_logs[d_str]):
+                # 1. Primary authoritative source: Merged Incident Alerts
+                alert_cpu_sec = 0.0
+                alert_cell_sec = 0.0
+                alert_dvr_sec = 0.0
+                alert_rec_sec = 0.0
 
-                day_cams = [v[4] for v in day_mins.values() if len(v) > 4 and v[4]]
-                if day_cams:
-                    last_cams = day_cams[-1]
-                    tot_c = len(last_cams)
-                    rec_c = sum(1 for st in last_cams.values() if "RECORD" in str(st).upper() and "NOT" not in str(st).upper())
-                    rec_channels_info = f"{rec_c} / {tot_c} Cams"
-                elif day_rec_down_sec >= day_obs_sec:
-                    rec_channels_info = "0 / 4 Cams"
-            elif alerts:
-                for s, e in cpu_merged:
-                    overlap_s = max(s, d_start)
-                    overlap_e = min(e, d_end)
-                    if overlap_e > overlap_s:
-                        day_cpu_down_sec += (overlap_e - overlap_s).total_seconds()
-                for s, e in cell_merged:
-                    overlap_s = max(s, d_start)
-                    overlap_e = min(e, d_end)
-                    if overlap_e > overlap_s:
-                        day_cell_down_sec += (overlap_e - overlap_s).total_seconds()
-                for s, e in dvr_merged:
-                    overlap_s = max(s, d_start)
-                    overlap_e = min(e, d_end)
-                    if overlap_e > overlap_s:
-                        day_dvr_down_sec += (overlap_e - overlap_s).total_seconds()
-                if rec_merged:
-                    for s, e in rec_merged:
+                if alerts:
+                    for s, e in cpu_merged:
                         overlap_s = max(s, d_start)
                         overlap_e = min(e, d_end)
                         if overlap_e > overlap_s:
-                            day_rec_down_sec += (overlap_e - overlap_s).total_seconds()
-                else:
-                    day_rec_down_sec = day_dvr_down_sec
+                            alert_cpu_sec += (overlap_e - overlap_s).total_seconds()
+                    for s, e in cell_merged:
+                        overlap_s = max(s, d_start)
+                        overlap_e = min(e, d_end)
+                        if overlap_e > overlap_s:
+                            alert_cell_sec += (overlap_e - overlap_s).total_seconds()
+                    for s, e in dvr_merged:
+                        overlap_s = max(s, d_start)
+                        overlap_e = min(e, d_end)
+                        if overlap_e > overlap_s:
+                            alert_dvr_sec += (overlap_e - overlap_s).total_seconds()
+                    if rec_merged:
+                        for s, e in rec_merged:
+                            overlap_s = max(s, d_start)
+                            overlap_e = min(e, d_end)
+                            if overlap_e > overlap_s:
+                                alert_rec_sec += (overlap_e - overlap_s).total_seconds()
+                    else:
+                        alert_rec_sec = alert_dvr_sec
+
+                # 2. Additional real-time minute logs from daemon buffer not yet closed as an alert
+                extra_cpu_sec = 0.0
+                extra_cell_sec = 0.0
+                extra_dvr_sec = 0.0
+                extra_rec_sec = 0.0
+
+                if d_str in unique_day_logs and unique_day_logs[d_str]:
+                    day_mins = unique_day_logs[d_str]
+                    for min_k, v in day_mins.items():
+                        try:
+                            m_dt = datetime.strptime(min_k, "%Y-%m-%d %H:%M").replace(tzinfo=WIB)
+                            m_end = m_dt + timedelta(minutes=1)
+                            if v[0] and not any(max(s, m_dt) < min(e, m_end) for s, e in cpu_merged):
+                                extra_cpu_sec += 60.0
+                            if v[1] and not any(max(s, m_dt) < min(e, m_end) for s, e in cell_merged):
+                                extra_cell_sec += 60.0
+                            if v[2] and not any(max(s, m_dt) < min(e, m_end) for s, e in dvr_merged):
+                                extra_dvr_sec += 60.0
+                            if v[3] > 0 and not any(max(s, m_dt) < min(e, m_end) for s, e in rec_merged):
+                                extra_rec_sec += 60.0 * float(v[3])
+                        except Exception:
+                            pass
+
+                    day_cams = [v[4] for v in day_mins.values() if len(v) > 4 and v[4]]
+                    if day_cams:
+                        last_cams = day_cams[-1]
+                        tot_c = len(last_cams)
+                        rec_c = sum(1 for st in last_cams.values() if "RECORD" in str(st).upper() and "NOT" not in str(st).upper())
+                        rec_channels_info = f"{rec_c} / {tot_c} Cams"
+
+                day_cpu_down_sec = alert_cpu_sec + extra_cpu_sec
+                day_cell_down_sec = alert_cell_sec + extra_cell_sec
+                day_dvr_down_sec = alert_dvr_sec + extra_dvr_sec
+                day_rec_down_sec = alert_rec_sec + extra_rec_sec
+
+                if day_rec_down_sec >= day_obs_sec and rec_channels_info == "4 / 4 Cams":
+                    rec_channels_info = "0 / 4 Cams"
             elif rows and len(rows) >= 2:
                 for i in range(len(rows) - 1):
                     curr_r = rows[i]
