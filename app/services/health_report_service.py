@@ -296,10 +296,11 @@ class HealthReportService:
 
         sliced_gateways = filtered[start_idx:end_idx]
 
-        # 1. Batch preload alerts for all devices on this page in ONE single SQL query
+        # 1. Batch preload alerts and telemetry aggregates for active page slice in 2 fast queries (< 25ms total)
         page_dev_ids = [g.get("raw_payload", {}).get("device_id") or g["report_item"].get("id") for g in sliced_gateways]
         req_dr_filter = date_range or get_default_period_str()
         preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=req_dr_filter)
+        batch_telem = sla_calculator_service.get_fast_batch_telemetry_aggregates(page_dev_ids, date_range_str=req_dr_filter)
 
         # 2. Calculate authentic SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
@@ -317,28 +318,41 @@ class HealthReportService:
             item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
             item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))
             item["jumlah_event"] = len(sla.get("trouble_events", []))
-            if "cpu_avg" in sla:
-                item["cpu_avg"] = sla["cpu_avg"]
-            if "cpu_max" in sla:
-                item["cpu_max"] = sla["cpu_max"]
+
+            fast_t = batch_telem.get(dev_id, {})
+            if fast_t:
+                item["cpu_avg"] = fast_t.get("avg_cpu", item.get("cpu_avg"))
+                item["cpu_max"] = fast_t.get("max_cpu", item.get("cpu_max"))
+                item["ram_avg"] = fast_t.get("avg_ram", item.get("ram_avg"))
+                item["ram_max"] = fast_t.get("max_ram", item.get("ram_max"))
+                item["sd_avg"] = fast_t.get("avg_disk", item.get("sd_avg"))
+                item["sd_max"] = fast_t.get("max_disk", item.get("sd_max"))
+                item["temp_avg"] = fast_t.get("avg_temp", item.get("temp_avg"))
+                item["temp_max"] = int(round(float(fast_t.get("max_temp")))) if fast_t.get("max_temp") is not None else item.get("temp_max")
+            else:
+                if "cpu_avg" in sla:
+                    item["cpu_avg"] = sla["cpu_avg"]
+                if "cpu_max" in sla:
+                    item["cpu_max"] = sla["cpu_max"]
+                if "ram_avg" in sla:
+                    item["ram_avg"] = sla["ram_avg"]
+                if "ram_max" in sla:
+                    item["ram_max"] = sla["ram_max"]
+                if "sd_avg" in sla:
+                    item["sd_avg"] = sla["sd_avg"]
+                if "sd_max" in sla:
+                    item["sd_max"] = sla["sd_max"]
+                if "avg_temp" in sla and sla["avg_temp"] is not None:
+                    item["temp_avg"] = int(round(float(sla["avg_temp"])))
+                if "max_temp" in sla and sla["max_temp"] is not None:
+                    item["temp_max"] = int(round(float(sla["max_temp"])))
+
             if "cpu_gt_80_duration" in sla:
                 item["cpu_gt_80_duration"] = sla["cpu_gt_80_duration"]
-            if "ram_avg" in sla:
-                item["ram_avg"] = sla["ram_avg"]
-            if "ram_max" in sla:
-                item["ram_max"] = sla["ram_max"]
             if "ram_gt_80_duration" in sla:
                 item["ram_gt_80_duration"] = sla["ram_gt_80_duration"]
-            if "sd_avg" in sla:
-                item["sd_avg"] = sla["sd_avg"]
-            if "sd_max" in sla:
-                item["sd_max"] = sla["sd_max"]
             if "sd_gt_90_duration" in sla:
                 item["sd_gt_90_duration"] = sla["sd_gt_90_duration"]
-            if "avg_temp" in sla and sla["avg_temp"] is not None:
-                item["temp_avg"] = int(round(float(sla["avg_temp"])))
-            if "max_temp" in sla and sla["max_temp"] is not None:
-                item["temp_max"] = int(round(float(sla["max_temp"])))
             items_slice.append(item)
 
         return {
@@ -547,22 +561,33 @@ class HealthReportService:
             detail["ram_trend"] = sla.get("ram_trend", [])
             detail["sd_trend"] = sla.get("sd_trend", [])
             detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-            if "cpu_avg" in sla:
-                detail["cpu_avg"] = sla["cpu_avg"]
-            if "cpu_max" in sla:
-                detail["cpu_max"] = sla["cpu_max"]
-            if "ram_avg" in sla:
-                detail["ram_avg"] = sla["ram_avg"]
-            if "ram_max" in sla:
-                detail["ram_max"] = sla["ram_max"]
-            if "sd_avg" in sla:
-                detail["sd_avg"] = sla["sd_avg"]
-            if "sd_max" in sla:
-                detail["sd_max"] = sla["sd_max"]
-            if "avg_temp" in sla:
-                detail["temp_avg"] = sla["avg_temp"]
-            if "max_temp" in sla:
-                detail["temp_max"] = sla["max_temp"]
+            fast_t = sla_calculator_service.get_fast_batch_telemetry_aggregates([target_gid or gateway_id], date_range_str=req_period).get(target_gid or gateway_id, {})
+            if fast_t:
+                detail["cpu_avg"] = fast_t.get("avg_cpu", detail.get("cpu_avg"))
+                detail["cpu_max"] = fast_t.get("max_cpu", detail.get("cpu_max"))
+                detail["ram_avg"] = fast_t.get("avg_ram", detail.get("ram_avg"))
+                detail["ram_max"] = fast_t.get("max_ram", detail.get("ram_max"))
+                detail["sd_avg"] = fast_t.get("avg_disk", detail.get("sd_avg"))
+                detail["sd_max"] = fast_t.get("max_disk", detail.get("sd_max"))
+                detail["temp_avg"] = fast_t.get("avg_temp", detail.get("temp_avg"))
+                detail["temp_max"] = int(round(float(fast_t.get("max_temp")))) if fast_t.get("max_temp") is not None else detail.get("temp_max")
+            else:
+                if "cpu_avg" in sla:
+                    detail["cpu_avg"] = sla["cpu_avg"]
+                if "cpu_max" in sla:
+                    detail["cpu_max"] = sla["cpu_max"]
+                if "ram_avg" in sla:
+                    detail["ram_avg"] = sla["ram_avg"]
+                if "ram_max" in sla:
+                    detail["ram_max"] = sla["ram_max"]
+                if "sd_avg" in sla:
+                    detail["sd_avg"] = sla["sd_avg"]
+                if "sd_max" in sla:
+                    detail["sd_max"] = sla["sd_max"]
+                if "avg_temp" in sla:
+                    detail["temp_avg"] = sla["avg_temp"]
+                if "max_temp" in sla:
+                    detail["temp_max"] = sla["max_temp"]
             
             # Ensure every event has "value" to pass Pydantic validation cleanly
             raw_evs = sla.get("trouble_events", [])

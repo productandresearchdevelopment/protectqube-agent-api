@@ -756,8 +756,8 @@ class SLACalculatorService:
                     func.avg(GatewayTelemetryHistory.signal_rsrp).label("avg_rsrp"),
                     func.avg(GatewayTelemetryHistory.cpu_percent).label("avg_cpu"),
                     func.max(GatewayTelemetryHistory.cpu_percent).label("max_cpu"),
-                    func.avg(GatewayTelemetryHistory.ram_used_mb).label("avg_ram"),
-                    func.max(GatewayTelemetryHistory.ram_used_mb).label("max_ram"),
+                    func.avg(GatewayTelemetryHistory.ram_used_mb / func.nullif(GatewayTelemetryHistory.ram_total_mb, 0) * 100.0).label("avg_ram"),
+                    func.max(GatewayTelemetryHistory.ram_used_mb / func.nullif(GatewayTelemetryHistory.ram_total_mb, 0) * 100.0).label("max_ram"),
                     func.avg(GatewayTelemetryHistory.disk_used_percent).label("avg_disk"),
                     func.max(GatewayTelemetryHistory.disk_used_percent).label("max_disk"),
                 )
@@ -790,8 +790,8 @@ class SLACalculatorService:
                     "avg_rsrp": rsrp_val,
                     "avg_cpu": int(round(float(r.avg_cpu))) if r.avg_cpu is not None else 25,
                     "max_cpu": int(round(float(r.max_cpu))) if r.max_cpu is not None else 50,
-                    "avg_ram": int(round(float(r.avg_ram))) if r.avg_ram is not None else 1024,
-                    "max_ram": int(round(float(r.max_ram))) if r.max_ram is not None else 2048,
+                    "avg_ram": int(round(float(r.avg_ram))) if r.avg_ram is not None else 35,
+                    "max_ram": int(round(float(r.max_ram))) if r.max_ram is not None else 50,
                     "avg_disk": int(round(float(r.avg_disk))) if r.avg_disk is not None else 50,
                     "max_disk": int(round(float(r.max_disk))) if r.max_disk is not None else 75,
                 }
@@ -1186,6 +1186,30 @@ class SLACalculatorService:
 
             cpu_trend, ram_trend, sd_trend, health_stats = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
 
+            live_t = 42
+            if live_payload:
+                raw_t = (
+                    live_payload.get("modem_usb", {}).get("temperature_c")
+                    or live_payload.get("cellular_sim", {}).get("temperature_c")
+                    or live_payload.get("connectivity", {}).get("temperature_celsius")
+                    or live_payload.get("gateway_system", {}).get("cpu", {}).get("temperature_c")
+                )
+                if raw_t is not None:
+                    try:
+                        live_t = int(round(float(raw_t)))
+                    except Exception:
+                        live_t = 42
+
+            live_rsrp = -85
+            if live_payload:
+                csq_v = live_payload.get("cellular_sim", {}).get("signal", {}).get("csq")
+                if csq_v is not None:
+                    try:
+                        csq_f = float(csq_v)
+                        live_rsrp = int(round(-(113 - 2 * csq_f))) if csq_f > 0 else -115
+                    except Exception:
+                        live_rsrp = -85
+
             res = {
                 "period_hours_str": f"({round(obs_sec / 3600, 1)} hrs)",
                 "observation_seconds": obs_sec,
@@ -1222,8 +1246,10 @@ class SLACalculatorService:
                     {"track_name": "Cellular", "segments": [{"status": "online" if net_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Online" if net_ok else "No Signal/SIM", "period": "Live"}]},
                     {"track_name": "DVR", "segments": [{"status": "online" if dvr_ok else "offline", "start_pct": 0, "width_pct": 100, "label": "Connected" if dvr_ok else "Offline", "period": "Live"}]},
                 ],
-                "avg_temp": 42,
-                "avg_rsrp": -85,
+                "avg_temp": live_t,
+                "min_temp": live_t,
+                "max_temp": live_t,
+                "avg_rsrp": live_rsrp,
                 "avg_ping": round(float(live_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms")), 1) if (live_payload and live_payload.get("cellular_sim", {}).get("data_traffic", {}).get("ping_ms") is not None) else None,
                 "cpu_trend": cpu_trend,
                 "ram_trend": ram_trend,
