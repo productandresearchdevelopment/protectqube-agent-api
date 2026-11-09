@@ -8,16 +8,27 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
+import sys
+import typing
+if not hasattr(typing, "Self"):
+    try:
+        import typing_extensions
+        typing.Self = typing_extensions.Self
+    except Exception:
+        pass
+
 try:
     import qrcode
 except ImportError:
     qrcode = None
 
+neonize_import_error: Optional[str] = None
 try:
     from neonize.client import NewClient
     from neonize.events import ConnectedEv, PairStatusEv, LoggedOutEv
     from neonize.utils.jid import build_jid
-except ImportError:
+except Exception as e:
+    neonize_import_error = str(e)
     NewClient = None
     ConnectedEv = None
     PairStatusEv = None
@@ -174,6 +185,8 @@ class WhatsAppSessionManager:
                     pass
 
     def request_qr(self, force_new: bool = True) -> Dict[str, Any]:
+        if NewClient is None:
+            raise RuntimeError(f"WhatsApp engine is not initialized ({neonize_import_error or 'module unavailable'}).")
         if force_new and self._client and self._client.is_logged_in:
             self.reset_for_pairing()
         self.start_session()
@@ -200,6 +213,8 @@ class WhatsAppSessionManager:
         }
 
     def request_pairing_code(self, phone: str) -> str:
+        if NewClient is None:
+            raise RuntimeError(f"WhatsApp engine is not initialized ({neonize_import_error or 'module unavailable'}).")
         clean = re.sub(r"[^\d]", "", phone)
         if clean.startswith("0"):
             clean = "62" + clean[1:]
