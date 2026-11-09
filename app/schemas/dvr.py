@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel
 
 
 class DVRSummary(BaseModel):
     total_gateways: int
+    online: Optional[int] = None
+    online_percent: Optional[float] = None
     recording_normal: int
     recording_normal_percent: float
     good: Optional[int] = None
@@ -62,13 +64,14 @@ class DVRGatewayItem(BaseModel):
     location: str
     type: str
     dvr_model: str
+    status: str = "Online"
     cpu_dvr: str
     total_kamera: int
-    kamera_online: int
-    kamera_no_video: int
-    kamera_offline: int
+    kamera_online: Union[int, float, str]
+    kamera_no_video: Union[int, float, str]
+    kamera_offline: Union[int, float, str]
     recording_status: str
-    storage_usage_percent: int
+    storage_usage_percent: Union[int, float, str]
     dvr_health: str
     last_update: str
 

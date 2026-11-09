@@ -966,6 +966,26 @@ class CellularService:
                 "status": "success" if rsrp >= -85 else ("warning" if rsrp >= -100 else "error"),
             })
 
+        # If gateway is offline (> 1h without telemetry), prepend active offline alert to events:
+        g_live = self._live_gateways.get(dev_id, {})
+        is_offline = g_live.get("status") == "Offline" or detail.get("status") == "Offline"
+        if is_offline:
+            last_seen = g_live.get("last_seen_epoch") or payload_epoch
+            age_sec = max(0.0, time.time() - last_seen)
+            dur_m = int(age_sec // 60)
+            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 else f"{dur_m}m"
+            if dur_m >= 1440:
+                dur_str = f"{dur_m // 1440}d {(dur_m % 1440) // 60}h"
+            real_events.insert(0, {
+                "id": "evt-offline-active",
+                "title": f"Device Offline: Cellular Telemetry Disconnected since {payload_wib_str} (Stopped sending data for {dur_str})",
+                "time": payload_wib_str,
+                "status": "error",
+                "duration": dur_str,
+                "category": "CELLULAR",
+                "epoch": now_wib.timestamp() + 1000,
+            })
+
         detail["events"] = real_events
 
         # 5. Ringkasan Insiden Terakhir untuk Dashboard
