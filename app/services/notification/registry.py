@@ -63,6 +63,20 @@ class IntegrationRegistry:
                     else:
                         config_masked[k] = v
 
+            if key == "whatsapp":
+                from app.services.notification.whatsapp_session import whatsapp_session_manager
+                wa_stat = whatsapp_session_manager.get_status()
+                if not wa_stat.get("is_logged_in"):
+                    status = "NOT_CONFIGURED"
+                    if dest and dest.status != "NOT_CONFIGURED":
+                        dest.status = "NOT_CONFIGURED"
+                        db.commit()
+                else:
+                    status = "CONNECTED"
+                    if dest and dest.status != "CONNECTED":
+                        dest.status = "CONNECTED"
+                        db.commit()
+
             result.append({
                 "provider_key": p.provider_key,
                 "display_name": p.display_name,
