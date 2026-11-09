@@ -50,6 +50,9 @@ class DVRReportService:
                             WIB = timezone(timedelta(hours=7))
                             t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                             payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        if latest.location:
+                            payload["location"] = latest.location
+                            payload["location_name"] = latest.location
                         self.update_from_telemetry(payload, compute_sla=False)
                 if self._live_gateways:
                     loaded_from_db = True
@@ -138,6 +141,7 @@ class DVRReportService:
 
         loc_name = (
             nms_payload.get("location_name")
+            or nms_payload.get("location")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
@@ -318,37 +322,37 @@ class DVRReportService:
 
         # 1. Batch preload alerts for all devices on this page in ONE single SQL query
         page_dev_ids = [g.get("raw_payload", {}).get("device_id") or g["report_item"].get("id") for g in sliced_gateways]
-        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=date_range) if date_range else {}
+        req_dr = date_range or get_default_period_str()
+        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=req_dr)
 
-        # 2. Calculate authentic MQTT SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
+        # 2. Calculate authentic SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["report_item"])
             item["no"] = idx
-            if date_range:
-                dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
-                sla = sla_calculator_service.calculate_device_sla(
-                    device_id=dev_id,
-                    live_payload=g.get("raw_payload"),
-                    date_range_str=date_range,
-                    skip_history_rows=True,
-                    preloaded_alerts=preloaded_alerts.get(dev_id, []),
-                )
-                cpu_sr = float(sla.get("cpu_dvr_success_rate", sla.get("gateway_sla_pct", 100.0)))
-                rec_sr = float(sla.get("dvr_sla_pct", 100.0))
-                cam_tot = item.get("kamera_total", 0)
-                cam_on = item.get("kamera_online", 0)
-                cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1) if cam_tot > 0 else 100.0
-                combined_sla = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
+            dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
+            sla = sla_calculator_service.calculate_device_sla(
+                device_id=dev_id,
+                live_payload=g.get("raw_payload"),
+                date_range_str=req_dr,
+                skip_history_rows=True,
+                preloaded_alerts=preloaded_alerts.get(dev_id, []),
+            )
+            cpu_sr = float(sla.get("cpu_dvr_success_rate", sla.get("gateway_sla_pct", 100.0)))
+            rec_sr = float(sla.get("dvr_sla_pct", 100.0))
+            cam_tot = item.get("kamera_total", 0)
+            cam_on = item.get("kamera_online", 0)
+            cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1) if cam_tot > 0 else 100.0
+            combined_sla = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
 
-                item["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla.get("gateway_uptime_str", "0m"))
-                item["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla.get("gateway_offline_str", "0m"))
-                item["cpu_dvr_success_rate"] = cpu_sr
-                item["rec_uptime"] = sla.get("dvr_uptime_str", "0m")
-                item["rec_tidak_merekam"] = sla.get("dvr_offline_str", "0m")
-                item["rec_success_rate"] = rec_sr
-                item["sla"] = combined_sla
-                item["jumlah_event"] = len(sla.get("trouble_events", []))
+            item["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla.get("gateway_uptime_str", "0m"))
+            item["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla.get("gateway_offline_str", "0m"))
+            item["cpu_dvr_success_rate"] = cpu_sr
+            item["rec_uptime"] = sla.get("dvr_uptime_str", "0m")
+            item["rec_tidak_merekam"] = sla.get("dvr_offline_str", "0m")
+            item["rec_success_rate"] = rec_sr
+            item["sla"] = combined_sla
+            item["jumlah_event"] = len([ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()])
             items_slice.append(item)
 
         return {
@@ -492,41 +496,15 @@ class DVRReportService:
                 detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
                 detail["recording_info"] = nvr.get("recording", {})
                 detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
-                if date_range:
-                    detail["period"] = date_range
-                    from app.services.sla_calculator_service import sla_calculator_service
-                    sla = sla_calculator_service.calculate_device_sla(gid, live_payload=data.get("raw_payload"), date_range=date_range)
-                    detail["period_hours"] = sla["period_hours_str"]
-                    detail["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla["gateway_uptime_str"])
-                    detail["cpu_dvr_uptime_pct"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
-                    detail["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla["gateway_offline_str"])
-                    detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct']), 1)}%"
-                    detail["success_rate"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
-                    detail["rec_uptime"] = sla["dvr_uptime_str"]
-                    detail["rec_uptime_pct"] = f"{sla['dvr_sla_pct']}%"
-                    detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
-                    detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
-                    detail["timeline_tracks"] = sla.get("timeline_tracks", [])
-                    dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
-                    detail["trouble_events"] = dvr_events_d
-                    detail["jumlah_event"] = len(dvr_events_d)
-                    detail["daily_breakdown"] = sla.get("daily_breakdown", [])
-                    detail["daily_summary"] = sla.get("daily_summary")
-                return detail
-
-        if self._live_gateways:
-            first_gid, first_data = next(iter(self._live_gateways.items()))
-            detail = dict(first_data["detail"])
-            raw_payload = first_data.get("raw_payload", {})
-            nvr = raw_payload.get("nvr_surveillance", {})
-            cameras_info = nvr.get("cameras", {})
-            detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
-            detail["recording_info"] = nvr.get("recording", {})
-            detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
-            if date_range:
-                detail["period"] = date_range
+                req_dr = date_range or get_default_period_str()
+                detail["period"] = req_dr
                 from app.services.sla_calculator_service import sla_calculator_service
-                sla = sla_calculator_service.calculate_device_sla(first_gid, live_payload=first_data.get("raw_payload"), date_range=date_range)
+                sla = sla_calculator_service.calculate_device_sla(
+                    gid,
+                    live_payload=data.get("raw_payload"),
+                    date_range_str=req_dr,
+                    skip_history_rows=True,
+                )
                 detail["period_hours"] = sla["period_hours_str"]
                 detail["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla["gateway_uptime_str"])
                 detail["cpu_dvr_uptime_pct"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
@@ -538,11 +516,59 @@ class DVRReportService:
                 detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
                 detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
                 detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+                cpu_sr = float(sla.get("cpu_dvr_success_rate", sla.get("gateway_sla_pct", 100.0)))
+                rec_sr = float(sla.get("dvr_sla_pct", 100.0))
+                cam_tot = len(detail.get("camera_list", [])) or 4
+                cam_on = sum(1 for c in detail.get("camera_list", []) if c.get("is_online")) if detail.get("camera_list") else 2
+                cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1)
+                detail["sla"] = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
                 dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
                 detail["trouble_events"] = dvr_events_d
                 detail["jumlah_event"] = len(dvr_events_d)
                 detail["daily_breakdown"] = sla.get("daily_breakdown", [])
                 detail["daily_summary"] = sla.get("daily_summary")
+                return detail
+
+        if self._live_gateways:
+            first_gid, first_data = next(iter(self._live_gateways.items()))
+            detail = dict(first_data["detail"])
+            raw_payload = first_data.get("raw_payload", {})
+            nvr = raw_payload.get("nvr_surveillance", {})
+            cameras_info = nvr.get("cameras", {})
+            detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+            detail["recording_info"] = nvr.get("recording", {})
+            detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
+            req_dr = date_range or get_default_period_str()
+            detail["period"] = req_dr
+            from app.services.sla_calculator_service import sla_calculator_service
+            sla = sla_calculator_service.calculate_device_sla(
+                first_gid,
+                live_payload=first_data.get("raw_payload"),
+                date_range_str=req_dr,
+                skip_history_rows=True,
+            )
+            detail["period_hours"] = sla["period_hours_str"]
+            detail["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla["gateway_uptime_str"])
+            detail["cpu_dvr_uptime_pct"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
+            detail["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla["gateway_offline_str"])
+            detail["cpu_dvr_offline_pct"] = f"{round(100.0 - sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct']), 1)}%"
+            detail["success_rate"] = f"{sla.get('cpu_dvr_success_rate', sla['gateway_sla_pct'])}%"
+            detail["rec_uptime"] = sla["dvr_uptime_str"]
+            detail["rec_uptime_pct"] = f"{sla['dvr_sla_pct']}%"
+            detail["rec_tidak_merekam"] = sla["dvr_offline_str"]
+            detail["rec_tidak_merekam_pct"] = f"{round(100.0 - sla['dvr_sla_pct'], 1)}%"
+            detail["timeline_tracks"] = sla.get("timeline_tracks", [])
+            cpu_sr = float(sla.get("cpu_dvr_success_rate", sla.get("gateway_sla_pct", 100.0)))
+            rec_sr = float(sla.get("dvr_sla_pct", 100.0))
+            cam_tot = len(detail.get("camera_list", [])) or 4
+            cam_on = sum(1 for c in detail.get("camera_list", []) if c.get("is_online")) if detail.get("camera_list") else 2
+            cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1)
+            detail["sla"] = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
+            dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
+            detail["trouble_events"] = dvr_events_d
+            detail["jumlah_event"] = len(dvr_events_d)
+            detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+            detail["daily_summary"] = sla.get("daily_summary")
             return detail
 
         return {

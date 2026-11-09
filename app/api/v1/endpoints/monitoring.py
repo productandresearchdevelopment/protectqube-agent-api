@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
@@ -286,9 +287,11 @@ def export_cellular_detail_pdf(
     """
     Exports detailed Cellular performance report to PDF (.pdf) format.
     """
-    pdf_stream = cellular_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    detail = cellular_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
     safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"Cellular_Detail_{gateway_id}_{safe_range}.pdf"
+    filename = f"Cellular_Detail_{loc_clean}_{safe_range}.pdf"
+    pdf_stream = cellular_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
     return Response(
         content=pdf_stream.getvalue(),
         media_type="application/pdf",
@@ -379,9 +382,11 @@ def export_dvr_detail_pdf(
     """
     Exports detailed DVR performance report to PDF (.pdf) format.
     """
-    pdf_stream = dvr_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    detail = dvr_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
     safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"DVR_Detail_{gateway_id}_{safe_range}.pdf"
+    filename = f"DVR_Detail_{loc_clean}_{safe_range}.pdf"
+    pdf_stream = dvr_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
     return Response(
         content=pdf_stream.getvalue(),
         media_type="application/pdf",
@@ -476,9 +481,11 @@ def export_health_detail_pdf(
     """
     Exports detailed System Health performance report to PDF (.pdf) format.
     """
-    pdf_stream = health_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+    detail = health_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
     safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"Health_Detail_{gateway_id}_{safe_range}.pdf"
+    filename = f"Health_Detail_{loc_clean}_{safe_range}.pdf"
+    pdf_stream = health_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
     return Response(
         content=pdf_stream.getvalue(),
         media_type="application/pdf",

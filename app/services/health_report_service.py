@@ -50,6 +50,9 @@ class HealthReportService:
                             WIB = timezone(timedelta(hours=7))
                             t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                             payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        if latest.location:
+                            payload["location"] = latest.location
+                            payload["location_name"] = latest.location
                         self.update_from_telemetry(payload, compute_sla=False)
                 if self._live_gateways:
                     loaded_from_db = True
@@ -118,6 +121,7 @@ class HealthReportService:
 
         loc_name = (
             nms_payload.get("location_name")
+            or nms_payload.get("location")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
@@ -297,17 +301,16 @@ class HealthReportService:
         req_dr_filter = date_range or get_default_period_str()
         preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=req_dr_filter)
 
-        # 2. Calculate authentic MQTT SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
+        # 2. Calculate authentic SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["report_item"])
             item["no"] = idx
             dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
-            req_dr = date_range or item.get("period") or get_default_period_str()
             sla = sla_calculator_service.calculate_device_sla(
                 device_id=dev_id,
                 live_payload=g.get("raw_payload"),
-                date_range_str=req_dr,
+                date_range_str=req_dr_filter,
                 skip_history_rows=True,
                 preloaded_alerts=preloaded_alerts.get(dev_id, []),
             )
@@ -530,8 +533,8 @@ class HealthReportService:
             sla = sla_calculator_service.calculate_device_sla(
                 target_gid or gateway_id,
                 live_payload=target_gdata.get("raw_payload"),
-                date_range=req_period,
-                date_range_str=req_period
+                date_range_str=req_period,
+                skip_history_rows=True,
             )
             uptime_pct = sla["gateway_sla_pct"]
             detail["period_hours"] = sla["period_hours_str"]

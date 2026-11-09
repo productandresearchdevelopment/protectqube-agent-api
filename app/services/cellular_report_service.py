@@ -50,6 +50,9 @@ class CellularReportService:
                             WIB = timezone(timedelta(hours=7))
                             t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                             payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
+                        if latest.location:
+                            payload["location"] = latest.location
+                            payload["location_name"] = latest.location
                         self.update_from_telemetry(payload, compute_sla=False)
                 if self._live_gateways:
                     loaded_from_db = True
@@ -121,6 +124,7 @@ class CellularReportService:
 
         loc_name = (
             nms_payload.get("location_name")
+            or nms_payload.get("location")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
@@ -339,32 +343,32 @@ class CellularReportService:
 
         # 1. Batch preload alerts for all devices on this page in ONE single SQL query
         page_dev_ids = [g.get("raw_payload", {}).get("device_id") or g["table_item"].get("id") for g in sliced_gateways]
-        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=date_range) if date_range else {}
+        req_dr = date_range or get_default_period_str()
+        preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(page_dev_ids, date_range_str=req_dr)
 
-        # 2. Calculate authentic MQTT SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
+        # 2. Calculate authentic SLA ONLY for the active page slice (fast in-memory, no N+1 history queries)
         items_slice = []
         for idx, g in enumerate(sliced_gateways, start=start_idx + 1):
             item = dict(g["table_item"])
             item["no"] = idx
-            if date_range:
-                dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
-                sla = sla_calculator_service.calculate_device_sla(
-                    device_id=dev_id,
-                    live_payload=g.get("raw_payload"),
-                    date_range_str=date_range,
-                    skip_history_rows=True,
-                    preloaded_alerts=preloaded_alerts.get(dev_id, []),
-                )
-                item["cpu_modem_uptime"] = sla["gateway_uptime_str"]
-                item["cpu_modem_offline"] = sla["gateway_offline_str"]
-                item["cpu_modem_success_rate"] = sla["gateway_sla_pct"]
-                item["network_uptime"] = sla["cellular_uptime_str"]
-                item["network_offline"] = sla["cellular_offline_str"]
-                item["network_success_rate"] = sla["cellular_sla_pct"]
-                cell_events_r = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network"]]
-                item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp"))
-                item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp"))
-                item["trouble_events_count"] = len(cell_events_r)
+            dev_id = g.get("raw_payload", {}).get("device_id") or item["id"]
+            sla = sla_calculator_service.calculate_device_sla(
+                device_id=dev_id,
+                live_payload=g.get("raw_payload"),
+                date_range_str=req_dr,
+                skip_history_rows=True,
+                preloaded_alerts=preloaded_alerts.get(dev_id, []),
+            )
+            item["cpu_modem_uptime"] = sla["gateway_uptime_str"]
+            item["cpu_modem_offline"] = sla["gateway_offline_str"]
+            item["cpu_modem_success_rate"] = sla["gateway_sla_pct"]
+            item["network_uptime"] = sla["cellular_uptime_str"]
+            item["network_offline"] = sla["cellular_offline_str"]
+            item["network_success_rate"] = sla["cellular_sla_pct"]
+            cell_events_r = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
+            item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp", -85))
+            item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp", 42))
+            item["trouble_events_count"] = len(cell_events_r)
             items_slice.append(item)
 
         return {
@@ -473,36 +477,37 @@ class CellularReportService:
 
         if target_gdata:
             detail = dict(target_gdata["detail_item"])
-            if date_range:
-                detail["period"] = date_range
-                sla = sla_calculator_service.calculate_device_sla(
-                    device_id=target_gid,
-                    live_payload=target_gdata.get("raw_payload"),
-                    date_range_str=date_range
-                )
-                detail["period_hours"] = sla["period_hours_str"]
-                detail["cpu_modem_uptime"] = sla.get("cpu_modem_uptime_str", sla["gateway_uptime_str"])
-                detail["cpu_modem_uptime_pct"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
-                detail["cpu_modem_offline"] = sla.get("cpu_modem_offline_str", sla["gateway_offline_str"])
-                detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla.get('cpu_modem_success_rate', sla['gateway_sla_pct']), 1)}%"
-                detail["success_rate"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
-                if sla.get("avg_ping") is not None:
-                    detail["avg_response_time"] = f"{sla['avg_ping']} ms"
-                detail["network_uptime"] = sla.get("network_uptime_str", sla["cellular_uptime_str"])
-                detail["network_uptime_pct"] = f"{sla.get('network_success_rate', sla['cellular_sla_pct'])}%"
-                detail["network_offline"] = sla.get("network_offline_str", sla["cellular_offline_str"])
-                detail["network_offline_pct"] = f"{round(100.0 - sla.get('network_success_rate', sla['cellular_sla_pct']), 1)}%"
-                detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
-                detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
-                if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
-                    detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
-                cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
-                detail["total_gangguan"] = f"{len(cell_events_d)} event"
-                if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
-                    detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]
-                detail["trouble_events"] = cell_events_d
-                detail["daily_breakdown"] = sla.get("daily_breakdown", [])
-                detail["daily_summary"] = sla.get("daily_summary")
+            req_dr = date_range or get_default_period_str()
+            detail["period"] = req_dr
+            sla = sla_calculator_service.calculate_device_sla(
+                device_id=target_gid,
+                live_payload=target_gdata.get("raw_payload"),
+                date_range_str=req_dr,
+                skip_history_rows=True,
+            )
+            detail["period_hours"] = sla["period_hours_str"]
+            detail["cpu_modem_uptime"] = sla.get("cpu_modem_uptime_str", sla["gateway_uptime_str"])
+            detail["cpu_modem_uptime_pct"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
+            detail["cpu_modem_offline"] = sla.get("cpu_modem_offline_str", sla["gateway_offline_str"])
+            detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla.get('cpu_modem_success_rate', sla['gateway_sla_pct']), 1)}%"
+            detail["success_rate"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
+            if sla.get("avg_ping") is not None:
+                detail["avg_response_time"] = f"{sla['avg_ping']} ms"
+            detail["network_uptime"] = sla.get("network_uptime_str", sla["cellular_uptime_str"])
+            detail["network_uptime_pct"] = f"{sla.get('network_success_rate', sla['cellular_sla_pct'])}%"
+            detail["network_offline"] = sla.get("network_offline_str", sla["cellular_offline_str"])
+            detail["network_offline_pct"] = f"{round(100.0 - sla.get('network_success_rate', sla['cellular_sla_pct']), 1)}%"
+            detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
+            detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
+            if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
+                detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
+            cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
+            detail["total_gangguan"] = f"{len(cell_events_d)} events"
+            if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
+                detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]
+            detail["trouble_events"] = cell_events_d
+            detail["daily_breakdown"] = sla.get("daily_breakdown", [])
+            detail["daily_summary"] = sla.get("daily_summary")
             return detail
 
         return {

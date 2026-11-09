@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 from sqlalchemy import (
     Column,
     String,
@@ -11,12 +12,17 @@ from sqlalchemy import (
     JSON,
 )
 from sqlalchemy.orm import relationship
-from app.models.base_models import BaseModel
+from app.core.database import Base
 
 
-class GatewayTelemetryHistory(BaseModel):
+def generate_uuid() -> str:
+    return str(uuid.uuid4())
+
+
+class GatewayTelemetryHistory(Base):
     __tablename__ = "gateway_telemetry_history"
 
+    id = Column(String(36), primary_key=True, default=generate_uuid)
     device_id = Column(String(50), nullable=False, index=True)
     recorded_at = Column(DateTime, default=datetime.utcnow, index=True)
 
@@ -45,9 +51,10 @@ class GatewayTelemetryHistory(BaseModel):
     raw_payload = Column(JSON, nullable=True)
 
 
-class GatewayIncidentAlert(BaseModel):
+class GatewayIncidentAlert(Base):
     __tablename__ = "gateway_incident_alerts"
 
+    id = Column(String(36), primary_key=True, default=generate_uuid)
     device_id = Column(String(50), nullable=False, index=True)
     telemetry_history_id = Column(String(36), ForeignKey("gateway_telemetry_history.id", ondelete="SET NULL"), nullable=True, index=True)
     metric = Column(String(30), nullable=False, index=True)
@@ -57,5 +64,6 @@ class GatewayIncidentAlert(BaseModel):
     duration_minutes = Column(Float, default=0.0)
     duration_str = Column(String(50), nullable=True)
     status = Column(String(20), default="RESOLVED", index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     telemetry_history = relationship("GatewayTelemetryHistory", backref="incident_alerts")
