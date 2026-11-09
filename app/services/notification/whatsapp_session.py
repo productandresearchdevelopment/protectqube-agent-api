@@ -178,6 +178,7 @@ class WhatsAppSessionManager:
             self._qr_base64 = None
             self._pairing_code = None
             self._status = "NOT_CONFIGURED"
+            self._update_db_status("NOT_CONFIGURED", {})
             if os.path.exists(self.db_path):
                 try:
                     os.remove(self.db_path)
