@@ -184,7 +184,7 @@ class DVRService:
             else:
                 health = "Warning"
         else:
-            cpu_dvr_status = "No Response"
+            cpu_dvr_status = "Not Connected"
             rec_status = f"0/{total_kamera} Recording"
             health = "Critical"
 
@@ -335,7 +335,7 @@ class DVRService:
             "last_seen_epoch": last_seen_epoch,
         }
 
-    ONLINE_TIMEOUT_SECONDS = 1800  # 30 minutes tolerance
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik) batas offline sesuai instruksi
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -366,7 +366,7 @@ class DVRService:
             table_item = g.get("table_item", {})
             detail_item = g.get("detail_item", {})
             if age_sec > self.ONLINE_TIMEOUT_SECONDS:
-                table_item["cpu_dvr"] = "No Response"
+                table_item["cpu_dvr"] = "Not Connected"
                 table_item["dvr_health"] = "Critical"
                 table_item["recording_status"] = "Not Recording"
                 g["is_connected"] = False
@@ -374,7 +374,7 @@ class DVRService:
                 detail_item["status"] = "Offline"
                 detail_item["service_status"] = "Stopped"
                 if "cpu_dvr" in detail_item:
-                    detail_item["cpu_dvr"]["status"] = "No Response"
+                    detail_item["cpu_dvr"]["status"] = "Not Connected"
             else:
                 is_conn = g.get("is_connected", False)
                 h = g.get("health", "Warning")
@@ -416,7 +416,7 @@ class DVRService:
         )
         offline_count = sum(
             1 for g in self._live_gateways.values()
-            if not g.get("is_connected", False) or g["table_item"]["cpu_dvr"] in ["No Response", "Offline"]
+            if not g.get("is_connected", False) or g["table_item"]["cpu_dvr"] in ["Not Connected", "No Response", "Offline"]
         )
 
         total_cams = sum(g["table_item"]["total_kamera"] for g in self._live_gateways.values())
@@ -593,10 +593,10 @@ class DVRService:
                     g for g in filtered
                     if g.get("cpu_dvr") == "Connected" and "0/" in g.get("recording_status", "")
                 ]
-            elif s in ["offline", "critical", "no response"]:
+            elif s in ["offline", "critical", "not connected", "no response"]:
                 filtered = [
                     g for g in filtered
-                    if g.get("cpu_dvr") in ["No Response", "Offline"] or g.get("dvr_health") == "Critical"
+                    if g.get("cpu_dvr") in ["Not Connected", "No Response", "Offline"] or g.get("dvr_health") == "Critical"
                 ]
 
         total_items = len(filtered)
@@ -999,7 +999,7 @@ class DVRService:
                     "status": "Offline",
                     "service_status": "Stopped",
                     "cpu_dvr": {
-                        "status": "No Response",
+                        "status": "Not Connected",
                         "message": "No NVR telemetry received from gateway",
                         "port": "80 (ISAPI)",
                         "response_time": "Timeout",

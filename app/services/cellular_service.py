@@ -120,15 +120,10 @@ class CellularService:
             or f"Gateway {device_id}"
         )
 
-        if sim_inserted and modem_connected:
-            status = "Online"
-            cpu_modem_status = "Connected"
-        elif modem_connected:
-            status = "Warning"
-            cpu_modem_status = "Connected"
-        else:
-            status = "Offline"
-            cpu_modem_status = "No Response"
+        # Status device biner: Online saat menerima telemetri real-time
+        status = "Online"
+        cpu_modem_status = "Connected" if modem_connected else "Not Connected"
+        sim_status_label = "Ready" if sim_inserted else "Not Detected"
 
         # Prioritize datetime_utc7 from hardware payload, then recorded_at
         ts_str = nms_payload.get("datetime_utc7") or nms_payload.get("recorded_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -142,7 +137,7 @@ class CellularService:
             "model": hw.get("model") or hw.get("type") or "-",
             "modem": modem.get("model") or "-",
             "provider": operator if operator != "N/A" else "No SIM",
-            "sim_status": "Ready" if sim_inserted else "Not Detected",
+            "sim_status": sim_status_label,
             "cpu_modem": cpu_modem_status,
             "network": sim.get("network_mode", "4G LTE") if sim_inserted else "No Service",
             "signal_rsrp": rsrp_str,
@@ -174,7 +169,7 @@ class CellularService:
             "status": status,
             "service_status": "Running" if status == "Online" else ("Warning" if status == "Warning" else "Stopped"),
             "cpu_modem": {
-                "status": "Connected" if modem_connected else "No Response",
+                "status": "Connected" if modem_connected else "Not Connected",
                 "message": f"CPU connected to Quectel Modem via serial ports ({port_range})" if modem_connected else "Communication with modem lost",
                 "port": active_port,
                 "baudrate": 115200,
@@ -235,7 +230,7 @@ class CellularService:
                 except Exception as ce:
                     logger.debug(f"Failed to write cache file: {ce}")
 
-    ONLINE_TIMEOUT_SECONDS = 1800  # 30 menit toleransi jika ada jeda transmisi jaringan seluler
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik) batas offline sesuai instruksi
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -313,42 +308,32 @@ class CellularService:
             modem_connected, sim_inserted, _, _ = self._parse_cellular_from_logs(raw)
             
             if age_sec > self.ONLINE_TIMEOUT_SECONDS:
-                # Gateway sudah tidak menerima data telemetri lagi -> OFFLINE
+                # Gateway sudah tidak menerima data telemetri > 1 jam -> OFFLINE TOTAL
                 item["status"] = "Offline"
-                # Pertahankan status fisik port CPU-Modem dari system log hardware terakhir
-                item["cpu_modem"] = "Connected" if modem_connected else "No Response"
+                item["cpu_modem"] = "Not Connected"
+                item["sim_status"] = "Not Detected"
+                item["signal_rsrp"] = "-"
+                item["signal_bars"] = 0
                 detail["status"] = "Offline"
                 detail["service_status"] = "Stopped"
+                detail["sim_card"] = "Not Detected"
                 if "cpu_modem" in detail:
-                    detail["cpu_modem"]["status"] = "Connected" if modem_connected else "No Response"
+                    detail["cpu_modem"]["status"] = "Not Connected"
                     detail["cpu_modem"]["message"] = (
-                        f"CPU connected to modem (Gateway offline: no data for {int(age_sec // 60)}m)"
-                        if modem_connected
-                        else f"No communication with modem ({int(age_sec // 60)}m ago)"
+                        f"No communication with gateway & modem (Gateway offline for {int(age_sec // 60)}m)"
                     )
             else:
-                # Masih aktif menerima telemetri secara real-time dari per-menit system logs
-                if sim_inserted and modem_connected:
-                    item["status"] = "Online"
-                    item["cpu_modem"] = "Connected"
-                    detail["status"] = "Online"
-                    detail["service_status"] = "Running"
-                    if "cpu_modem" in detail:
-                        detail["cpu_modem"]["status"] = "Connected"
-                elif modem_connected:
-                    item["status"] = "Warning"
-                    item["cpu_modem"] = "Connected"
-                    detail["status"] = "Warning"
-                    detail["service_status"] = "Warning"
-                    if "cpu_modem" in detail:
-                        detail["cpu_modem"]["status"] = "Connected"
-                else:
-                    item["status"] = "Offline"
-                    item["cpu_modem"] = "No Response"
-                    detail["status"] = "Offline"
-                    detail["service_status"] = "Stopped"
-                    if "cpu_modem" in detail:
-                        detail["cpu_modem"]["status"] = "No Response"
+                # Masih aktif menerima telemetri dalam 1 jam terakhir -> STATUS ONLINE
+                item["status"] = "Online"
+                item["cpu_modem"] = "Connected" if modem_connected else "Not Connected"
+                item["sim_status"] = "Ready" if sim_inserted else "Not Detected"
+                detail["status"] = "Online"
+                detail["service_status"] = "Running"
+                detail["sim_card"] = "Active" if sim_inserted else "Not Detected"
+                if "cpu_modem" in detail:
+                    detail["cpu_modem"]["status"] = "Connected" if modem_connected else "Not Connected"
+                    if not modem_connected:
+                        detail["cpu_modem"]["message"] = "Communication with modem lost (USB port disconnected)"
 
     def get_summary_metrics(self) -> Dict[str, Any]:
         """Calculates summary cards directly from real gateways"""
@@ -440,7 +425,8 @@ class CellularService:
 
         color_map_comm = {
             "Connected": "#00c875",
-            "No Response": "#fdab3d",
+            "Not Connected": "#e2445c",
+            "No Response": "#e2445c",
             "Not Detected": "#e2445c",
             "Driver Error": "#4a7cf6",
         }
@@ -927,7 +913,7 @@ class CellularService:
 
         # Fallback if no logs available: provide authentic device status snapshot
         if not real_events:
-            c_status = detail.get("cpu_modem", {}).get("status", "No Response")
+            c_status = detail.get("cpu_modem", {}).get("status", "Not Connected")
             net_type = detail.get("network_sim", {}).get("network_type", "4G")
             oper = detail.get("network_sim", {}).get("operator", "Telkomsel")
             real_events.append({
@@ -954,7 +940,7 @@ class CellularService:
 
         # Fallback if no logs available: provide authentic device status snapshot
         if not real_events:
-            c_status = detail.get("cpu_modem", {}).get("status", "No Response")
+            c_status = detail.get("cpu_modem", {}).get("status", "Not Connected")
             net_type = detail.get("network_sim", {}).get("network_type", "4G")
             sim_st = detail.get("network_sim", {}).get("sim_status", "Ready")
             op = detail.get("network_sim", {}).get("operator", "N/A")
@@ -1027,7 +1013,7 @@ class CellularService:
             "status": "Offline",
             "service_status": "Stopped",
             "cpu_modem": {
-                "status": "No Response",
+                "status": "Not Connected",
                 "message": "No telemetry received from MQTT",
                 "port": "/dev/ttyUSB3",
                 "baudrate": 115200,

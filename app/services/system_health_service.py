@@ -533,7 +533,7 @@ class SystemHealthService:
             "last_seen_epoch": last_seen_epoch,
         }
 
-    ONLINE_TIMEOUT_SECONDS = 600
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik) batas offline sesuai instruksi
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -561,6 +561,11 @@ class SystemHealthService:
             if not last_seen:
                 last_seen = self._parse_payload_epoch(g.get("raw_payload", {}))
                 g["last_seen_epoch"] = last_seen
+            age_sec = now - last_seen
+            if age_sec > self.ONLINE_TIMEOUT_SECONDS:
+                g["status"] = "Critical"
+                if "detail_item" in g and isinstance(g["detail_item"], dict):
+                    g["detail_item"]["service_status"] = "Stopped"
 
     def get_summary_metrics(self) -> Dict[str, Any]:
         """Calculates dynamic fleet summary metrics from 100% real live gateways"""
