@@ -1,6 +1,9 @@
 import re
+import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, HTTPException
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.agents.agent_manager import agent_manager
@@ -263,20 +266,24 @@ def export_cellular_report_excel(
     """
     Exports fleet cellular telemetry data to professional Excel (.xlsx) file.
     """
-    excel_stream = cellular_report_service.export_excel(
-        search=search,
-        gateway_type=gateway_type,
-        provider=provider,
-        location=location,
-        date_range=date_range,
-    )
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"Cellular_SLA_Report_{safe_range}.xlsx"
-    return Response(
-        content=excel_stream.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        excel_stream = cellular_report_service.export_excel(
+            search=search,
+            gateway_type=gateway_type,
+            provider=provider,
+            location=location,
+            date_range=date_range,
+        )
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"Cellular_SLA_Report_{safe_range}.xlsx"
+        return Response(
+            content=excel_stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting Cellular report Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
 
 
 @router.get("/reports/cellular/gateway/{gateway_id}/export-pdf")
@@ -287,16 +294,20 @@ def export_cellular_detail_pdf(
     """
     Exports detailed Cellular performance report to PDF (.pdf) format.
     """
-    detail = cellular_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
-    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"Cellular_Detail_{loc_clean}_{safe_range}.pdf"
-    pdf_stream = cellular_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
-    return Response(
-        content=pdf_stream.getvalue(),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        detail = cellular_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+        loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"Cellular_Detail_{loc_clean}_{safe_range}.pdf"
+        pdf_stream = cellular_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+        return Response(
+            content=pdf_stream.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting Cellular detail PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF export: {str(e)}")
 
 
 @router.get("/reports/cellular/gateway/{gateway_id}/detail", response_model=CellularReportGatewayDetailResponse)
@@ -357,21 +368,25 @@ def export_dvr_report_excel(
     """
     Exports fleet DVR telemetry data to professional Excel (.xlsx) file.
     """
-    excel_stream = dvr_report_service.export_excel(
-        search=search,
-        gateway_type=gateway_type,
-        status=status,
-        dvr_brand=dvr_brand,
-        location=location,
-        date_range=date_range,
-    )
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"DVR_Recording_Report_{safe_range}.xlsx"
-    return Response(
-        content=excel_stream.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        excel_stream = dvr_report_service.export_excel(
+            search=search,
+            gateway_type=gateway_type,
+            status=status,
+            dvr_brand=dvr_brand,
+            location=location,
+            date_range=date_range,
+        )
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"DVR_Recording_Report_{safe_range}.xlsx"
+        return Response(
+            content=excel_stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting DVR report Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
 
 
 @router.get("/reports/dvr/gateway/{gateway_id}/export-pdf")
@@ -382,16 +397,20 @@ def export_dvr_detail_pdf(
     """
     Exports detailed DVR performance report to PDF (.pdf) format.
     """
-    detail = dvr_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
-    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"DVR_Detail_{loc_clean}_{safe_range}.pdf"
-    pdf_stream = dvr_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
-    return Response(
-        content=pdf_stream.getvalue(),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        detail = dvr_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+        loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"DVR_Detail_{loc_clean}_{safe_range}.pdf"
+        pdf_stream = dvr_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+        return Response(
+            content=pdf_stream.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting DVR detail PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF export: {str(e)}")
 
 
 @router.get("/reports/dvr/gateway/{gateway_id}/detail", response_model=DVRReportGatewayDetailResponse)
@@ -458,19 +477,23 @@ def export_health_report_excel(
     """
     Exports fleet System Health telemetry data to professional Excel (.xlsx) file.
     """
-    excel_stream = health_report_service.export_excel(
-        search=search,
-        gateway_type=gateway_type,
-        location=location,
-        date_range=date_range,
-    )
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"System_Health_Report_{safe_range}.xlsx"
-    return Response(
-        content=excel_stream.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        excel_stream = health_report_service.export_excel(
+            search=search,
+            gateway_type=gateway_type,
+            location=location,
+            date_range=date_range,
+        )
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"System_Health_Report_{safe_range}.xlsx"
+        return Response(
+            content=excel_stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting Health report Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
 
 
 @router.get("/reports/health/gateway/{gateway_id}/export-pdf")
@@ -481,16 +504,20 @@ def export_health_detail_pdf(
     """
     Exports detailed System Health performance report to PDF (.pdf) format.
     """
-    detail = health_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
-    loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
-    safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-    filename = f"Health_Detail_{loc_clean}_{safe_range}.pdf"
-    pdf_stream = health_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
-    return Response(
-        content=pdf_stream.getvalue(),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    try:
+        detail = health_report_service.get_gateway_detail(gateway_id=gateway_id, date_range=date_range)
+        loc_clean = re.sub(r"[^\w\s-]", "", detail.get("location") or gateway_id).strip().replace(" ", "_")
+        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
+        filename = f"Health_Detail_{loc_clean}_{safe_range}.pdf"
+        pdf_stream = health_report_service.export_detail_pdf(gateway_id=gateway_id, date_range=date_range)
+        return Response(
+            content=pdf_stream.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting Health detail PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF export: {str(e)}")
 
 
 @router.get("/reports/health/gateway/{gateway_id}/detail", response_model=HealthReportGatewayDetailResponse)
