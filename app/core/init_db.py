@@ -1,4 +1,5 @@
 import logging
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.core.database import Base, engine, SessionLocal
 from app.core.security import get_password_hash
@@ -22,6 +23,26 @@ logger = logging.getLogger(__name__)
 def init_db():
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables verified successfully.")
+
+    # Automatically ensure audit columns (created_by, updated_by, deleted_by) exist
+    tables = [
+        "users", "roles", "module_types", "modules", "role_modules",
+        "uploads", "user_sessions", "user_otps",
+        "gateway_telemetry_histories", "gateway_incident_alerts",
+        "notification_events", "notification_destinations",
+        "notification_targets", "notifications", "notification_deliveries"
+    ]
+    try:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for tbl in tables:
+                for col in ["created_by", "updated_by", "deleted_by"]:
+                    try:
+                        conn.execute(text(f'ALTER TABLE "{tbl}" ADD COLUMN IF NOT EXISTS "{col}" VARCHAR(36);'))
+                    except Exception:
+                        pass
+        logger.info("Audit columns (created_by, updated_by, deleted_by) verified on all tables.")
+    except Exception as e:
+        logger.warning(f"Could not verify audit columns on tables: {e}")
 
     db: Session = SessionLocal()
     try:

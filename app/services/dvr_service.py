@@ -335,7 +335,7 @@ class DVRService:
             "last_seen_epoch": last_seen_epoch,
         }
 
-    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik) batas offline sesuai instruksi
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika ingin 5 menit, cukup ganti ke 300 di sini
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
