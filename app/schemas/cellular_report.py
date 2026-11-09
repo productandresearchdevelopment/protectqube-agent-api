@@ -24,6 +24,8 @@ class CellularReportItem(BaseModel):
     network_success_rate: Optional[float] = 98.2
     network_avg_rsrp: Optional[float] = None
     network_avg_temp: Optional[float] = None
+
+    sla: Optional[float] = None
     
     trouble_events_count: int
     trouble_last_offline: str

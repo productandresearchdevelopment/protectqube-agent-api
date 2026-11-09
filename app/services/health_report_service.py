@@ -179,6 +179,16 @@ class HealthReportService:
             daily_summary = None
             period_hours_str = "744.0 Hours"
 
+        # Real-time System Uptime & Downtime directly from MQTT logs:
+        try:
+            from app.services.system_health_service import system_health_service
+            daily_up = system_health_service._calculate_daily_uptime_from_logs(nms_payload, device_id)
+            up_str = daily_up.get("uptime_text") or up_str
+            off_str = daily_up.get("downtime_text") or off_str
+            uptime_pct = float(daily_up.get("uptime_pct", uptime_pct))
+        except Exception:
+            pass
+
         report_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
@@ -198,7 +208,9 @@ class HealthReportService:
             "temp_avg": temp_avg,
             "temp_max": temp_max,
             "uptime_duration": up_str,
+            "downtime_duration": off_str,
             "uptime_pct": uptime_pct,
+            "sla": uptime_pct,
             "jumlah_event": events_count,
         }
 
@@ -315,8 +327,56 @@ class HealthReportService:
                 skip_history_rows=True,
                 preloaded_alerts=preloaded_alerts.get(dev_id, []),
             )
-            item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration"))
-            item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct"))
+            # Synchronize 100% authentic uptime & downtime directly from system health telemetry logs:
+            try:
+                from app.services.system_health_service import system_health_service
+                daily_up = system_health_service._calculate_daily_uptime_from_logs(g.get("raw_payload"), dev_id)
+            except Exception:
+                daily_up = None
+
+            merged_breakdown = list(sla.get("daily_breakdown", []))
+            if daily_up and daily_up.get("daily_breakdown"):
+                up_dict = {b["date_iso"]: b for b in daily_up["daily_breakdown"] if "date_iso" in b}
+                up_dict_date = {b["date"]: b for b in daily_up["daily_breakdown"] if "date" in b}
+
+                for row in merged_breakdown:
+                    r_date = row.get("date", "")
+                    r_iso = None
+                    try:
+                        r_iso = datetime.strptime(r_date, "%d %b %Y").strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+                    
+                    matched_up = up_dict.get(r_iso) or up_dict_date.get(r_date)
+                    if matched_up:
+                        row["uptime_min"] = matched_up["uptime_min"]
+                        row["downtime_min"] = matched_up["downtime_min"]
+                        row["success_rate"] = matched_up["success_rate"]
+                        row["sla_diff"] = round(matched_up["success_rate"] - float(row.get("target_sla", 98.0)), 1)
+                        row["sla_status"] = matched_up["sla_status"]
+                        row["observation_min"] = matched_up.get("total_observed_min", row.get("observation_min", 1440.0))
+
+            if merged_breakdown:
+                total_up_min = sum(r.get("uptime_min", r.get("cpu_modem_uptime_min", 0.0)) for r in merged_breakdown)
+                total_down_min = sum(r.get("downtime_min", r.get("cpu_modem_downtime_min", 0.0)) for r in merged_breakdown)
+                total_obs_min = sum(r.get("observation_min", r.get("uptime_min", 0.0) + r.get("downtime_min", 0.0)) for r in merged_breakdown)
+                total_sr = round((total_up_min / total_obs_min) * 100.0, 1) if total_obs_min > 0 else 100.0
+
+                item["uptime_duration"] = sla_calculator_service._format_duration(total_up_min * 60.0)
+                item["downtime_duration"] = sla_calculator_service._format_duration(total_down_min * 60.0)
+                item["uptime_pct"] = total_sr
+                item["sla"] = total_sr
+            elif daily_up:
+                item["uptime_duration"] = daily_up.get("uptime_text") or sla.get("gateway_uptime_str", item.get("uptime_duration", "0m"))
+                item["downtime_duration"] = daily_up.get("downtime_text") or sla.get("gateway_offline_str", item.get("downtime_duration", "0m"))
+                item["uptime_pct"] = float(daily_up.get("uptime_pct", sla.get("gateway_sla_pct", item.get("uptime_pct", 100.0))))
+                item["sla"] = item["uptime_pct"]
+            else:
+                item["uptime_duration"] = sla.get("gateway_uptime_str", item.get("uptime_duration", "0m"))
+                item["downtime_duration"] = sla.get("gateway_offline_str", item.get("downtime_duration", "0m"))
+                item["uptime_pct"] = sla.get("gateway_sla_pct", item.get("uptime_pct", 100.0))
+                item["sla"] = item["uptime_pct"]
+
             item["jumlah_event"] = len(sla.get("trouble_events", []))
 
             fast_t = batch_telem.get(dev_id, {})
@@ -390,6 +450,9 @@ class HealthReportService:
             "Gateway ID",
             "Location",
             "Type",
+            "Uptime Duration",
+            "Downtime Duration",
+            "SLA (%)",
             "CPU Avg (%)",
             "CPU Max (%)",
             "CPU > 80% (hrs)",
@@ -403,8 +466,6 @@ class HealthReportService:
             "SD Card Life (%)",
             "System Temp Avg (C)",
             "System Temp Max (C)",
-            "Uptime Duration",
-            "Uptime Percentage (%)",
             "Incident Count",
         ])
 
@@ -414,6 +475,9 @@ class HealthReportService:
                 g["id"],
                 g["location"],
                 g["type"],
+                g["uptime_duration"],
+                g.get("downtime_duration", "0m"),
+                f"{g.get('sla', g.get('uptime_pct', 100))}%",
                 g["cpu_avg"],
                 g["cpu_max"],
                 g["cpu_gt_80_duration"],
@@ -427,8 +491,6 @@ class HealthReportService:
                 g["sd_life_pct"],
                 g["temp_avg"],
                 g["temp_max"],
-                g["uptime_duration"],
-                g["uptime_pct"],
                 g["jumlah_event"],
             ])
 
@@ -551,10 +613,23 @@ class HealthReportService:
                 skip_history_rows=True,
             )
             uptime_pct = sla["gateway_sla_pct"]
+            up_dur = sla["gateway_uptime_str"]
+            down_dur = sla["gateway_offline_str"]
+            # Synchronize 100% data-driven gateway uptime & downtime from system_health_service
+            daily_up = None
+            try:
+                from app.services.system_health_service import system_health_service
+                daily_up = system_health_service._calculate_daily_uptime_from_logs(target_gdata.get("raw_payload"), target_gid or gateway_id)
+                up_dur = daily_up.get("uptime_text") or up_dur
+                down_dur = daily_up.get("downtime_text") or down_dur
+                uptime_pct = float(daily_up.get("uptime_pct", uptime_pct))
+            except Exception:
+                pass
+
             detail["period_hours"] = sla["period_hours_str"]
-            detail["uptime_duration"] = sla["gateway_uptime_str"]
+            detail["uptime_duration"] = up_dur
             detail["uptime_pct"] = f"{uptime_pct}%"
-            detail["downtime_duration"] = sla["gateway_offline_str"]
+            detail["downtime_duration"] = down_dur
             detail["downtime_pct"] = f"{round(100.0 - uptime_pct, 1)}%"
             detail["sla_status"] = "Met" if uptime_pct >= 99.5 else "Breach"
             detail["cpu_trend"] = sla.get("cpu_trend", [])
@@ -589,18 +664,76 @@ class HealthReportService:
                 if "max_temp" in sla:
                     detail["temp_max"] = sla["max_temp"]
             
-            # Ensure every event has "value" to pass Pydantic validation cleanly
-            raw_evs = sla.get("trouble_events", [])
-            safe_evs = []
-            for ev in raw_evs:
-                ev_copy = dict(ev)
-                if not ev_copy.get("value"):
-                    ev_copy["value"] = ev_copy.get("duration", "-")
-                safe_evs.append(ev_copy)
+            # Use Gateway System incidents instead of cellular/DVR camera events
+            gw_events = []
+            if daily_up and daily_up.get("incidents"):
+                for inc in daily_up.get("incidents", []):
+                    gw_events.append({
+                        "no": inc.get("no", len(gw_events) + 1),
+                        "start_time": inc.get("start_time", "-"),
+                        "end_time": inc.get("end_time", "-"),
+                        "duration": inc.get("duration", "-"),
+                        "value": inc.get("duration", "-"),
+                        "category": inc.get("category", "Gateway Heartbeat"),
+                        "description": inc.get("reason", "Device Offline / Telemetry Disconnected"),
+                        "reason": inc.get("reason", "Device Offline / Telemetry Disconnected"),
+                        "title": inc.get("category", "Gateway Heartbeat"),
+                        "status": inc.get("status", "Resolved"),
+                        "date_str": inc.get("date_str", "-"),
+                        "metric": "gateway_system",
+                        "duration_minutes": inc.get("down_minutes", 0.0),
+                    })
 
-            detail["events"] = safe_evs
-            detail["daily_breakdown"] = sla.get("daily_breakdown", [])
-            detail["daily_summary"] = sla.get("daily_summary")
+            # If no gateway heartbeat incidents, check if there are system-only events (e.g. temperature/power)
+            if not gw_events:
+                raw_evs = sla.get("trouble_events", [])
+                for ev in raw_evs:
+                    metric = str(ev.get("metric", "")).lower()
+                    if metric not in ["cellular", "cpu_modem", "modem", "dvr", "cpu_dvr", "recording", "camera"]:
+                        ev_copy = dict(ev)
+                        if not ev_copy.get("value"):
+                            ev_copy["value"] = ev_copy.get("duration", "-")
+                        gw_events.append(ev_copy)
+
+            # Build and merge Gateway System Daily SLA Breakdown
+            merged_breakdown = list(sla.get("daily_breakdown", []))
+            if daily_up and daily_up.get("daily_breakdown"):
+                up_dict = {b["date_iso"]: b for b in daily_up["daily_breakdown"] if "date_iso" in b}
+                up_dict_date = {b["date"]: b for b in daily_up["daily_breakdown"] if "date" in b}
+
+                for row in merged_breakdown:
+                    r_date = row.get("date", "")
+                    r_iso = None
+                    try:
+                        r_iso = datetime.strptime(r_date, "%d %b %Y").strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+                    
+                    matched_up = up_dict.get(r_iso) or up_dict_date.get(r_date)
+                    if matched_up:
+                        row["uptime_min"] = matched_up["uptime_min"]
+                        row["downtime_min"] = matched_up["downtime_min"]
+                        row["success_rate"] = matched_up["success_rate"]
+                        row["sla_diff"] = round(matched_up["success_rate"] - float(row.get("target_sla", 98.0)), 1)
+                        row["sla_status"] = matched_up["sla_status"]
+                        row["observation_min"] = matched_up.get("total_observed_min", row.get("observation_min", 1440.0))
+
+            # Period / Monthly Total from Gateway Daily SLA Breakdown
+            if merged_breakdown:
+                total_up_min = sum(r.get("uptime_min", r.get("cpu_modem_uptime_min", 0.0)) for r in merged_breakdown)
+                total_down_min = sum(r.get("downtime_min", r.get("cpu_modem_downtime_min", 0.0)) for r in merged_breakdown)
+                total_obs_min = sum(r.get("observation_min", r.get("uptime_min", 0.0) + r.get("downtime_min", 0.0)) for r in merged_breakdown)
+                total_sr = round((total_up_min / total_obs_min) * 100.0, 1) if total_obs_min > 0 else 100.0
+
+                detail["uptime_duration"] = sla_calculator_service._format_duration(total_up_min * 60.0)
+                detail["downtime_duration"] = sla_calculator_service._format_duration(total_down_min * 60.0)
+                detail["uptime_pct"] = f"{total_sr}%"
+                detail["downtime_pct"] = f"{round(100.0 - total_sr, 1)}%"
+                detail["sla_status"] = "Met" if total_sr >= 99.5 else "Breach"
+
+            detail["events"] = gw_events
+            detail["daily_breakdown"] = merged_breakdown
+            detail["daily_summary"] = daily_up.get("summary") if (daily_up and daily_up.get("summary")) else sla.get("daily_summary")
             return detail
 
         return {

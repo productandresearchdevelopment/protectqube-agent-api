@@ -217,6 +217,7 @@ class CellularReportService:
             "network_success_rate": net_sr,
             "network_avg_rsrp": network_avg_rsrp,
             "network_avg_temp": network_avg_temp,
+            "sla": round((sr + net_sr) / 2.0, 1),
             "trouble_events_count": events_count,
             "trouble_last_offline": clean_update,
             "last_seen": clean_update,
@@ -365,6 +366,9 @@ class CellularReportService:
             item["network_uptime"] = sla["cellular_uptime_str"]
             item["network_offline"] = sla["cellular_offline_str"]
             item["network_success_rate"] = sla["cellular_sla_pct"]
+            cpu_sr = float(item["cpu_modem_success_rate"])
+            net_sr = float(item["network_success_rate"])
+            item["sla"] = round((cpu_sr + net_sr) / 2.0, 1)
             cell_events_r = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
             item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp", -85))
             item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp", 42))

@@ -344,6 +344,7 @@ def build_cellular_report_excel(
     _merge_and_style_header_block(ws, r1, 6, r1, 8, "SIM Card & Data")
     _merge_and_style_header_block(ws, r1, 9, r1, 11, "CPU – Modem Communication")
     _merge_and_style_header_block(ws, r1, 12, r1, 15, "Network Connection")
+    _merge_and_style_header_block(ws, r1, 16, r2, 16, "SLA")
 
     # 2. Tier 2 Sub-headers
     sub_headers = {
@@ -372,6 +373,12 @@ def build_cellular_report_excel(
         is_even = (idx % 2 == 0)
         row_fill = ZEBRA_FILL if is_even else None
 
+        sla_val = gw.get("sla")
+        if sla_val is None:
+            c_sr = float(gw.get("cpu_modem_success_rate", 100.0))
+            n_sr = float(gw.get("network_success_rate", 100.0))
+            sla_val = round((c_sr + n_sr) / 2.0, 1)
+
         row_values = [
             idx,
             gw.get("location") or gw.get("id"),
@@ -388,6 +395,7 @@ def build_cellular_report_excel(
             gw.get("network_offline", "0m"),
             f"{gw.get('network_success_rate', 100.0)}%",
             f"{gw.get('network_avg_rsrp', -85)} dBm",
+            f"{sla_val}%",
         ]
 
         for col_idx, val in enumerate(row_values, 1):
@@ -397,7 +405,7 @@ def build_cellular_report_excel(
             if row_fill:
                 cell.fill = row_fill
 
-            if col_idx in [1, 5, 8, 9, 10, 11, 12, 13, 14, 15]:
+            if col_idx in [1, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
@@ -407,6 +415,17 @@ def build_cellular_report_excel(
             elif col_idx in [10, 13]:
                 if str(val) not in ["0m", "0", "0h"]:
                     cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+            elif col_idx == 16:
+                try:
+                    num_sla = float(str(val).replace("%", ""))
+                    if num_sla >= 98.0:
+                        cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_SUCCESS_TEXT)
+                    elif num_sla >= 85.0:
+                        cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_WARNING_TEXT)
+                    else:
+                        cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+                except Exception:
+                    pass
 
         curr_row += 1
 
@@ -463,30 +482,31 @@ def build_health_report_excel(
     _merge_and_style_header_block(ws, r1, 1, r2, 1, "No.")
     _merge_and_style_header_block(ws, r1, 2, r2, 2, "Location")
     _merge_and_style_header_block(ws, r1, 3, r2, 3, "Type")
-    _merge_and_style_header_block(ws, r1, 4, r1, 6, "CPU Status")
-    _merge_and_style_header_block(ws, r1, 7, r1, 9, "RAM Status")
-    _merge_and_style_header_block(ws, r1, 10, r1, 12, "Storage Usage")
-    _merge_and_style_header_block(ws, r1, 13, r1, 14, "Storage Health")
-    _merge_and_style_header_block(ws, r1, 15, r1, 16, "System Temperature")
-    _merge_and_style_header_block(ws, r1, 17, r1, 18, "Uptime SLA")
+    _merge_and_style_header_block(ws, r1, 4, r1, 5, "Device")
+    _merge_and_style_header_block(ws, r1, 6, r1, 8, "CPU Status")
+    _merge_and_style_header_block(ws, r1, 9, r1, 11, "RAM Status")
+    _merge_and_style_header_block(ws, r1, 12, r1, 14, "Storage Usage")
+    _merge_and_style_header_block(ws, r1, 15, r1, 16, "Storage Health")
+    _merge_and_style_header_block(ws, r1, 17, r1, 18, "System Temperature")
+    _merge_and_style_header_block(ws, r1, 19, r2, 19, "SLA")
 
     # 2. Tier 2 Sub-headers
     sub_headers = {
-        4: "Avg (%)",
-        5: "Max (%)",
-        6: ">80% Duration",
-        7: "Avg (%)",
-        8: "Max (%)",
-        9: ">80% Duration",
-        10: "Avg (%)",
-        11: "Max (%)",
-        12: ">90% Duration",
-        13: "Health Status",
-        14: "Life (%)",
-        15: "Avg (°C)",
-        16: "Peak (°C)",
-        17: "Duration",
-        18: "SLA (%)",
+        4: "Uptime",
+        5: "Downtime",
+        6: "Avg (%)",
+        7: "Max (%)",
+        8: ">80% Duration",
+        9: "Avg (%)",
+        10: "Max (%)",
+        11: ">80% Duration",
+        12: "Avg (%)",
+        13: "Max (%)",
+        14: ">90% Duration",
+        15: "Health Status",
+        16: "Life (%)",
+        17: "Avg (°C)",
+        18: "Peak (°C)",
     }
     for col_idx, text in sub_headers.items():
         _merge_and_style_header_block(
@@ -500,10 +520,17 @@ def build_health_report_excel(
         is_even = (idx % 2 == 0)
         row_fill = ZEBRA_FILL if is_even else None
 
+        sla_val = gw.get("sla")
+        if sla_val is None:
+            sla_val = gw.get("uptime_pct", 100.0)
+        sla_val = round(float(sla_val), 1)
+
         row_values = [
             idx,
             gw.get("location") or gw.get("id"),
             gw.get("type", "SmartBox Putih"),
+            gw.get("uptime_duration", "0m"),
+            gw.get("downtime_duration", "0m"),
             f"{gw.get('cpu_avg', 0)}%",
             f"{gw.get('cpu_max', 0)}%",
             gw.get("cpu_gt_80_duration", "-"),
@@ -517,8 +544,7 @@ def build_health_report_excel(
             f"{gw.get('sd_life_pct', 100)}%",
             f"{gw.get('temp_avg', 45)}°C",
             f"{gw.get('temp_max', 55)}°C",
-            gw.get("uptime_duration", "0m"),
-            f"{gw.get('uptime_pct', 100.0)}%",
+            f"{sla_val}%",
         ]
 
         for col_idx, val in enumerate(row_values, 1):
@@ -528,16 +554,22 @@ def build_health_report_excel(
             if row_fill:
                 cell.fill = row_fill
 
-            if col_idx in [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]:
+            if col_idx in [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
 
-            if col_idx == 18:
+            if col_idx == 5:
+                down_str = str(val or "0m").strip()
+                if down_str not in ["0m", "0s", "0h 00m", "-"]:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+            elif col_idx == 19:
                 try:
                     num_sla = float(str(val).replace("%", ""))
                     if num_sla >= 99.5:
                         cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_SUCCESS_TEXT)
+                    elif num_sla >= 95.0:
+                        cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_WARNING_TEXT)
                     else:
                         cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
                 except Exception:

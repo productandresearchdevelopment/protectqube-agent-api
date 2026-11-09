@@ -28,7 +28,9 @@ class HealthReportItem(BaseModel):
     temp_max: Union[int, float]
     
     uptime_duration: str
+    downtime_duration: Optional[str] = "0m"
     uptime_pct: float
+    sla: Optional[float] = None
     
     jumlah_event: int
 
@@ -127,7 +129,7 @@ class HealthReportGatewayDetail(BaseModel):
     timeline_tracks: Optional[List[HealthTimelineTrack]] = []
     events: Optional[List[HealthReportEvent]] = []
     daily_breakdown: Optional[List[DailySlaRecord]] = None
-    daily_summary: Optional[DailySlaSummary] = None
+    daily_summary: Optional[Union[DailySlaSummary, dict]] = None
 
 
 class HealthReportGatewayDetailResponse(BaseModel):
