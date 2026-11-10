@@ -142,11 +142,15 @@ def init_db():
             {"name": "Report Cellular", "route": "/reports/cellular", "icon": "Radio", "type_id": route_menu_id, "parent_name": "Reports", "description": "Cellular SLA and uptime reports"},
             {"name": "Report DVR", "route": "/reports/dvr", "icon": "Video", "type_id": route_menu_id, "parent_name": "Reports", "description": "DVR recording SLA and downtime reports"},
             {"name": "Report Health", "route": "/reports/health", "icon": "Activity", "type_id": route_menu_id, "parent_name": "Reports", "description": "System health and resource reports"},
+            {"name": "Report SLA", "route": "/reports/sla", "icon": "BarChart2", "type_id": route_menu_id, "parent_name": "Reports", "description": "Fleet SLA compliance, availability percentage, and outage reports"},
             
             # Reports Service APIs (Level 2)
             {"name": "Export Report Cellular Excel", "route": "/api/v1/reports/cellular/export", "type_id": service_api_id, "parent_name": "Report Cellular", "description": "Export cellular SLA report to Excel"},
             {"name": "Export Report DVR Excel", "route": "/api/v1/reports/dvr/export", "type_id": service_api_id, "parent_name": "Report DVR", "description": "Export DVR health report to Excel"},
             {"name": "Export Report Health Excel", "route": "/api/v1/reports/health/export", "type_id": service_api_id, "parent_name": "Report Health", "description": "Export system health report to Excel"},
+            {"name": "Get Report SLA Data", "route": "/api/v1/monitoring/reports/sla", "type_id": service_api_id, "parent_name": "Report SLA", "description": "Fetch fleet-wide SLA summary and performance data"},
+            {"name": "Export Report SLA Excel", "route": "/api/v1/monitoring/reports/sla/export-excel", "type_id": service_api_id, "parent_name": "Report SLA", "description": "Export fleet SLA report to Excel"},
+            {"name": "Export Gateway SLA PDF", "route": "/api/v1/monitoring/reports/sla/gateway/:id/export-pdf", "type_id": service_api_id, "parent_name": "Report SLA", "description": "Export individual gateway SLA audit report to PDF"},
 
             # Configuration Group
             {"name": "Configuration", "route": "/configuration", "icon": "Settings", "type_id": route_menu_id, "description": "System RBAC, users, roles, modules, and integrations"},

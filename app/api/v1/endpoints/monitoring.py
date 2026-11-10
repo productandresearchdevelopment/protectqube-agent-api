@@ -16,6 +16,7 @@ from app.services.dvr_service import dvr_service
 from app.services.cellular_report_service import cellular_report_service
 from app.services.dvr_report_service import dvr_report_service
 from app.services.health_report_service import health_report_service
+from app.services.sla_report_service import sla_report_service
 from app.schemas.system_health import SystemHealthDashboardResponse, GatewayDetailResponse
 from app.schemas.cellular import CellularDashboardResponse, CellularGatewayDetailResponse
 
@@ -23,6 +24,7 @@ from app.schemas.dvr import DVRDashboardResponse, DVRGatewayDetailResponse
 from app.schemas.cellular_report import CellularReportResponse, CellularReportGatewayDetailResponse
 from app.schemas.dvr_report import DVRReportResponse, DVRReportGatewayDetailResponse
 from app.schemas.health_report import HealthReportResponse, HealthReportGatewayDetailResponse
+from app.schemas.sla_report import SLAReportResponse
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring & Diagnostics"])
 
@@ -536,6 +538,66 @@ def get_health_report_gateway_detail(
 
 
 # =========================================================================
+# REPORT SLA (COMPREHENSIVE FLEET SLA & AVAILABILITY)
+# =========================================================================
+
+@router.get("/reports/sla", response_model=SLAReportResponse)
+def get_sla_report(
+    search: Optional[str] = Query(None, description="Cari nama lokasi atau ID Gateway"),
+    type: Optional[str] = Query(None, description="Filter tipe SmartBox (SmartBox Hitam / SmartBox Putih)"),
+    sla_status: Optional[str] = Query(None, description="Filter status SLA (meet / breach)"),
+    date_range: Optional[str] = Query(None, description="Rentang tanggal (e.g. 2026-11-01 to 2026-11-10)"),
+    page: int = Query(1, ge=1, description="Nomor halaman"),
+    page_size: int = Query(50, ge=1, le=5000, description="Jumlah data per halaman"),
+):
+    """
+    Fleet-wide Service Level Agreement (SLA) & Availability performance report.
+    """
+    report = sla_report_service.get_report(
+        search=search,
+        gateway_type=type,
+        sla_status=sla_status,
+        date_range=date_range,
+        page=page,
+        page_size=page_size,
+    )
+    return {
+        "status": True,
+        "data": report,
+    }
+
+
+@router.get("/reports/sla/export-excel")
+def export_sla_report_excel(
+    search: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    sla_status: Optional[str] = Query(None),
+    date_range: Optional[str] = Query(None),
+):
+    """
+    Export fleet SLA compliance report to professional Excel spreadsheet (.xlsx).
+    """
+    try:
+        from datetime import datetime
+        excel_stream = sla_report_service.export_excel(
+            search=search,
+            gateway_type=type,
+            sla_status=sla_status,
+            date_range=date_range,
+        )
+        filename = f"report_sla_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return Response(
+            content=excel_stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting SLA report to Excel: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
+
+
+
+# =========================================================================
 # GATEWAY INCIDENT & DOWNTIME ALERTS
 # =========================================================================
 
@@ -601,6 +663,7 @@ def reload_telemetry_cache(current_user: User = Depends(get_current_user)):
         cellular_report_service.reload_telemetry_cache()
         dvr_report_service.reload_telemetry_cache()
         health_report_service.reload_telemetry_cache()
+        sla_report_service.reload_telemetry_cache()
 
         count = len(system_health_service._live_gateways)
         return {
