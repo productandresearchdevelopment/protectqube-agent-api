@@ -24,7 +24,7 @@ from app.schemas.dvr import DVRDashboardResponse, DVRGatewayDetailResponse
 from app.schemas.cellular_report import CellularReportResponse, CellularReportGatewayDetailResponse
 from app.schemas.dvr_report import DVRReportResponse, DVRReportGatewayDetailResponse
 from app.schemas.health_report import HealthReportResponse, HealthReportGatewayDetailResponse
-from app.schemas.sla_report import SLAReportResponse
+from app.schemas.sla_report import SLAReportResponse, SLAReportGatewayDetailResponse
 
 router = APIRouter(prefix="/monitoring", tags=["Monitoring & Diagnostics"])
 
@@ -594,6 +594,25 @@ def export_sla_report_excel(
     except Exception as e:
         logger.error(f"Error exporting SLA report to Excel: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
+
+
+@router.get("/reports/sla/gateway/{gateway_id}/detail", response_model=SLAReportGatewayDetailResponse)
+def get_sla_report_gateway_detail(
+    gateway_id: str,
+    date_range: Optional[str] = Query(None, description="Report active date range"),
+):
+    """
+    Get detailed SLA compliance, metrics breakdown, timeline and event history for a single gateway.
+    """
+    try:
+        detail = sla_report_service.get_gateway_detail(gateway_id, date_range=date_range)
+        return {
+            "status": True,
+            "data": detail,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching SLA gateway detail for {gateway_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch SLA gateway detail: {str(e)}")
 
 
 

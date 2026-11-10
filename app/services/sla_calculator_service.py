@@ -1413,7 +1413,15 @@ class SLACalculatorService:
         cpu_trend, ram_trend, sd_trend, health_stats = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
 
         # Urutkan trouble events secara kronologis menurun (kejadian terbaru nomor 1 di atas)
-        trouble_events.sort(key=lambda x: x.get("_raw_dt") or datetime.min, reverse=True)
+        def _safe_sort_dt(item):
+            raw_dt = item.get("_raw_dt")
+            if raw_dt is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if hasattr(raw_dt, "tzinfo") and raw_dt.tzinfo is not None:
+                return raw_dt.astimezone(timezone.utc)
+            return raw_dt.replace(tzinfo=timezone.utc)
+
+        trouble_events.sort(key=_safe_sort_dt, reverse=True)
         for idx, ev in enumerate(trouble_events, 1):
             ev["no"] = idx
             ev.pop("_raw_dt", None)
