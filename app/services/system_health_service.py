@@ -167,7 +167,7 @@ class SystemHealthService:
                 "broadcom_register": "N/A (Rockchip RK3328 / Power Management AXP)",
             }
 
-    def update_from_telemetry(self, nms_payload: Dict[str, Any], compute_sla: bool = True):
+    def update_from_telemetry(self, nms_payload: Dict[str, Any], compute_sla: bool = False):
         """Ingests live MQTT telemetry and updates system health item & detailed diagnostic structures."""
         device_id = nms_payload.get("device_id")
         if not device_id:
@@ -304,11 +304,25 @@ class SystemHealthService:
             sd_used_gb = round(sd_total_gb * (sd_pct / 100.0), 1)
 
         uptime_str = gw_sys.get("uptime", "3d 12h")
-        ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts_str = nms_payload.get("datetime_utc7") or nms_payload.get("recorded_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
 
+        cell_sim = nms_payload.get("cellular_sim", {}) or {}
+        modem_usb = nms_payload.get("modem_usb", {}) or {}
+        sim_ip = (
+            cell_sim.get("data_traffic", {}).get("cellular_ip")
+            or cell_sim.get("cellular_ip")
+            or modem_usb.get("service_status", {}).get("cellular_ip")
+            or net_gw.get("interfaces", {}).get("ppp0")
+            or nms_payload.get("cellular_ip")
+        )
         tailscale_ip = net_gw.get("tailscale_ip")
-        ip_addr = tailscale_ip if tailscale_ip and tailscale_ip != "N/A" else f"10.10.{len(self._live_gateways) + 1}.50"
+        lan_ip = (nms_payload.get("hardware_connections", {}) or {}).get("lan_ip") or net_gw.get("ip_address")
+        ip_addr = (
+            sim_ip if (sim_ip and str(sim_ip).strip().lower() not in ["n/a", "none", ""])
+            else (tailscale_ip if (tailscale_ip and str(tailscale_ip).strip().lower() not in ["n/a", "none", ""])
+            else (lan_ip if lan_ip else f"10.10.{len(self._live_gateways) + 1}.50"))
+        )
 
         pwr_data = self._parse_power_from_logs(box_type, log_lines)
 

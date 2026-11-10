@@ -210,25 +210,25 @@ class GatewayAgentManager:
 
                 try:
                     from app.services.system_health_service import system_health_service
-                    system_health_service.update_from_telemetry(payload)
+                    system_health_service.update_from_telemetry(payload, compute_sla=False)
                 except Exception as she:
                     logger.warning(f"Could not update system health service: {she}")
 
                 try:
                     from app.services.cellular_report_service import cellular_report_service
-                    cellular_report_service.update_from_telemetry(payload)
+                    cellular_report_service.update_from_telemetry(payload, compute_sla=False)
                 except Exception as cre:
                     logger.warning(f"Could not update cellular report service: {cre}")
 
                 try:
                     from app.services.dvr_report_service import dvr_report_service
-                    dvr_report_service.update_from_telemetry(payload)
+                    dvr_report_service.update_from_telemetry(payload, compute_sla=False)
                 except Exception as dre:
                     logger.warning(f"Could not update dvr report service: {dre}")
 
                 try:
                     from app.services.health_report_service import health_report_service
-                    health_report_service.update_from_telemetry(payload)
+                    health_report_service.update_from_telemetry(payload, compute_sla=False)
                 except Exception as hre:
                     logger.warning(f"Could not update health report service: {hre}")
                 
