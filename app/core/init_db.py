@@ -28,7 +28,7 @@ def init_db():
     tables = [
         "users", "roles", "module_types", "modules", "role_modules",
         "uploads", "user_sessions", "user_otps",
-        "gateway_telemetry_histories", "gateway_incident_alerts",
+        "gateway_telemetry_history", "gateway_incident_alerts",
         "notification_events", "notification_destinations",
         "notification_targets", "notifications", "notification_deliveries"
     ]
@@ -40,6 +40,12 @@ def init_db():
                         conn.execute(text(f'ALTER TABLE "{tbl}" ADD COLUMN IF NOT EXISTS "{col}" VARCHAR(36);'))
                     except Exception:
                         pass
+            # Ensure soft-delete deleted_at exists for telemetry tables
+            for tbl in ["gateway_telemetry_history", "gateway_incident_alerts"]:
+                try:
+                    conn.execute(text(f'ALTER TABLE "{tbl}" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;'))
+                except Exception:
+                    pass
         logger.info("Audit columns (created_by, updated_by, deleted_by) verified on all tables.")
     except Exception as e:
         logger.warning(f"Could not verify audit columns on tables: {e}")

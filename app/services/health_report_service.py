@@ -36,9 +36,11 @@ class HealthReportService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                query = db.query(GatewayTelemetryHistory)
+                if hasattr(GatewayTelemetryHistory, "deleted_at"):
+                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
                 latest_records = (
-                    db.query(GatewayTelemetryHistory)
-                    .distinct(GatewayTelemetryHistory.device_id)
+                    query.distinct(GatewayTelemetryHistory.device_id)
                     .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
                     .all()
                 )
@@ -77,6 +79,12 @@ class HealthReportService:
                     logger.info(f"HealthReportService: Loaded {len(self._live_gateways)} live gateway(s)")
                 except Exception as e:
                     logger.warning(f"Could not load telemetry cache for health report: {e}")
+
+    def reload_telemetry_cache(self):
+        """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL."""
+        self._live_gateways.clear()
+        self._load_persisted_telemetry()
+        logger.info(f"HealthReportService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], compute_sla: bool = True):
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""

@@ -763,6 +763,7 @@ class SLACalculatorService:
                 )
                 .filter(
                     GatewayTelemetryHistory.device_id.in_(device_ids),
+                    GatewayTelemetryHistory.deleted_at.is_(None),
                     GatewayTelemetryHistory.recorded_at >= s_utc,
                     GatewayTelemetryHistory.recorded_at <= e_utc,
                 )
@@ -871,7 +872,10 @@ class SLACalculatorService:
             db = None
             try:
                 db = SessionLocal()
-                query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id.in_(device_ids))
+                query = db.query(GatewayTelemetryHistory).filter(
+                    GatewayTelemetryHistory.device_id.in_(device_ids),
+                    GatewayTelemetryHistory.deleted_at.is_(None)
+                )
                 if start_dt and end_dt:
                     from datetime import timedelta, timezone
                     s_utc = start_dt.astimezone(timezone.utc) if start_dt.tzinfo else (start_dt - timedelta(hours=7))
@@ -943,7 +947,10 @@ class SLACalculatorService:
             if db:
                 try:
                     if need_query_rows:
-                        query = db.query(GatewayTelemetryHistory).filter(GatewayTelemetryHistory.device_id == device_id)
+                        query = db.query(GatewayTelemetryHistory).filter(
+                            GatewayTelemetryHistory.device_id == device_id,
+                            GatewayTelemetryHistory.deleted_at.is_(None)
+                        )
                         if start_dt and end_dt:
                             s_utc = start_dt - timedelta(hours=7)
                             e_utc = end_dt - timedelta(hours=7)
@@ -951,7 +958,11 @@ class SLACalculatorService:
                             e_date_str = end_dt.strftime("%Y-%m-%d")
                             prev_row = (
                                 db.query(GatewayTelemetryHistory)
-                                .filter(GatewayTelemetryHistory.device_id == device_id, GatewayTelemetryHistory.recorded_at < s_utc)
+                                .filter(
+                                    GatewayTelemetryHistory.device_id == device_id,
+                                    GatewayTelemetryHistory.deleted_at.is_(None),
+                                    GatewayTelemetryHistory.recorded_at < s_utc
+                                )
                                 .order_by(GatewayTelemetryHistory.recorded_at.desc())
                                 .first()
                             )
@@ -959,6 +970,7 @@ class SLACalculatorService:
                                 db.query(GatewayTelemetryHistory)
                                 .filter(
                                     GatewayTelemetryHistory.device_id == device_id,
+                                    GatewayTelemetryHistory.deleted_at.is_(None),
                                     GatewayTelemetryHistory.recorded_at >= s_utc,
                                     GatewayTelemetryHistory.recorded_at <= e_utc
                                 )
@@ -973,7 +985,10 @@ class SLACalculatorService:
                             rows.reverse()
 
                     if need_query_alerts:
-                        alert_q = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id == device_id)
+                        alert_q = db.query(GatewayIncidentAlert).filter(
+                            GatewayIncidentAlert.device_id == device_id,
+                            GatewayIncidentAlert.deleted_at.is_(None)
+                        )
                         if start_dt and end_dt:
                             s_utc = start_dt - timedelta(hours=7)
                             e_utc = end_dt - timedelta(hours=7)

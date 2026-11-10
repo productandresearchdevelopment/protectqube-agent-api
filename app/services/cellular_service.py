@@ -31,9 +31,11 @@ class CellularService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                query = db.query(GatewayTelemetryHistory)
+                if hasattr(GatewayTelemetryHistory, "deleted_at"):
+                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
                 latest_records = (
-                    db.query(GatewayTelemetryHistory)
-                    .distinct(GatewayTelemetryHistory.device_id)
+                    query.distinct(GatewayTelemetryHistory.device_id)
                     .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
                     .all()
                 )
@@ -69,6 +71,22 @@ class CellularService:
                     logger.info(f"Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
                 except Exception as e:
                     logger.warning(f"Could not load telemetry cache: {e}")
+
+    def reload_telemetry_cache(self):
+        """Flushes in-memory gateway states, reloads from PostgreSQL, and overwrites telemetry_cache.json with clean data."""
+        self._live_gateways.clear()
+        self._load_persisted_telemetry()
+        try:
+            cache_file = self._cache_path()
+            tmp_file = cache_file + ".tmp"
+            raw_list = [g["raw"] for g in self._live_gateways.values() if "raw" in g]
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(raw_list, f)
+            os.replace(tmp_file, cache_file)
+            logger.info(f"CellularService: Overwritten {cache_file} with {len(raw_list)} clean gateways")
+        except Exception as ce:
+            logger.debug(f"Failed to refresh cache file: {ce}")
+        logger.info(f"CellularService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates cellular fleet item & detailed diagnostics."""

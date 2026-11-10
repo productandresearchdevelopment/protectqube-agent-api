@@ -36,9 +36,11 @@ class DVRService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                query = db.query(GatewayTelemetryHistory)
+                if hasattr(GatewayTelemetryHistory, "deleted_at"):
+                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
                 latest_records = (
-                    db.query(GatewayTelemetryHistory)
-                    .distinct(GatewayTelemetryHistory.device_id)
+                    query.distinct(GatewayTelemetryHistory.device_id)
                     .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
                     .all()
                 )
@@ -74,6 +76,12 @@ class DVRService:
                     logger.info(f"DVRService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
                 except Exception as e:
                     logger.warning(f"Could not load telemetry cache for DVR service: {e}")
+
+    def reload_telemetry_cache(self):
+        """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL (ignoring soft-deleted records)."""
+        self._live_gateways.clear()
+        self._load_persisted_telemetry()
+        logger.info(f"DVRService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
     def update_from_telemetry(self, nms_payload: Dict[str, Any], save_cache: bool = True):
         """Ingests live MQTT telemetry and updates DVR fleet item & detailed diagnostics."""

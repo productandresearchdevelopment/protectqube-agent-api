@@ -49,6 +49,7 @@ class GatewayTelemetryHistory(Base):
     cameras_total = Column(Integer, nullable=True)
 
     raw_payload = Column(JSON, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class GatewayIncidentAlert(Base):
@@ -65,5 +66,6 @@ class GatewayIncidentAlert(Base):
     duration_str = Column(String(50), nullable=True)
     status = Column(String(20), default="RESOLVED", index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
 
     telemetry_history = relationship("GatewayTelemetryHistory", backref="incident_alerts")

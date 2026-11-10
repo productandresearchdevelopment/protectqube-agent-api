@@ -582,3 +582,35 @@ def get_incident_alerts_summary(
     }
 
 
+@router.post("/refresh-cache")
+@router.post("/reload-cache")
+def reload_telemetry_cache(current_user: User = Depends(get_current_user)):
+    """
+    Clears in-memory telemetry caches across all services (System Health, Cellular, DVR, Reports),
+    re-hydrates fresh gateway state from PostgreSQL excluding soft-deleted records (WHERE deleted_at IS NULL),
+    and updates disk cache file.
+    """
+    try:
+        from app.services.sla_calculator_service import sla_calculator_service
+        if hasattr(sla_calculator_service, "_sla_mem_cache"):
+            sla_calculator_service._sla_mem_cache.clear()
+
+        system_health_service.reload_telemetry_cache()
+        cellular_service.reload_telemetry_cache()
+        dvr_service.reload_telemetry_cache()
+        cellular_report_service.reload_telemetry_cache()
+        dvr_report_service.reload_telemetry_cache()
+        health_report_service.reload_telemetry_cache()
+
+        count = len(system_health_service._live_gateways)
+        return {
+            "status": True,
+            "message": "Telemetry cache successfully flushed and reloaded from database",
+            "total_gateways": count,
+        }
+    except Exception as e:
+        logger.error(f"Failed to reload telemetry cache: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reload telemetry cache: {str(e)}")
+
+
+
