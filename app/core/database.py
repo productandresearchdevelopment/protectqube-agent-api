@@ -8,7 +8,9 @@ connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith(
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
-    echo=settings.DEBUG,
+    echo=False,
+    pool_size=15,
+    max_overflow=25,
     pool_pre_ping=True
 )
 

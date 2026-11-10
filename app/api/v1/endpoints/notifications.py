@@ -16,6 +16,7 @@ from app.services.notification.destination_sync import (
     sync_telegram_destinations,
     sync_whatsapp_destinations,
 )
+from app.core.rbac import require_permission
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -101,7 +102,7 @@ def mark_all_read(db: Session = Depends(get_db)):
     return {"status": True, "message": "All notifications marked as read"}
 
 
-@router.get("/recipients-options")
+@router.get("/recipients-options", dependencies=[Depends(require_permission("/configuration"))])
 def get_recipients_options(db: Session = Depends(get_db)):
     roles = db.query(Role).filter(Role.deleted_at.is_(None)).all()
     roles_data = []
@@ -134,7 +135,7 @@ def get_recipients_options(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/events")
+@router.get("/events", dependencies=[Depends(require_permission("/configuration"))])
 def list_notification_events(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
@@ -191,7 +192,7 @@ def list_notification_events(
     }
 
 
-@router.post("/events")
+@router.post("/events", dependencies=[Depends(require_permission("/configuration"))])
 def create_notification_event(payload: NotificationEventCreate, db: Session = Depends(get_db)):
     existing = db.query(NotificationEvent).filter(NotificationEvent.event_code == payload.event_code.strip()).first()
     if existing:
@@ -222,7 +223,7 @@ def create_notification_event(payload: NotificationEventCreate, db: Session = De
     }
 
 
-@router.put("/events/{event_id}")
+@router.put("/events/{event_id}", dependencies=[Depends(require_permission("/configuration"))])
 def update_notification_event(event_id: str, payload: NotificationEventUpdate, db: Session = Depends(get_db)):
     event = db.query(NotificationEvent).filter(NotificationEvent.id == event_id).first()
     if not event:
@@ -253,7 +254,7 @@ def update_notification_event(event_id: str, payload: NotificationEventUpdate, d
     }
 
 
-@router.delete("/events/{event_id}")
+@router.delete("/events/{event_id}", dependencies=[Depends(require_permission("/configuration"))])
 def delete_notification_event(event_id: str, db: Session = Depends(get_db)):
     event = db.query(NotificationEvent).filter(NotificationEvent.id == event_id).first()
     if not event:

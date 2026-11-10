@@ -7,8 +7,9 @@ from app.core.database import get_db
 from app.models.notification_models import NotificationDestination
 from app.services.notification.registry import integration_registry
 from app.services.notification.whatsapp_session import whatsapp_session_manager
+from app.core.rbac import require_permission
 
-router = APIRouter(prefix="/integrations", tags=["Integrations & Connected Apps"])
+router = APIRouter(prefix="/integrations", tags=["Integrations & Connected Apps"], dependencies=[Depends(require_permission("/configuration"))])
 
 
 class ConnectProviderPayload(BaseModel):

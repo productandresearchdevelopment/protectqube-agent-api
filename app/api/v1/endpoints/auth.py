@@ -1,13 +1,77 @@
 from datetime import datetime
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
+from app.core.rbac import is_privileged_role
 from app.models.base_models import User, RoleModule, Module
 from app.schemas.auth import LoginRequest, RefreshTokenRequest
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+def get_user_permissions(user: User, db: Session) -> List[str]:
+    """Retrieve allowed module route paths and names for user's role."""
+    if is_privileged_role(user.role):
+        all_modules = db.query(Module).filter(Module.deleted_at.is_(None)).all()
+        perms = set()
+        for m in all_modules:
+            if m.route:
+                perms.add(m.route)
+            if m.name:
+                perms.add(m.name)
+        perms.add("*")
+        return list(perms)
+
+    if not user.role_id:
+        return []
+
+    role_modules = (
+        db.query(RoleModule)
+        .filter(
+            RoleModule.role_id == user.role_id,
+            RoleModule.checked.is_(True),
+            RoleModule.deleted_at.is_(None),
+        )
+        .all()
+    )
+    module_ids = [rm.module_id for rm in role_modules]
+    if not module_ids:
+        return []
+
+    modules = db.query(Module).filter(Module.id.in_(module_ids), Module.deleted_at.is_(None)).all()
+    perms = set()
+    for m in modules:
+        if m.route:
+            perms.add(m.route)
+        if m.name:
+            perms.add(m.name)
+    return list(perms)
+
+
+def serialize_user_profile(user: User, permissions: List[str]) -> dict:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "username": user.username,
+        "email": user.email,
+        "phone": user.phone,
+        "address": user.address,
+        "role_id": user.role_id,
+        "role": {
+            "id": user.role.id,
+            "name": user.role.name,
+            "alias": user.role.alias,
+            "color": user.role.color,
+        }
+        if user.role
+        else None,
+        "role_name": user.role.name if user.role else None,
+        "role_alias": user.role.alias if user.role else None,
+        "permissions": permissions,
+    }
 
 
 @router.post("/login")
@@ -35,6 +99,8 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     access_token = create_access_token(user.id, session_id=session_id)
     refresh_token = create_refresh_token(user.id)
 
+    permissions = get_user_permissions(user, db)
+
     return {
         "status": True,
         "message": "Login successful",
@@ -43,13 +109,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             "refresh_token": refresh_token,
             "session_id": session_id,
             "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "name": user.name,
-                "username": user.username,
-                "email": user.email,
-                "role_id": user.role_id,
-            },
+            "user": serialize_user_profile(user, permissions),
         },
     }
 
@@ -81,29 +141,10 @@ def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def get_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    role_modules = (
-        db.query(RoleModule)
-        .filter(RoleModule.role_id == current_user.role_id, RoleModule.checked.is_(True))
-        .all()
-    )
-    module_ids = [rm.module_id for rm in role_modules]
-    modules = db.query(Module).filter(Module.id.in_(module_ids)).all() if module_ids else []
-    permissions = [m.route for m in modules if m.route]
-
+    permissions = get_user_permissions(current_user, db)
     return {
         "status": True,
-        "data": {
-            "id": current_user.id,
-            "name": current_user.name,
-            "username": current_user.username,
-            "email": current_user.email,
-            "phone": current_user.phone,
-            "address": current_user.address,
-            "role_id": current_user.role_id,
-            "role_name": current_user.role.name if current_user.role else None,
-            "role_alias": current_user.role.alias if current_user.role else None,
-            "permissions": permissions,
-        },
+        "data": serialize_user_profile(current_user, permissions),
     }
 
 

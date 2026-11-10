@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
 from app.models.base_models import EmailVerificationStatus
+from app.schemas.role_module import RoleResponse
 
 
 class UserBase(BaseModel):
@@ -33,8 +34,12 @@ class UserResponse(UserBase):
     last_login: Optional[datetime] = None
     email_verified: bool
     email_verification_status: EmailVerificationStatus
-    created_at: datetime
-    updated_at: datetime
+    role: Optional[RoleResponse] = None
+    role_name: Optional[str] = None
+    role_color: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
