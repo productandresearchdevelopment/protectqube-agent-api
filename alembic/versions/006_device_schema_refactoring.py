@@ -69,7 +69,7 @@ def upgrade() -> None:
         INSERT INTO devices (id, client_id, name, location, hardware_model, is_active)
         SELECT 
             gen_random_uuid(),
-            NULL,
+            (SELECT id FROM clients WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1),
             t.device_id,
             t.location,
             t.hardware_model,
@@ -93,7 +93,7 @@ def upgrade() -> None:
         INSERT INTO devices (id, client_id, name, is_active)
         SELECT DISTINCT
             gen_random_uuid(),
-            NULL,
+            (SELECT id FROM clients WHERE deleted_at IS NULL ORDER BY created_at ASC LIMIT 1),
             a.device_id,
             TRUE
         FROM gateway_incident_alerts a
