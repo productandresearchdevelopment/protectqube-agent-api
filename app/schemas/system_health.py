@@ -51,6 +51,9 @@ class SystemHealthCharts(BaseModel):
 class GatewayItem(BaseModel):
     no: int
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     model: str
@@ -127,6 +130,9 @@ class SystemHealthEventItem(BaseModel):
 
 class GatewayDetailData(BaseModel):
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     model: str

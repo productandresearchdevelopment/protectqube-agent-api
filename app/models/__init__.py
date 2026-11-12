@@ -12,6 +12,8 @@ from app.models.auth_models import (
     OtpType,
 )
 from app.models.gateway_models import (
+    Client,
+    Device,
     GatewayTelemetryHistory,
     GatewayIncidentAlert,
 )
@@ -37,6 +39,8 @@ __all__ = [
     "UserOtp",
     "EmailVerificationStatus",
     "OtpType",
+    "Client",
+    "Device",
     "GatewayTelemetryHistory",
     "GatewayIncidentAlert",
     "NotificationEvent",

@@ -7,6 +7,7 @@ class DVRReportItem(BaseModel):
     no: int
     id: str
     location: str
+    customer: Optional[str] = "-"
     type: str
     dvr_model: str
     

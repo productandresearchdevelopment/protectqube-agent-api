@@ -97,6 +97,8 @@ def get_system_health_dashboard(
     status: Optional[str] = Query(None, description="Filter status gateway"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
+    sort_by: Optional[str] = Query(None, description="Kolom sorting"),
+    sort_order: Optional[str] = Query(None, description="Arah sorting: asc atau desc"),
 ):
     """
     Fleet Dashboard Telemetry for System Health (2,000 SmartBoxes):
@@ -111,6 +113,8 @@ def get_system_health_dashboard(
         status=status,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     return {
         "status": True,
@@ -138,6 +142,8 @@ def get_cellular_dashboard(
     provider: Optional[str] = Query(None, description="Filter provider SIM card"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
+    sort_by: Optional[str] = Query(None, description="Kolom sorting"),
+    sort_order: Optional[str] = Query(None, description="Arah sorting: asc atau desc"),
 ):
     """
     Fleet Dashboard Telemetry for Cellular Connectivity (2,000 SmartBoxes):
@@ -152,6 +158,8 @@ def get_cellular_dashboard(
         provider=provider,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     return {
         "status": True,
@@ -179,6 +187,8 @@ def get_dvr_dashboard(
     status: Optional[str] = Query(None, description="Filter status gateway/recording"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
+    sort_by: Optional[str] = Query(None, description="Kolom sorting"),
+    sort_order: Optional[str] = Query(None, description="Arah sorting: asc atau desc"),
 ):
     """
     Fleet Dashboard Telemetry for DVR & Recording (2,000 SmartBoxes):
@@ -192,6 +202,8 @@ def get_dvr_dashboard(
         status=status,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     return {
         "status": True,
@@ -276,8 +288,9 @@ def export_cellular_report_excel(
             location=location,
             date_range=date_range,
         )
-        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-        filename = f"Cellular_SLA_Report_{safe_range}.xlsx"
+        from datetime import datetime
+        date_str = datetime.now().strftime("%d%m%Y")
+        filename = f"CELLULAR_REPORT_{date_str}.xlsx"
         return Response(
             content=excel_stream.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -379,8 +392,9 @@ def export_dvr_report_excel(
             location=location,
             date_range=date_range,
         )
-        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-        filename = f"DVR_Recording_Report_{safe_range}.xlsx"
+        from datetime import datetime
+        date_str = datetime.now().strftime("%d%m%Y")
+        filename = f"DVR_REPORT_{date_str}.xlsx"
         return Response(
             content=excel_stream.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -486,8 +500,9 @@ def export_health_report_excel(
             location=location,
             date_range=date_range,
         )
-        safe_range = (date_range or "current").replace(" ", "_").replace("/", "-")
-        filename = f"System_Health_Report_{safe_range}.xlsx"
+        from datetime import datetime
+        date_str = datetime.now().strftime("%d%m%Y")
+        filename = f"HEALTH_REPORT_{date_str}.xlsx"
         return Response(
             content=excel_stream.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -585,7 +600,8 @@ def export_sla_report_excel(
             sla_status=sla_status,
             date_range=date_range,
         )
-        filename = f"report_sla_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        date_str = datetime.now().strftime("%d%m%Y")
+        filename = f"SLA_REPORT_{date_str}.xlsx"
         return Response(
             content=excel_stream.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -619,6 +635,20 @@ def get_sla_report_gateway_detail(
 # =========================================================================
 # GATEWAY INCIDENT & DOWNTIME ALERTS
 # =========================================================================
+
+@router.get("/overview")
+def get_overview_summary(db: Session = Depends(get_db)):
+    """
+    Aggregates unified real-time fleet overview, domain KPIs, active device incidents
+    (offline, cellular, DVR, system health), recent incident alerts, and telemetry charts.
+    """
+    from app.services.overview_service import overview_service
+    data = overview_service.get_overview(db=db)
+    return {
+        "status": True,
+        "data": data,
+    }
+
 
 @router.get("/incident-alerts")
 def get_incident_alerts(

@@ -36,6 +36,12 @@ class CellularReportService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                from app.models.base_models import Device
+                inactive_rows = db.query(Device.name).filter(
+                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
+                ).all()
+                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
+
                 query = db.query(GatewayTelemetryHistory)
                 if hasattr(GatewayTelemetryHistory, "deleted_at"):
                     query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
@@ -46,7 +52,13 @@ class CellularReportService:
                 )
                 for latest in latest_records:
                     if latest and latest.raw_payload:
+                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
+                            continue
                         payload = dict(latest.raw_payload)
+                        if latest.device:
+                            payload["device_id"] = latest.device.name
+                            payload["device_uuid"] = str(latest.device.id)
+                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
                         if latest.recorded_at:
                             from datetime import timezone, timedelta
                             WIB = timezone(timedelta(hours=7))
@@ -90,6 +102,8 @@ class CellularReportService:
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""
         device_id = nms_payload.get("device_id")
         if not device_id:
+            return
+        if getattr(self, "_inactive_gateways", None) and device_id in self._inactive_gateways:
             return
 
         sim = nms_payload.get("cellular_sim", {})
@@ -205,11 +219,19 @@ class CellularReportService:
             success_rate_checks = "(31 / 31 check)"
             temp_range = f"(Suhu {temp_c}°C)"
 
+        sla_cust = None
+        try:
+            from app.services.sla_report_service import sla_report_service
+            sla_cust = sla_report_service._live_gateways.get(device_id, {}).get("customer")
+        except Exception:
+            pass
+
         report_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
             "location": loc_name,
             "type": box_type,
+            "customer": nms_payload.get("customer") or sla_cust or "-",
             "modem": modem_model,
             "modem_name": modem_model,
             "modem_temp": modem_temp_res,
@@ -381,6 +403,15 @@ class CellularReportService:
             item["network_avg_rsrp"] = sla.get("avg_rsrp", item.get("network_avg_rsrp", -85))
             item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp", 42))
             item["trouble_events_count"] = len(cell_events_r)
+            try:
+                from app.services.sla_report_service import sla_report_service
+                s_cust = sla_report_service._live_gateways.get(dev_id, {}).get("customer")
+                if s_cust and s_cust != "-":
+                    item["customer"] = s_cust
+                elif not item.get("customer") or item.get("customer") == "-":
+                    item["customer"] = g.get("raw_payload", {}).get("customer") or "-"
+            except Exception:
+                pass
             items_slice.append(item)
 
         return {
@@ -477,8 +508,10 @@ class CellularReportService:
 
         target_gdata = None
         target_gid = None
+        target_id_low = gateway_id.lower().strip()
         for gid, gdata in self._live_gateways.items():
-            if gid.lower() == gateway_id.lower() or gateway_id.lower() in gid.lower():
+            g_uuid = str(gdata.get("device_uuid") or gdata.get("detail_item", {}).get("device_uuid") or "").lower()
+            if gid.lower() == target_id_low or (g_uuid and g_uuid == target_id_low) or target_id_low in gid.lower():
                 target_gdata = gdata
                 target_gid = gid
                 break
@@ -488,12 +521,22 @@ class CellularReportService:
             target_gdata = list(self._live_gateways.values())[0]
 
         if target_gdata:
+            from datetime import timezone, timedelta
+            from app.services.sla_calculator_service import GAP_THRESHOLD_SECONDS, WIB
             detail = dict(target_gdata["detail_item"])
             req_dr = date_range or get_default_period_str()
             detail["period"] = req_dr
+            raw_pl = target_gdata.get("raw_payload")
+            last_seen_wib = sla_calculator_service._resolve_last_seen_wib(live_payload=raw_pl)
+            is_gw_offline = bool(
+                last_seen_wib
+                and (datetime.now(timezone.utc).astimezone(WIB) - last_seen_wib).total_seconds() > GAP_THRESHOLD_SECONDS
+            )
+            if is_gw_offline:
+                detail["status"] = "Offline"
             sla = sla_calculator_service.calculate_device_sla(
                 device_id=target_gid,
-                live_payload=target_gdata.get("raw_payload"),
+                live_payload=raw_pl,
                 date_range_str=req_dr,
                 skip_history_rows=True,
             )
@@ -503,16 +546,23 @@ class CellularReportService:
             detail["cpu_modem_offline"] = sla.get("cpu_modem_offline_str", sla["gateway_offline_str"])
             detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla.get('cpu_modem_success_rate', sla['gateway_sla_pct']), 1)}%"
             detail["success_rate"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
-            if sla.get("avg_ping") is not None:
-                detail["avg_response_time"] = f"{sla['avg_ping']} ms"
+            if is_gw_offline:
+                detail["sim_status"] = "Offline"
+                detail["avg_response_time"] = "-"
+                detail["avg_rsrp"] = "-"
+                detail["avg_modem_temp"] = "-"
+                detail["temp_range"] = "Gateway Offline"
+            else:
+                if sla.get("avg_ping") is not None:
+                    detail["avg_response_time"] = f"{sla['avg_ping']} ms"
+                detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
+                detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
+                if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
+                    detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
             detail["network_uptime"] = sla.get("network_uptime_str", sla["cellular_uptime_str"])
             detail["network_uptime_pct"] = f"{sla.get('network_success_rate', sla['cellular_sla_pct'])}%"
             detail["network_offline"] = sla.get("network_offline_str", sla["cellular_offline_str"])
             detail["network_offline_pct"] = f"{round(100.0 - sla.get('network_success_rate', sla['cellular_sla_pct']), 1)}%"
-            detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
-            detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
-            if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
-                detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
             cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
             detail["total_gangguan"] = f"{len(cell_events_d)} events"
             if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):

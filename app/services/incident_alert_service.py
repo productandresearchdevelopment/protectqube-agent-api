@@ -4,8 +4,8 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
-from app.models.base_models import GatewayIncidentAlert, GatewayTelemetryHistory
+from sqlalchemy import desc, func, cast, String
+from app.models.base_models import GatewayIncidentAlert, GatewayTelemetryHistory, Device
 
 logger = logging.getLogger(__name__)
 
@@ -274,20 +274,31 @@ class IncidentAlertService:
         (id, device_id, telemetry_history_id, metric, description, start_time, end_time, duration_minutes, duration_str, status, created_at).
         """
         created = []
+        changed = False
         if not payload or not isinstance(payload, dict):
             return created
 
-        logs = payload.get("recent_system_logs")
-        if not logs:
-            return created
-
+        logs = payload.get("recent_system_logs") or []
         if isinstance(logs, str):
             logs = logs.strip().split("\n")
 
-        from app.services.sla_calculator_service import sla_calculator_service
+        from app.services.sla_calculator_service import sla_calculator_service, GAP_THRESHOLD_SECONDS
+        from app.models.gateway_models import Device
         wib = timezone(timedelta(hours=7))
 
+        dev_uuid = dev_id
+        if not isinstance(dev_id, uuid.UUID):
+            try:
+                dev_uuid = uuid.UUID(str(dev_id))
+            except (ValueError, AttributeError):
+                dev_obj = db.query(Device).filter(Device.name == str(dev_id)).first()
+                if dev_obj:
+                    dev_uuid = dev_obj.id
+
+        rec_dt_utc = (rec_dt.astimezone(timezone.utc).replace(tzinfo=None) if rec_dt.tzinfo else rec_dt) if rec_dt else datetime.utcnow()
+
         outages = {"cpu_modem": [], "cellular": [], "cpu_dvr": []}
+        covered_minutes_utc = set()
 
         for line in logs:
             ts_str, c_down, n_down, d_down, rec = sla_calculator_service.parse_system_log_line(str(line))[:5]
@@ -296,6 +307,7 @@ class IncidentAlertService:
                     dt_wib = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=wib)
                     min_dt = dt_wib.replace(second=0, microsecond=0)
                     if min_dt.year >= 2024:
+                        covered_minutes_utc.add((min_dt - timedelta(hours=7)).replace(tzinfo=None))
                         if c_down:
                             outages["cpu_modem"].append((min_dt, str(line)))
                         if n_down:
@@ -335,7 +347,7 @@ class IncidentAlertService:
 
                 # Deteksi jika sudah ada insiden sejenis yang bertabrakan atau menyambung (dalam jeda <= 65s)
                 existing = db.query(GatewayIncidentAlert).filter(
-                    GatewayIncidentAlert.device_id == dev_id,
+                    GatewayIncidentAlert.device_id == dev_uuid,
                     GatewayIncidentAlert.metric == metric,
                     GatewayIncidentAlert.start_time <= et_utc + timedelta(seconds=65),
                     GatewayIncidentAlert.end_time >= st_utc - timedelta(seconds=65)
@@ -351,7 +363,7 @@ class IncidentAlertService:
 
                     new_alert = GatewayIncidentAlert(
                         id=str(uuid.uuid4()),
-                        device_id=dev_id,
+                        device_id=dev_uuid,
                         telemetry_history_id=telemetry_history_id,
                         metric=metric,
                         description=desc,
@@ -364,16 +376,18 @@ class IncidentAlertService:
                     )
                     db.add(new_alert)
                     created.append(new_alert)
+                    changed = True
                 else:
                     # Gabungkan rentang jika window telemetri baru memperluas insiden yang sudah tercatat
-                    new_st = min(existing.start_time, st_utc)
-                    new_et = max(existing.end_time, et_utc)
-                    if new_st < existing.start_time or new_et > existing.end_time:
+                    new_st = min(existing.start_time, st_utc) if existing.start_time else st_utc
+                    new_et = max(existing.end_time, et_utc) if existing.end_time else et_utc
+                    if (existing.start_time is None or new_st < existing.start_time) or (existing.end_time is None or new_et > existing.end_time):
                         new_dur = max(1.0, round((new_et - new_st).total_seconds() / 60.0, 1))
                         existing.start_time = new_st
                         existing.end_time = new_et
                         existing.duration_minutes = new_dur
                         existing.duration_str = f"{round(new_dur)}m"
+                        changed = True
                         if metric == "cpu_modem":
                             existing.description = f"Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS]) for {round(new_dur)}m"
                         elif metric == "cellular":
@@ -381,7 +395,81 @@ class IncidentAlertService:
                         else:
                             existing.description = f"Gateway CPU to NVR Communication Lost (NVR: OFFLINE) for {round(new_dur)}m"
 
-        if created:
+        # Resolve open ACTIVE alerts & persist Telemetry Silence Gaps (> 10 minutes) upon recovery,
+        # automatically reconciling/overwriting any minutes covered by buffered recent_system_logs.
+        try:
+            open_alerts = db.query(GatewayIncidentAlert).filter(
+                GatewayIncidentAlert.device_id == dev_uuid,
+                GatewayIncidentAlert.status == "ACTIVE",
+            ).all()
+            for oa in open_alerts:
+                if oa.start_time and rec_dt_utc > oa.start_time:
+                    oa.end_time = rec_dt_utc
+                    dur_m = max(1.0, round((rec_dt_utc - oa.start_time).total_seconds() / 60.0, 1))
+                    oa.duration_minutes = dur_m
+                    oa.duration_str = f"{int(round(dur_m))}m"
+                    oa.status = "RESOLVED"
+                    changed = True
+
+            prev_row = (
+                db.query(GatewayTelemetryHistory.recorded_at)
+                .filter(
+                    GatewayTelemetryHistory.device_id == dev_uuid,
+                    GatewayTelemetryHistory.deleted_at.is_(None),
+                    GatewayTelemetryHistory.recorded_at < rec_dt_utc,
+                )
+                .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                .first()
+            )
+            if prev_row and prev_row[0]:
+                prev_utc = prev_row[0].replace(tzinfo=None)
+                if (rec_dt_utc - prev_utc).total_seconds() > GAP_THRESHOLD_SECONDS:
+                    inner_logs = sorted(m_u for m_u in covered_minutes_utc if prev_utc < m_u < rec_dt_utc)
+                    checkpoints = [prev_utc] + inner_logs + [rec_dt_utc]
+                    for i in range(len(checkpoints) - 1):
+                        seg_s = checkpoints[i]
+                        # Each covered log minute already accounts for [m, m + 60s]
+                        if i > 0:
+                            seg_s = seg_s + timedelta(minutes=1)
+                        seg_e = checkpoints[i + 1]
+                        gap_sec = (seg_e - seg_s).total_seconds()
+                        if gap_sec > GAP_THRESHOLD_SECONDS:
+                            dur_min = round(gap_sec / 60.0, 1)
+                            dur_int = max(1, int(round(dur_min)))
+                            dur_lbl = (
+                                f"{dur_int // 60}h {dur_int % 60}m"
+                                if dur_int >= 60 and dur_int % 60
+                                else (f"{dur_int // 60}h" if dur_int >= 60 else f"{dur_int}m")
+                            )
+                            gap_desc = f"Gateway Offline / Telemetry Disconnected for {dur_lbl}"
+                            for metric in ("cpu_modem", "cellular", "cpu_dvr"):
+                                overlap = db.query(GatewayIncidentAlert).filter(
+                                    GatewayIncidentAlert.device_id == dev_uuid,
+                                    GatewayIncidentAlert.metric == metric,
+                                    GatewayIncidentAlert.start_time <= seg_e + timedelta(seconds=65),
+                                    GatewayIncidentAlert.end_time >= seg_s - timedelta(seconds=65),
+                                ).first()
+                                if not overlap:
+                                    gap_alert = GatewayIncidentAlert(
+                                        id=str(uuid.uuid4()),
+                                        device_id=dev_uuid,
+                                        telemetry_history_id=telemetry_history_id,
+                                        metric=metric,
+                                        description=gap_desc,
+                                        start_time=seg_s,
+                                        end_time=seg_e,
+                                        duration_minutes=dur_min,
+                                        duration_str=dur_lbl,
+                                        status="RESOLVED",
+                                        created_at=datetime.utcnow(),
+                                    )
+                                    db.add(gap_alert)
+                                    created.append(gap_alert)
+                                    changed = True
+        except Exception as gap_err:
+            logger.debug(f"Gap reconciliation skipped for {dev_id}: {gap_err}")
+
+        if changed:
             try:
                 db.commit()
             except Exception as e:
@@ -600,7 +688,7 @@ class IncidentAlertService:
         elif isinstance(pt, dict) and not pt.get("undervoltage_now"):
             # Auto-resolve alert undervoltage yang sedang ACTIVE jika tegangan sudah normal
             active_uv = db.query(GatewayIncidentAlert).filter(
-                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.device_id == dev_uuid,
                 GatewayIncidentAlert.alert_code == "UNDERVOLTAGE_BROWNOUT",
                 GatewayIncidentAlert.status == "ACTIVE"
             ).first()
@@ -742,7 +830,7 @@ class IncidentAlertService:
         elif isinstance(lan, dict) and (lan.get("status") == "CONNECTED" or lan.get("connected") is True):
             # Auto-resolve alert LAN fisik yang sedang ACTIVE jika kabel sudah dicolok kembali normal
             active_lan = db.query(GatewayIncidentAlert).filter(
-                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.device_id == dev_uuid,
                 GatewayIncidentAlert.alert_code == "LAN_CABLE_DISCONNECTED",
                 GatewayIncidentAlert.status == "ACTIVE"
             ).first()
@@ -781,11 +869,21 @@ class IncidentAlertService:
         telemetry_history_id: Optional[str] = None
     ) -> Optional[GatewayIncidentAlert]:
         """Menyimpan atau mengupdate insiden downtime tanpa duplikasi dalam rentang 30 menit."""
+        from app.models.gateway_models import Device
+        dev_uuid = dev_id
+        if not isinstance(dev_id, uuid.UUID):
+            try:
+                dev_uuid = uuid.UUID(str(dev_id))
+            except (ValueError, AttributeError):
+                dev_obj = db.query(Device).filter(Device.name == str(dev_id)).first()
+                if dev_obj:
+                    dev_uuid = dev_obj.id
+
         window_start = occurred_at - timedelta(minutes=30)
         window_end = (recovered_at or occurred_at) + timedelta(minutes=30)
 
         existing = db.query(GatewayIncidentAlert).filter(
-            GatewayIncidentAlert.device_id == dev_id,
+            GatewayIncidentAlert.device_id == dev_uuid,
             GatewayIncidentAlert.category == category,
             GatewayIncidentAlert.occurred_at >= window_start,
             GatewayIncidentAlert.occurred_at <= window_end
@@ -823,7 +921,7 @@ class IncidentAlertService:
 
         # Buat entri baru jika belum pernah dicatat
         alert = GatewayIncidentAlert(
-            device_id=dev_id,
+            device_id=dev_uuid,
             location=location,
             category=category,
             alert_code=alert_code,
@@ -875,10 +973,19 @@ class IncidentAlertService:
         telemetry_history_id: Optional[str] = None
     ) -> Optional[GatewayIncidentAlert]:
         """Menghindari duplikasi alert pada device yang sama dalam rentang waktu 15 menit."""
+        dev_uuid = dev_id
+        if not isinstance(dev_id, uuid.UUID):
+            try:
+                dev_uuid = uuid.UUID(str(dev_id))
+            except (ValueError, AttributeError):
+                dev_obj = db.query(Device).filter(Device.name == str(dev_id)).first()
+                if dev_obj:
+                    dev_uuid = dev_obj.id
+
         # Jika status ACTIVE, jangan buat tiket baru jika tiket ACTIVE masih terbuka
         if status == "ACTIVE":
             active_existing = db.query(GatewayIncidentAlert.id).filter(
-                GatewayIncidentAlert.device_id == dev_id,
+                GatewayIncidentAlert.device_id == dev_uuid,
                 GatewayIncidentAlert.alert_code == alert_code,
                 GatewayIncidentAlert.status == "ACTIVE"
             ).first()
@@ -888,7 +995,7 @@ class IncidentAlertService:
         window_start = occurred_at - timedelta(minutes=15)
         window_end = occurred_at + timedelta(minutes=15)
         existing = db.query(GatewayIncidentAlert.id).filter(
-            GatewayIncidentAlert.device_id == dev_id,
+            GatewayIncidentAlert.device_id == dev_uuid,
             GatewayIncidentAlert.alert_code == alert_code,
             GatewayIncidentAlert.occurred_at >= window_start,
             GatewayIncidentAlert.occurred_at <= window_end
@@ -898,7 +1005,7 @@ class IncidentAlertService:
             return None
 
         alert = GatewayIncidentAlert(
-            device_id=dev_id,
+            device_id=dev_uuid,
             location=location,
             category=category,
             alert_code=alert_code,
@@ -941,16 +1048,25 @@ class IncidentAlertService:
         query = db.query(GatewayIncidentAlert)
 
         if device_id:
-            query = query.filter(GatewayIncidentAlert.device_id == device_id)
+            dev_target = device_id
+            if not isinstance(device_id, uuid.UUID):
+                try:
+                    dev_target = uuid.UUID(str(device_id))
+                except (ValueError, AttributeError):
+                    dev_obj = db.query(Device).filter(Device.name == str(device_id)).first()
+                    if dev_obj:
+                        dev_target = dev_obj.id
+            query = query.filter(GatewayIncidentAlert.device_id == dev_target)
         if category:
             query = query.filter(GatewayIncidentAlert.metric == category.lower())
         if status:
             query = query.filter(GatewayIncidentAlert.status == status.upper())
         if search:
             search_fmt = f"%{search}%"
-            query = query.filter(
+            query = query.join(Device, GatewayIncidentAlert.device_id == Device.id, isouter=True).filter(
                 (GatewayIncidentAlert.description.ilike(search_fmt)) |
-                (GatewayIncidentAlert.device_id.ilike(search_fmt))
+                (cast(GatewayIncidentAlert.device_id, String).ilike(search_fmt)) |
+                (Device.name.ilike(search_fmt))
             )
 
         total_count = query.count()
@@ -968,10 +1084,12 @@ class IncidentAlertService:
         for r in rows:
             start_wib = r.start_time + timedelta(hours=7) if r.start_time else None
             end_wib = r.end_time + timedelta(hours=7) if r.end_time else None
+            dev_name = r.device.name if r.device else str(r.device_id)
 
             items.append({
-                "id": r.id,
-                "device_id": r.device_id,
+                "id": str(r.id),
+                "device_id": str(r.device_id),
+                "device_name": dev_name,
                 "metric": r.metric,
                 "category": r.metric,
                 "title": r.description,
@@ -984,7 +1102,7 @@ class IncidentAlertService:
                 "start_time_wib": start_wib.strftime("%Y-%m-%d %H:%M:%S") if start_wib else None,
                 "end_time_wib": end_wib.strftime("%Y-%m-%d %H:%M:%S") if end_wib else None,
                 "status": r.status,
-                "telemetry_history_id": r.telemetry_history_id,
+                "telemetry_history_id": str(r.telemetry_history_id) if r.telemetry_history_id else None,
             })
 
         return {
@@ -999,7 +1117,15 @@ class IncidentAlertService:
     def get_summary_stats(self, db: Session, device_id: Optional[str] = None) -> Dict[str, Any]:
         query = db.query(GatewayIncidentAlert)
         if device_id:
-            query = query.filter(GatewayIncidentAlert.device_id == device_id)
+            dev_target = device_id
+            if not isinstance(device_id, uuid.UUID):
+                try:
+                    dev_target = uuid.UUID(str(device_id))
+                except (ValueError, AttributeError):
+                    dev_obj = db.query(Device).filter(Device.name == str(device_id)).first()
+                    if dev_obj:
+                        dev_target = dev_obj.id
+            query = query.filter(GatewayIncidentAlert.device_id == dev_target)
 
         return {
             "total_offline_incidents": query.count(),

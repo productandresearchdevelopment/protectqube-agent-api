@@ -61,6 +61,9 @@ class DVRCharts(BaseModel):
 class DVRGatewayItem(BaseModel):
     no: int
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     dvr_model: str
@@ -157,6 +160,9 @@ class DVREventItem(BaseModel):
 
 class DVRGatewayDetailData(BaseModel):
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     model: str

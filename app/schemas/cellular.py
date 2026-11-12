@@ -62,6 +62,9 @@ class CellularCharts(BaseModel):
 class CellularGatewayItem(BaseModel):
     no: int
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     model: str
@@ -107,6 +110,16 @@ class CPUModemDetail(BaseModel):
     last_check: str
 
 
+class SignalHistoryPoint(BaseModel):
+    date: str
+    date_iso: str
+    date_key: str
+    day: int
+    time: str
+    hour: int
+    value: float
+
+
 class SignalStrengthDetail(BaseModel):
     rsrp: int
     unit: str
@@ -117,6 +130,9 @@ class SignalStrengthDetail(BaseModel):
     max_time: Optional[str] = None
     min_time: Optional[str] = None
     csq: Optional[int] = None
+    history: Optional[List[SignalHistoryPoint]] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
 
 
 class NetworkSIMDetail(BaseModel):
@@ -157,6 +173,9 @@ class CellularEventItem(BaseModel):
 
 class CellularGatewayDetailData(BaseModel):
     id: str
+    device_uuid: Optional[str] = None
+    customer: Optional[str] = "-"
+    client_name: Optional[str] = "-"
     location: str
     type: str
     model: str

@@ -118,6 +118,34 @@ def sync_whatsapp_destinations(db: Session) -> Tuple[bool, str, int]:
     synced_count = 0
     now = datetime.utcnow()
 
+    existing_rows = db.query(NotificationTarget).filter(
+        NotificationTarget.provider_key == "whatsapp"
+    ).all()
+    existing_map: Dict[str, NotificationTarget] = {t.external_id: t for t in existing_rows}
+
+    def upsert_target(ext_id: str, disp_name: str, dest_type: str):
+        nonlocal synced_count
+        target = existing_map.get(ext_id)
+        if not target:
+            target = NotificationTarget(
+                provider_key="whatsapp",
+                external_id=ext_id,
+                display_name=disp_name,
+                type=dest_type,
+                source="sync",
+                is_active=True,
+                last_synced_at=now,
+            )
+            db.add(target)
+            existing_map[ext_id] = target
+        else:
+            target.display_name = disp_name
+            target.type = dest_type
+            target.source = "sync"
+            target.is_active = True
+            target.last_synced_at = now
+        synced_count += 1
+
     try:
         if hasattr(client, "get_joined_groups"):
             groups = client.get_joined_groups()
@@ -129,41 +157,21 @@ def sync_whatsapp_destinations(db: Session) -> Tuple[bool, str, int]:
                     if not jid_str:
                         continue
 
-                    target = db.query(NotificationTarget).filter(
-                        NotificationTarget.provider_key == "whatsapp",
-                        NotificationTarget.external_id == jid_str
-                    ).first()
-
-                    name = target.display_name if target and target.display_name and not target.display_name.startswith("WhatsApp Group (") else None
-                    if not name:
-                        try:
-                            info = client.get_group_info(g.JID)
-                            if info and hasattr(info, "GroupName") and hasattr(info.GroupName, "Name"):
-                                name = info.GroupName.Name
-                        except Exception:
-                            pass
-
+                    existing_t = existing_map.get(jid_str)
+                    name = (
+                        getattr(getattr(g, "GroupName", None), "Name", None)
+                        or getattr(g, "Name", None)
+                        or (
+                            existing_t.display_name
+                            if existing_t and existing_t.display_name and not existing_t.display_name.startswith("WhatsApp Group (")
+                            else None
+                        )
+                    )
                     if not name:
                         name = f"WhatsApp Group ({jid_user or jid_str})"
 
-                    if not target:
-                        target = NotificationTarget(
-                            provider_key="whatsapp",
-                            external_id=jid_str,
-                            display_name=name,
-                            type="group",
-                            source="sync",
-                            is_active=True,
-                            last_synced_at=now,
-                        )
-                        db.add(target)
-                    else:
-                        target.display_name = name
-                        target.type = "group"
-                        target.source = "sync"
-                        target.last_synced_at = now
-                    synced_count += 1
-    except Exception as e:
+                    upsert_target(jid_str, name, "group")
+    except Exception:
         pass
 
     try:
@@ -171,7 +179,7 @@ def sync_whatsapp_destinations(db: Session) -> Tuple[bool, str, int]:
         import os
         db_path = getattr(whatsapp_session_manager, "db_path", "")
         if db_path and os.path.exists(db_path):
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, timeout=5.0)
             cur = conn.cursor()
             cur.execute("""
                 SELECT their_jid, first_name, full_name, push_name, business_name 
@@ -181,36 +189,14 @@ def sync_whatsapp_destinations(db: Session) -> Tuple[bool, str, int]:
                 ORDER BY COALESCE(NULLIF(full_name, ''), NULLIF(push_name, ''), business_name) ASC
             """)
             contacts = cur.fetchall()
+            conn.close()
             for r in contacts:
                 jid_str = r[0]
                 contact_name = r[2] or r[3] or r[4] or r[1] or jid_str.split("@")[0]
                 if not jid_str or not contact_name:
                     continue
-
-                target = db.query(NotificationTarget).filter(
-                    NotificationTarget.provider_key == "whatsapp",
-                    NotificationTarget.external_id == jid_str
-                ).first()
-
-                if not target:
-                    target = NotificationTarget(
-                        provider_key="whatsapp",
-                        external_id=jid_str,
-                        display_name=contact_name,
-                        type="chat",
-                        source="sync",
-                        is_active=True,
-                        last_synced_at=now,
-                    )
-                    db.add(target)
-                else:
-                    target.display_name = contact_name
-                    target.type = "chat"
-                    target.source = "sync"
-                    target.last_synced_at = now
-                synced_count += 1
-            conn.close()
-    except Exception as e:
+                upsert_target(jid_str, contact_name, "chat")
+    except Exception:
         pass
 
     db.commit()

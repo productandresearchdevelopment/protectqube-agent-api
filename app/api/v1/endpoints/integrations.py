@@ -41,11 +41,16 @@ def get_whatsapp_status():
 
 @router.post("/whatsapp/qr")
 def generate_whatsapp_qr():
-    result = whatsapp_session_manager.request_qr()
-    return {
-        "status": True,
-        "data": result
-    }
+    try:
+        result = whatsapp_session_manager.request_qr()
+        return {
+            "status": True,
+            "data": result
+        }
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/whatsapp/pair-phone")

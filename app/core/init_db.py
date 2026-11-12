@@ -28,6 +28,7 @@ def init_db():
     tables = [
         "users", "roles", "module_types", "modules", "role_modules",
         "uploads", "user_sessions", "user_otps",
+        "clients", "devices",
         "gateway_telemetry_history", "gateway_incident_alerts",
         "notification_events", "notification_destinations",
         "notification_targets", "notifications", "notification_deliveries"
@@ -175,6 +176,18 @@ def init_db():
             {"name": "Module Get All", "route": "/api/v1/modules", "type_id": service_api_id, "parent_name": "Modules Management", "description": "Retrieve all modules hierarchical tree"},
             {"name": "Module Create", "route": "/api/v1/modules", "type_id": service_api_id, "parent_name": "Modules Management", "description": "Create a new module or service node"},
             {"name": "Module Delete", "route": "/api/v1/modules/:id", "type_id": service_api_id, "parent_name": "Modules Management", "description": "Delete module node from system"},
+
+            # Clients Management (Level 1 & Level 2)
+            {"name": "Clients Management", "route": "/configuration/clients", "icon": "Building2", "type_id": route_menu_id, "parent_name": "Configuration", "description": "Manage master clients and enterprise accounts"},
+            {"name": "Client Get All", "route": "/api/v1/clients", "type_id": service_api_id, "parent_name": "Clients Management", "description": "Retrieve all clients"},
+            {"name": "Client Create", "route": "/api/v1/clients", "type_id": service_api_id, "parent_name": "Clients Management", "description": "Create a new client"},
+            {"name": "Client Update", "route": "/api/v1/clients/:id", "type_id": service_api_id, "parent_name": "Clients Management", "description": "Update client details"},
+            {"name": "Client Delete", "route": "/api/v1/clients/:id", "type_id": service_api_id, "parent_name": "Clients Management", "description": "Delete client"},
+
+            # Devices Management (Level 1 & Level 2)
+            {"name": "Devices Management", "route": "/configuration/devices", "icon": "Cpu", "type_id": route_menu_id, "parent_name": "Configuration", "description": "Manage master devices, hardware specs and properties"},
+            {"name": "Device Get All", "route": "/api/v1/devices", "type_id": service_api_id, "parent_name": "Devices Management", "description": "Retrieve all devices"},
+            {"name": "Device Update", "route": "/api/v1/devices/:id", "type_id": service_api_id, "parent_name": "Devices Management", "description": "Update device client assignment and properties"},
         ]
 
         for m_data in modules_to_seed:
@@ -262,6 +275,114 @@ def init_db():
                 "name": "NVR / Camera Recovered",
                 "category": "dvr",
                 "description": "Triggered when NVR resumes recording or becomes online",
+            },
+            {
+                "event_code": "gateway_offline",
+                "name": "Gateway Offline",
+                "category": "gateway",
+                "description": "Triggered when gateway stops sending MQTT telemetry for more than 1 hour",
+            },
+            {
+                "event_code": "gateway_online",
+                "name": "Gateway Online (Recovered)",
+                "category": "gateway",
+                "description": "Triggered when an offline gateway resumes sending MQTT telemetry",
+            },
+            {
+                "event_code": "gateway_camera_loss",
+                "name": "Camera CCTV Loss / NO VIDEO",
+                "category": "dvr",
+                "description": "Triggered when one or more active CCTV cameras lose video signal",
+            },
+            {
+                "event_code": "gateway_camera_recovered",
+                "name": "Camera CCTV Recovered",
+                "category": "dvr",
+                "description": "Triggered when all active CCTV cameras return online",
+            },
+            {
+                "event_code": "gateway_recording_stopped",
+                "name": "NVR Recording Stopped",
+                "category": "dvr",
+                "description": "Triggered when NVR is online but stops recording video",
+            },
+            {
+                "event_code": "gateway_recording_resumed",
+                "name": "NVR Recording Resumed",
+                "category": "dvr",
+                "description": "Triggered when NVR resumes video recording",
+            },
+            {
+                "event_code": "gateway_power_drop",
+                "name": "Power / Voltage Drop",
+                "category": "power",
+                "description": "Triggered on AC power loss (Discharging), low battery (<20%), or adapter voltage drop (<4.63V)",
+            },
+            {
+                "event_code": "gateway_power_recovered",
+                "name": "Power / Voltage Recovered",
+                "category": "power",
+                "description": "Triggered when power supply and adapter voltage return to normal",
+            },
+            {
+                "event_code": "gateway_storage_critical",
+                "name": "Storage Full / Critical Health",
+                "category": "storage",
+                "description": "Triggered when NVR HDD or SD Card usage >= 95% or flash health becomes Critical",
+            },
+            {
+                "event_code": "gateway_storage_recovered",
+                "name": "Storage Recovered",
+                "category": "storage",
+                "description": "Triggered when storage usage and health return to normal",
+            },
+            {
+                "event_code": "gateway_lan_disconnected",
+                "name": "LAN Cable Disconnected (eth0)",
+                "category": "network",
+                "description": "Triggered when physical LAN eth0 reports NO-CARRIER",
+            },
+            {
+                "event_code": "gateway_lan_reconnected",
+                "name": "LAN Cable Reconnected (eth0)",
+                "category": "network",
+                "description": "Triggered when physical LAN eth0 link is restored",
+            },
+            {
+                "event_code": "gateway_high_temp",
+                "name": "CPU High Temperature (>80°C)",
+                "category": "system",
+                "description": "Triggered when gateway CPU temperature exceeds 80°C",
+            },
+            {
+                "event_code": "gateway_temp_normal",
+                "name": "CPU Temperature Normal",
+                "category": "system",
+                "description": "Triggered when gateway CPU temperature cools down to <= 75°C",
+            },
+            {
+                "event_code": "gateway_weak_signal",
+                "name": "Weak Cellular Signal (Poor)",
+                "category": "cellular",
+                "description": "Triggered when cellular RSRP drops below -105 dBm (Poor)",
+            },
+            {
+                "event_code": "gateway_signal_normal",
+                "name": "Cellular Signal Normal",
+                "category": "cellular",
+                "description": "Triggered when cellular RSRP recovers to >= -95 dBm",
+            },
+            {
+                "event_code": "gateway_sla_breach",
+                "name": "SLA Below Target (<98%)",
+                "category": "sla",
+                "description": "Triggered when gateway SLA drops below the 98.0% target",
+            },
+            {
+                "event_code": "gateway_sla_recovered",
+                "name": "SLA Target Achieved (>=98%)",
+                "category": "sla",
+                "description": "Triggered when gateway SLA recovers to >= 98.0%",
             },
         ]
 

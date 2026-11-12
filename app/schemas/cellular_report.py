@@ -6,6 +6,7 @@ class CellularReportItem(BaseModel):
     no: int
     id: str
     location: str
+    customer: Optional[str] = "-"
     type: str
     modem: str
     modem_name: Optional[str] = None

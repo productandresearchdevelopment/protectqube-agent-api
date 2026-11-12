@@ -100,11 +100,29 @@ class GatewayAgentManager:
 
             db = SessionLocal()
             try:
+                from app.models.gateway_models import Device, Client
+                import uuid as _uuid
+
+                dev_obj = db.query(Device).filter(Device.name == dev_id).first()
+                if not dev_obj:
+                    client_obj = db.query(Client).first()
+                    client_id = client_obj.id if client_obj else _uuid.uuid4()
+                    dev_obj = Device(
+                        client_id=client_id,
+                        name=dev_id,
+                        location=loc_name,
+                        hardware_model=hw.get("model") or hw.get("type") or "-",
+                        is_active=True
+                    )
+                    db.add(dev_obj)
+                    db.flush()
+                device_uuid = dev_obj.id
+
                 # Avoid inserting duplicate rows for the same timestamp (e.g. retained MQTT messages from broker)
                 existing = (
                     db.query(GatewayTelemetryHistory.id)
                     .filter(
-                        GatewayTelemetryHistory.device_id == dev_id,
+                        GatewayTelemetryHistory.device_id == device_uuid,
                         GatewayTelemetryHistory.recorded_at == rec_dt
                     )
                     .first()
@@ -114,7 +132,7 @@ class GatewayAgentManager:
                     return
 
                 hist_entry = GatewayTelemetryHistory(
-                    device_id=dev_id,
+                    device_id=device_uuid,
                     recorded_at=rec_dt,
                     overall_status=payload.get("overall_status"),
                     location=loc_name,
@@ -403,7 +421,21 @@ class GatewayAgentManager:
 
     def _loop(self):
         logger.info("Gateway Monitoring Agent loop started.")
+        last_notif_sweep = 0.0
         while self._running:
+            now_ts = time.time()
+            if now_ts - last_notif_sweep >= 60.0:
+                last_notif_sweep = now_ts
+                try:
+                    from app.core.database import SessionLocal
+                    from app.services.notification.notification_service import notification_service
+                    db = SessionLocal()
+                    try:
+                        notification_service.check_periodic_health_notifications(db)
+                    finally:
+                        db.close()
+                except Exception as sweep_err:
+                    logger.debug(f"[AgentLoop] Periodic notification sweep failed: {sweep_err}")
             time.sleep(settings.MQTT_PUBLISH_INTERVAL_SECONDS)
 
     def start(self):

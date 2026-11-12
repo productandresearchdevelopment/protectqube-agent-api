@@ -48,22 +48,34 @@ def _apply_title_block(
     date_range: Optional[str] = None,
     total_records: int = 0,
     kpis: Optional[List[tuple]] = None,
+    include_brand: bool = True,
 ) -> int:
     """Writes corporate header block, generation timestamp, and optional KPI tiles."""
     now_wib = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
 
-    # Title
-    ws["A1"] = "PROTECTQUBE AIOPS"
-    ws["A1"].font = Font(name=FONT_FAMILY, size=9, bold=True, color="0073EA")
+    if include_brand:
+        # Title
+        ws["A1"] = "PROTECTQUBE AIOPS"
+        ws["A1"].font = Font(name=FONT_FAMILY, size=9, bold=True, color="0073EA")
 
-    ws["A2"] = title
-    ws["A2"].font = TITLE_FONT
+        ws["A2"] = title
+        ws["A2"].font = TITLE_FONT
 
-    period_str = date_range if date_range else "Current Period"
-    ws["A3"] = f"Monitored Period: {period_str}  |  Generated on: {now_wib}  |  Total Records: {total_records}"
-    ws["A3"].font = SUBTITLE_FONT
+        period_str = date_range if date_range else "Current Period"
+        ws["A3"] = f"Monitored Period: {period_str}  |  Generated on: {now_wib}  |  Total Records: {total_records}"
+        ws["A3"].font = SUBTITLE_FONT
 
-    current_row = 5
+        current_row = 5
+    else:
+        # Title without PROTECTQUBE AIOPS
+        ws["A1"] = title
+        ws["A1"].font = TITLE_FONT
+
+        period_str = date_range if date_range else "Current Period"
+        ws["A2"] = f"Monitored Period: {period_str}  |  Generated on: {now_wib}  |  Total Records: {total_records}"
+        ws["A2"].font = SUBTITLE_FONT
+
+        current_row = 4
 
     # Optional KPI tiles row
     if kpis:
@@ -92,7 +104,7 @@ def _apply_title_block(
 
         current_row += 3
     else:
-        current_row = 5
+        current_row = current_row + 1
 
     return current_row
 
@@ -131,8 +143,8 @@ def _autofit_columns(ws, min_width=12, max_width=45):
         max_len = 0
         col_letter = get_column_letter(col[0].column)
         for cell in col:
-            # Skip title row and merged rows for width estimation
-            if cell.row in [1, 2, 3, 5, 6]:
+            # Skip title rows and merged KPI rows for width estimation
+            if cell.row <= 7:
                 continue
             if cell.value:
                 s = str(cell.value)
@@ -172,10 +184,11 @@ def build_dvr_report_excel(
 
     start_row = _apply_title_block(
         ws,
-        title="Fleet DVR & Recording Performance Report",
+        title="REPORT DVR",
         date_range=date_range,
         total_records=len(gateways),
         kpis=kpis,
+        include_brand=False,
     )
 
     r1 = start_row
@@ -187,8 +200,8 @@ def build_dvr_report_excel(
     # 1. Tier 1 Headers (Merged Vertically or Horizontally)
     _merge_and_style_header_block(ws, r1, 1, r2, 1, "No.")
     _merge_and_style_header_block(ws, r1, 2, r2, 2, "Location")
-    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Type")
-    _merge_and_style_header_block(ws, r1, 4, r2, 4, "DVR / NVR")
+    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Client")
+    _merge_and_style_header_block(ws, r1, 4, r2, 4, "Type")
     _merge_and_style_header_block(ws, r1, 5, r1, 7, "CPU – DVR Communication")
     _merge_and_style_header_block(ws, r1, 8, r1, 11, "Camera Status")
     _merge_and_style_header_block(ws, r1, 12, r1, 14, "Recording Status")
@@ -237,8 +250,8 @@ def build_dvr_report_excel(
         row_values = [
             idx,
             gw.get("location") or gw.get("id"),
+            gw.get("customer", "-"),
             gw.get("type", "SmartBox Putih"),
-            gw.get("dvr_model", "Hikvision DS-7104NI"),
             gw.get("cpu_dvr_uptime", "0m"),
             gw.get("cpu_dvr_offline", "0m"),
             f"{gw.get('cpu_dvr_success_rate', 100.0)}%",
@@ -288,6 +301,7 @@ def build_dvr_report_excel(
         curr_row += 1
 
     _autofit_columns(ws)
+    ws.column_dimensions["A"].width = 6
 
     stream = io.BytesIO()
     wb.save(stream)
@@ -324,10 +338,11 @@ def build_cellular_report_excel(
 
     start_row = _apply_title_block(
         ws,
-        title="Fleet Cellular & Modem SLA Report",
+        title="REPORT CELLULAR",
         date_range=date_range,
         total_records=len(gateways),
         kpis=kpis,
+        include_brand=False,
     )
 
     r1 = start_row
@@ -339,8 +354,9 @@ def build_cellular_report_excel(
     # 1. Tier 1 Headers
     _merge_and_style_header_block(ws, r1, 1, r2, 1, "No.")
     _merge_and_style_header_block(ws, r1, 2, r2, 2, "Location")
-    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Type")
-    _merge_and_style_header_block(ws, r1, 4, r1, 5, "Modem Device")
+    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Client")
+    _merge_and_style_header_block(ws, r1, 4, r2, 4, "Type")
+    _merge_and_style_header_block(ws, r1, 5, r1, 5, "Modem Device")
     _merge_and_style_header_block(ws, r1, 6, r1, 8, "SIM Card & Data")
     _merge_and_style_header_block(ws, r1, 9, r1, 11, "CPU – Modem Communication")
     _merge_and_style_header_block(ws, r1, 12, r1, 15, "Network Connection")
@@ -348,7 +364,6 @@ def build_cellular_report_excel(
 
     # 2. Tier 2 Sub-headers
     sub_headers = {
-        4: "Name",
         5: "Avg Temp (°C)",
         6: "Provider",
         7: "SIM Card No.",
@@ -382,8 +397,8 @@ def build_cellular_report_excel(
         row_values = [
             idx,
             gw.get("location") or gw.get("id"),
+            gw.get("customer", "-"),
             gw.get("type", "SmartBox Putih"),
-            gw.get("modem", "Quectel EC25"),
             f"{gw.get('modem_temp', gw.get('network_avg_temp', 42))}°C",
             gw.get("provider", "Telkomsel"),
             gw.get("sim_number", "-"),
@@ -430,6 +445,7 @@ def build_cellular_report_excel(
         curr_row += 1
 
     _autofit_columns(ws)
+    ws.column_dimensions["A"].width = 6
 
     stream = io.BytesIO()
     wb.save(stream)
@@ -466,10 +482,11 @@ def build_health_report_excel(
 
     start_row = _apply_title_block(
         ws,
-        title="Fleet System Health Performance Report",
+        title="REPORT HEALTH",
         date_range=date_range,
         total_records=len(gateways),
         kpis=kpis,
+        include_brand=False,
     )
 
     r1 = start_row
@@ -481,32 +498,33 @@ def build_health_report_excel(
     # 1. Tier 1 Headers
     _merge_and_style_header_block(ws, r1, 1, r2, 1, "No.")
     _merge_and_style_header_block(ws, r1, 2, r2, 2, "Location")
-    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Type")
-    _merge_and_style_header_block(ws, r1, 4, r1, 5, "Device")
-    _merge_and_style_header_block(ws, r1, 6, r1, 8, "CPU Status")
-    _merge_and_style_header_block(ws, r1, 9, r1, 11, "RAM Status")
-    _merge_and_style_header_block(ws, r1, 12, r1, 14, "Storage Usage")
-    _merge_and_style_header_block(ws, r1, 15, r1, 16, "Storage Health")
-    _merge_and_style_header_block(ws, r1, 17, r1, 18, "System Temperature")
-    _merge_and_style_header_block(ws, r1, 19, r2, 19, "SLA")
+    _merge_and_style_header_block(ws, r1, 3, r2, 3, "Client")
+    _merge_and_style_header_block(ws, r1, 4, r2, 4, "Type")
+    _merge_and_style_header_block(ws, r1, 5, r1, 6, "Device")
+    _merge_and_style_header_block(ws, r1, 7, r1, 9, "CPU Status")
+    _merge_and_style_header_block(ws, r1, 10, r1, 12, "RAM Status")
+    _merge_and_style_header_block(ws, r1, 13, r1, 15, "Storage Usage")
+    _merge_and_style_header_block(ws, r1, 16, r1, 17, "Storage Health")
+    _merge_and_style_header_block(ws, r1, 18, r1, 19, "System Temperature")
+    _merge_and_style_header_block(ws, r1, 20, r2, 20, "SLA")
 
     # 2. Tier 2 Sub-headers
     sub_headers = {
-        4: "Uptime",
-        5: "Downtime",
-        6: "Avg (%)",
-        7: "Max (%)",
-        8: ">80% Duration",
-        9: "Avg (%)",
-        10: "Max (%)",
-        11: ">80% Duration",
-        12: "Avg (%)",
-        13: "Max (%)",
-        14: ">90% Duration",
-        15: "Health Status",
-        16: "Life (%)",
-        17: "Avg (°C)",
-        18: "Peak (°C)",
+        5: "Uptime",
+        6: "Downtime",
+        7: "Avg (%)",
+        8: "Max (%)",
+        9: ">80% Duration",
+        10: "Avg (%)",
+        11: "Max (%)",
+        12: ">80% Duration",
+        13: "Avg (%)",
+        14: "Max (%)",
+        15: ">90% Duration",
+        16: "Health Status",
+        17: "Life (%)",
+        18: "Avg (°C)",
+        19: "Peak (°C)",
     }
     for col_idx, text in sub_headers.items():
         _merge_and_style_header_block(
@@ -528,6 +546,7 @@ def build_health_report_excel(
         row_values = [
             idx,
             gw.get("location") or gw.get("id"),
+            gw.get("customer", "-"),
             gw.get("type", "SmartBox Putih"),
             gw.get("uptime_duration", "0m"),
             gw.get("downtime_duration", "0m"),
@@ -554,16 +573,16 @@ def build_health_report_excel(
             if row_fill:
                 cell.fill = row_fill
 
-            if col_idx in [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]:
+            if col_idx in [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
 
-            if col_idx == 5:
+            if col_idx == 6:
                 down_str = str(val or "0m").strip()
                 if down_str not in ["0m", "0s", "0h 00m", "-"]:
                     cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
-            elif col_idx == 19:
+            elif col_idx == 20:
                 try:
                     num_sla = float(str(val).replace("%", ""))
                     if num_sla >= 99.5:
@@ -578,6 +597,7 @@ def build_health_report_excel(
         curr_row += 1
 
     _autofit_columns(ws)
+    ws.column_dimensions["A"].width = 6
 
     stream = io.BytesIO()
     wb.save(stream)

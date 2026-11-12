@@ -35,6 +35,12 @@ class SystemHealthService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                from app.models.base_models import Device
+                inactive_rows = db.query(Device.name).filter(
+                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
+                ).all()
+                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
+
                 query = db.query(GatewayTelemetryHistory)
                 if hasattr(GatewayTelemetryHistory, "deleted_at"):
                     query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
@@ -45,7 +51,13 @@ class SystemHealthService:
                 )
                 for latest in latest_records:
                     if latest and latest.raw_payload:
+                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
+                            continue
                         payload = dict(latest.raw_payload)
+                        if latest.device:
+                            payload["device_id"] = latest.device.name
+                            payload["device_uuid"] = str(latest.device.id)
+                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
                         if latest.recorded_at:
                             from datetime import timezone, timedelta
                             WIB = timezone(timedelta(hours=7))
@@ -179,6 +191,8 @@ class SystemHealthService:
         """Ingests live MQTT telemetry and updates system health item & detailed diagnostic structures."""
         device_id = nms_payload.get("device_id")
         if not device_id:
+            return
+        if getattr(self, "_inactive_gateways", None) and device_id in self._inactive_gateways:
             return
 
         gw_sys = nms_payload.get("gateway_system", {})
@@ -382,9 +396,26 @@ class SystemHealthService:
         # - All metrics within safe operational parameters and system heartbeat OK
         status_label = "Online"
 
+        sla_cust = None
+        try:
+            from app.services.sla_report_service import sla_report_service
+            sc = sla_report_service._live_gateways.get(device_id, {}).get("customer")
+            if sc and sc != "-":
+                sla_cust = sc
+        except Exception:
+            pass
+        ec = self._live_gateways.get(device_id, {}).get("table_item", {}).get("customer")
+        existing_cust = ec if (ec and ec != "-") else None
+        raw_cust = nms_payload.get("customer")
+        customer = (raw_cust if (raw_cust and raw_cust != "-") else None) or sla_cust or existing_cust or "-"
+        device_uuid = nms_payload.get("device_uuid") or str(device_id)
+
         table_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
+            "device_uuid": device_uuid,
+            "customer": customer,
+            "client_name": customer,
             "location": loc_name,
             "type": box_type,
             "model": model_name,
@@ -497,6 +528,9 @@ class SystemHealthService:
 
         detail_item = {
             "id": device_id,
+            "device_uuid": device_uuid,
+            "customer": customer,
+            "client_name": customer,
             "location": loc_name,
             "type": table_item["type"],
             "model": f"{hw.get('type', 'Gateway')} {model_name}".strip(),
@@ -593,7 +627,7 @@ class SystemHealthService:
             "historical_downtimes": historical_downtimes,
         }
 
-    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika ingin 5 menit, cukup ganti ke 300 di sini
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika data telemetri berhenti > 1 jam, status menjadi Offline
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -771,6 +805,101 @@ class SystemHealthService:
             },
         }
 
+    @staticmethod
+    def _parse_float(val: Any) -> Optional[float]:
+        if isinstance(val, (int, float)):
+            return float(val)
+        if isinstance(val, str):
+            import re
+            m = re.search(r"-?\d+(?:\.\d+)?", val)
+            if m:
+                try:
+                    return float(m.group(0))
+                except ValueError:
+                    return None
+        return None
+
+    def _apply_sorting(
+        self,
+        items: List[Dict[str, Any]],
+        sort_by: Optional[str],
+        sort_order: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        if not sort_by:
+            return items
+        is_desc = (sort_order or "asc").lower() == "desc"
+        key = sort_by.strip().lower()
+
+        if key in ("cpu", "ram", "sd_card", "sd_percent"):
+            field = "sd_percent" if key in ("sd_card", "sd_percent") else key
+            valid = []
+            missing = []
+            for g in items:
+                val = self._parse_float(g.get(field)) if g.get("status") != "Offline" else None
+                if val is not None:
+                    valid.append((val, g))
+                else:
+                    missing.append(g)
+            valid.sort(key=lambda x: x[0], reverse=is_desc)
+            return [g for _, g in valid] + missing
+
+        if key == "sd_health":
+            def health_rank(g: Dict[str, Any]) -> tuple:
+                if g.get("status") == "Offline" or not g.get("sd_health") or g.get("sd_health") == "-":
+                    return (3, "")
+                h = str(g.get("sd_health", "")).lower()
+                if h in ("bad", "critical"):
+                    return (0, h)
+                if h in ("wear", "warning", "caution"):
+                    return (1, h)
+                if h in ("good", "normal"):
+                    return (2, h)
+                return (3, h)
+            return sorted(items, key=health_rank, reverse=is_desc)
+
+        if key == "battery":
+            def battery_rank(g: Dict[str, Any]) -> tuple:
+                if g.get("status") == "Offline":
+                    return (3, 0.0)
+                is_white = (
+                    "putih" in str(g.get("type", "")).lower()
+                    or "210" in str(g.get("model", ""))
+                    or "rk3328" in str(g.get("model", "")).lower()
+                )
+                if is_white:
+                    is_discharging = bool(
+                        g.get("is_power_drop")
+                        or g.get("power_status") == "Discharging"
+                        or g.get("power_source") == "BATT"
+                    )
+                    pct = float(g.get("battery_percent") if g.get("battery_percent") is not None else 100)
+                    is_full = pct >= 100 or g.get("power_status") == "Full" or "100% full" in str(g.get("power_text", "")).lower()
+                    if is_discharging:
+                        return (0, pct)
+                    if not is_full and pct < 100:
+                        return (1, pct)
+                    return (2, pct)
+                else:
+                    is_drop = bool(
+                        g.get("is_power_drop")
+                        or g.get("power_status") in ("Voltage Drop", "Pernah Drop")
+                    )
+                    volt = self._parse_float(g.get("power_text") or g.get("voltage") or "5.10") or 5.10
+                    return (0 if is_drop else 1, volt)
+            return sorted(items, key=battery_rank, reverse=is_desc)
+
+        if key == "status":
+            def status_rank(g: Dict[str, Any]) -> int:
+                s = str(g.get("status", "")).lower()
+                if s in ("offline", "critical"):
+                    return 0
+                if s in ("warning", "degraded"):
+                    return 1
+                return 2
+            return sorted(items, key=status_rank, reverse=is_desc)
+
+        return items
+
     def get_gateways_paged(
         self,
         search: Optional[str] = None,
@@ -778,6 +907,8 @@ class SystemHealthService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Filters, sorts, and paginates real gateway records"""
         self._sync_freshness()
@@ -785,6 +916,15 @@ class SystemHealthService:
 
         for idx, it in enumerate(items, 1):
             it["no"] = idx
+            if not it.get("customer") or it.get("customer") == "-":
+                try:
+                    from app.services.sla_report_service import sla_report_service
+                    s_cust = sla_report_service._live_gateways.get(it["id"], {}).get("customer")
+                    if s_cust and s_cust != "-":
+                        it["customer"] = s_cust
+                        it["client_name"] = s_cust
+                except Exception:
+                    pass
 
         filtered = items
 
@@ -809,6 +949,8 @@ class SystemHealthService:
                 or (s == "online" and g["status"].lower() in ("online", "healthy"))
                 or (s == "offline" and g["status"].lower() in ("offline", "critical"))
             ]
+
+        filtered = self._apply_sorting(filtered, sort_by, sort_order)
 
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
@@ -837,6 +979,8 @@ class SystemHealthService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Unified fleet dashboard telemetry response"""
         summary = self.get_summary_metrics()
@@ -847,6 +991,8 @@ class SystemHealthService:
             status=status,
             page=page,
             page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
 
         return {
@@ -1264,6 +1410,15 @@ class SystemHealthService:
     ) -> Dict[str, Any]:
         """Calculates 100% REAL event logs and SLA trouble events directly from MQTT telemetry."""
         detail = dict(base_detail)
+        if not detail.get("customer") or detail.get("customer") == "-":
+            try:
+                from app.services.sla_report_service import sla_report_service
+                s_cust = sla_report_service._live_gateways.get(dev_id, {}).get("customer")
+                if s_cust and s_cust != "-":
+                    detail["customer"] = s_cust
+                    detail["client_name"] = s_cust
+            except Exception:
+                pass
 
         # 0. Daily Uptime & Downtime directly from per-minute system logs:
         daily_uptime = self._calculate_daily_uptime_from_logs(raw_payload, dev_id)
@@ -1599,8 +1754,10 @@ class SystemHealthService:
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:
         """Detailed telemetry for a specific gateway"""
         self._sync_freshness()
+        target_id_low = gateway_id.lower().strip()
         for gid, gdata in self._live_gateways.items():
-            if gid.lower() == gateway_id.lower() or gateway_id.lower() in gid.lower():
+            g_uuid = str(gdata.get("device_uuid") or gdata.get("detail_item", {}).get("device_uuid") or "").lower()
+            if gid.lower() == target_id_low or (g_uuid and g_uuid == target_id_low) or target_id_low in gid.lower():
                 return self._enrich_detail_with_history(gdata["detail_item"], gid, gdata.get("raw_payload"))
 
         if self._live_gateways:

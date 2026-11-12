@@ -21,6 +21,7 @@ class DVRReportService:
 
     def __init__(self):
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
+        self._device_properties: Dict[str, Dict[str, Any]] = {}
         self._load_persisted_telemetry()
 
     def _cache_path(self) -> str:
@@ -36,6 +37,12 @@ class DVRReportService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                from app.models.base_models import Device
+                inactive_rows = db.query(Device.name).filter(
+                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
+                ).all()
+                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
+
                 query = db.query(GatewayTelemetryHistory)
                 if hasattr(GatewayTelemetryHistory, "deleted_at"):
                     query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
@@ -46,7 +53,16 @@ class DVRReportService:
                 )
                 for latest in latest_records:
                     if latest and latest.raw_payload:
+                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
+                            continue
                         payload = dict(latest.raw_payload)
+                        if latest.device:
+                            payload["device_id"] = latest.device.name
+                            payload["device_uuid"] = str(latest.device.id)
+                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
+                            payload["property"] = latest.device.property or {}
+                            self._device_properties[latest.device.name] = latest.device.property or {}
+                            self._device_properties[str(latest.device.id)] = latest.device.property or {}
                         if latest.recorded_at:
                             from datetime import timezone, timedelta
                             WIB = timezone(timedelta(hours=7))
@@ -83,6 +99,7 @@ class DVRReportService:
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL."""
         self._live_gateways.clear()
+        self._device_properties.clear()
         self._load_persisted_telemetry()
         logger.info(f"DVRReportService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
@@ -90,6 +107,8 @@ class DVRReportService:
         """Ingests live MQTT telemetry and generates real performance/SLA metrics."""
         device_id = nms_payload.get("device_id")
         if not device_id:
+            return
+        if getattr(self, "_inactive_gateways", None) and device_id in self._inactive_gateways:
             return
 
         nvr = nms_payload.get("nvr_surveillance", {})
@@ -100,16 +119,42 @@ class DVRReportService:
         dev_info = nvr.get("device_info", {})
         dvr_model = dev_info.get("model") or ("Hikvision DS-7204HUHI-K2" if nvr_reachable else "NVR Offline")
 
+        dev_prop = nms_payload.get("property") or self._device_properties.get(device_id) or {}
+        selected_cams = dev_prop.get("selected_cameras")
+
         cameras_info = nvr.get("cameras", {})
-        if isinstance(cameras_info, dict) and "total_cameras" in cameras_info:
-            total_cam = cameras_info.get("total_cameras", 0)
-            online_cam = cameras_info.get("online_count", 0)
-            offline_cam = cameras_info.get("offline_count", max(0, total_cam - online_cam))
+        if not nvr_reachable:
+            if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+                total_cam = len(set(str(x) for x in selected_cams))
+            else:
+                total_cam = dev_prop.get("total_cameras") or (cameras_info.get("total_cameras", 0) if isinstance(cameras_info, dict) else 4)
+            online_cam = 0
+            offline_cam = total_cam
+            no_vid_cam = 0
+        elif selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+            sel_set = {str(x) for x in selected_cams}
+            total_cam = len(sel_set)
+            cam_list = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+            if cam_list:
+                sel_list = [c for c in cam_list if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
+                online_cam = sum(1 for c in sel_list if c.get("is_online"))
+                offline_cam = max(0, total_cam - online_cam)
+                no_vid_cam = sum(1 for c in sel_list if not c.get("is_online"))
+            else:
+                online_cam = min(total_cam, cameras_info.get("online_count", 0) if isinstance(cameras_info, dict) else 0)
+                offline_cam = max(0, total_cam - online_cam)
+                no_vid_cam = offline_cam
+        elif isinstance(cameras_info, dict) and "total_cameras" in cameras_info:
+            custom_tot = dev_prop.get("total_cameras")
+            total_cam = custom_tot if custom_tot is not None else cameras_info.get("total_cameras", 0)
+            online_cam = min(total_cam, cameras_info.get("online_count", 0))
+            offline_cam = max(0, total_cam - online_cam)
             no_vid_cam = cameras_info.get("no_video_count", offline_cam)
         else:
             channels = nvr.get("camera_channels", [])
-            total_cam = len(channels) if channels else (4 if nvr_reachable else 0)
-            online_cam = sum(1 for c in channels if c.get("is_online")) if channels else (2 if nvr_reachable else 0)
+            custom_tot = dev_prop.get("total_cameras")
+            total_cam = custom_tot if custom_tot is not None else (len(channels) if channels else (4 if nvr_reachable else 0))
+            online_cam = min(total_cam, sum(1 for c in channels if c.get("is_online")) if channels else (2 if nvr_reachable else 0))
             offline_cam = max(0, total_cam - online_cam)
             no_vid_cam = sum(1 for c in channels if c.get("signal_status") == "no_video") if channels else offline_cam
 
@@ -168,8 +213,8 @@ class DVRReportService:
             rec_up_str = sla["dvr_uptime_str"]
             rec_off_str = sla["dvr_offline_str"]
             rec_sr = float(sla.get("dvr_sla_pct", 100.0))
-            cam_sr = round((online_cam / max(1, total_cam)) * 100.0, 1) if total_cam > 0 else 100.0
-            combined_sla = round((sr + cam_sr + rec_sr) / 3.0, 1)
+            cam_sr = round(min(100.0, (online_cam / max(1, total_cam)) * 100.0), 1) if total_cam > 0 else 100.0
+            combined_sla = round(min(100.0, (sr + cam_sr + rec_sr) / 3.0), 1)
             dvr_events = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
             events_count = len(dvr_events)
             period_hours_str = sla["period_hours_str"]
@@ -185,8 +230,8 @@ class DVRReportService:
             rec_up_str = "744h 00m"
             rec_off_str = "0h 00m"
             rec_sr = 100.0
-            cam_sr = round((online_cam / max(1, total_cam)) * 100.0, 1) if total_cam > 0 else 100.0
-            combined_sla = round((sr + cam_sr + rec_sr) / 3.0, 1)
+            cam_sr = round(min(100.0, (online_cam / max(1, total_cam)) * 100.0), 1) if total_cam > 0 else 100.0
+            combined_sla = round(min(100.0, (sr + cam_sr + rec_sr) / 3.0), 1)
             dvr_events = []
             events_count = 0
             period_hours_str = "744.0 Hours"
@@ -195,11 +240,19 @@ class DVRReportService:
             daily_breakdown = []
             daily_summary = None
 
+        sla_cust = None
+        try:
+            from app.services.sla_report_service import sla_report_service
+            sla_cust = sla_report_service._live_gateways.get(device_id, {}).get("customer")
+        except Exception:
+            pass
+
         report_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
             "location": loc_name,
             "type": box_type,
+            "customer": nms_payload.get("customer") or sla_cust or "-",
             "dvr_model": dvr_model,
             "cpu_dvr_uptime": up_str,
             "cpu_dvr_offline": off_str,
@@ -350,8 +403,8 @@ class DVRReportService:
             rec_sr = float(sla.get("dvr_sla_pct", 100.0))
             cam_tot = item.get("kamera_total", 0)
             cam_on = item.get("kamera_online", 0)
-            cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1) if cam_tot > 0 else 100.0
-            combined_sla = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
+            cam_sr = round(min(100.0, (cam_on / max(1, cam_tot)) * 100.0), 1) if cam_tot > 0 else 100.0
+            combined_sla = round(min(100.0, (cpu_sr + cam_sr + rec_sr) / 3.0), 1)
 
             item["cpu_dvr_uptime"] = sla.get("cpu_dvr_uptime_str", sla.get("gateway_uptime_str", "0m"))
             item["cpu_dvr_offline"] = sla.get("cpu_dvr_offline_str", sla.get("gateway_offline_str", "0m"))
@@ -361,6 +414,15 @@ class DVRReportService:
             item["rec_success_rate"] = rec_sr
             item["sla"] = combined_sla
             item["jumlah_event"] = len([ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()])
+            try:
+                from app.services.sla_report_service import sla_report_service
+                s_cust = sla_report_service._live_gateways.get(dev_id, {}).get("customer")
+                if s_cust and s_cust != "-":
+                    item["customer"] = s_cust
+                elif not item.get("customer") or item.get("customer") == "-":
+                    item["customer"] = g.get("raw_payload", {}).get("customer") or "-"
+            except Exception:
+                pass
             items_slice.append(item)
 
         return {
@@ -495,15 +557,36 @@ class DVRReportService:
         - Multi-track timeline (CPU - DVR, Recording, Kamera)
         - Trouble Incident History events with categories
         """
+        target_id_low = gateway_id.lower().strip()
         for gid, data in self._live_gateways.items():
-            if gid.lower() == gateway_id.lower():
+            g_uuid = str(data.get("device_uuid") or data.get("detail", {}).get("device_uuid") or "").lower()
+            if gid.lower() == target_id_low or (g_uuid and g_uuid == target_id_low):
                 detail = dict(data["detail"])
                 raw_payload = data.get("raw_payload", {})
                 nvr = raw_payload.get("nvr_surveillance", {})
                 cameras_info = nvr.get("cameras", {})
-                detail["camera_list"] = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+                raw_cams = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
+
+                dev_prop = self._device_properties.get(gid) or {}
+                selected_cams = dev_prop.get("selected_cameras")
+                if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+                    sel_set = {str(x) for x in selected_cams}
+                    filtered_cams = [c for c in raw_cams if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
+                    detail["camera_list"] = filtered_cams
+                    if isinstance(cameras_info, dict):
+                        c_info = dict(cameras_info)
+                        c_info["total_cameras"] = len(sel_set)
+                        c_info["online_count"] = sum(1 for c in filtered_cams if c.get("is_online"))
+                        c_info["offline_count"] = max(0, len(sel_set) - c_info["online_count"])
+                        c_info["camera_list"] = filtered_cams
+                        detail["cameras_info"] = c_info
+                    else:
+                        detail["cameras_info"] = {"total_cameras": len(sel_set), "camera_list": filtered_cams}
+                else:
+                    detail["camera_list"] = raw_cams
+                    detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
+
                 detail["recording_info"] = nvr.get("recording", {})
-                detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
                 req_dr = date_range or get_default_period_str()
                 detail["period"] = req_dr
                 from app.services.sla_calculator_service import sla_calculator_service
@@ -528,8 +611,8 @@ class DVRReportService:
                 rec_sr = float(sla.get("dvr_sla_pct", 100.0))
                 cam_tot = len(detail.get("camera_list", [])) or 4
                 cam_on = sum(1 for c in detail.get("camera_list", []) if c.get("is_online")) if detail.get("camera_list") else 2
-                cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1)
-                detail["sla"] = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
+                cam_sr = round(min(100.0, (cam_on / max(1, cam_tot)) * 100.0), 1)
+                detail["sla"] = round(min(100.0, (cpu_sr + cam_sr + rec_sr) / 3.0), 1)
                 dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
                 detail["trouble_events"] = dvr_events_d
                 detail["jumlah_event"] = len(dvr_events_d)
@@ -570,8 +653,8 @@ class DVRReportService:
             rec_sr = float(sla.get("dvr_sla_pct", 100.0))
             cam_tot = len(detail.get("camera_list", [])) or 4
             cam_on = sum(1 for c in detail.get("camera_list", []) if c.get("is_online")) if detail.get("camera_list") else 2
-            cam_sr = round((cam_on / max(1, cam_tot)) * 100.0, 1)
-            detail["sla"] = round((cpu_sr + cam_sr + rec_sr) / 3.0, 1)
+            cam_sr = round(min(100.0, (cam_on / max(1, cam_tot)) * 100.0), 1)
+            detail["sla"] = round(min(100.0, (cpu_sr + cam_sr + rec_sr) / 3.0), 1)
             dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
             detail["trouble_events"] = dvr_events_d
             detail["jumlah_event"] = len(dvr_events_d)

@@ -7,6 +7,7 @@ class HealthReportItem(BaseModel):
     no: int
     id: str
     location: str
+    customer: Optional[str] = "-"
     type: str
     
     cpu_avg: Union[int, float]

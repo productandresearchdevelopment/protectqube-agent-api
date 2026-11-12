@@ -21,6 +21,8 @@ class DVRService:
 
     def __init__(self):
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
+        self._device_properties: Dict[str, Dict[str, Any]] = {}
+        self._device_locations: Dict[str, str] = {}
         self._load_persisted_telemetry()
 
     def _cache_path(self) -> str:
@@ -36,6 +38,12 @@ class DVRService:
             from sqlalchemy import distinct
             db = SessionLocal()
             try:
+                from app.models.base_models import Device
+                inactive_rows = db.query(Device.name).filter(
+                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
+                ).all()
+                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
+
                 query = db.query(GatewayTelemetryHistory)
                 if hasattr(GatewayTelemetryHistory, "deleted_at"):
                     query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
@@ -46,7 +54,21 @@ class DVRService:
                 )
                 for latest in latest_records:
                     if latest and latest.raw_payload:
+                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
+                            continue
                         payload = dict(latest.raw_payload)
+                        if latest.device:
+                            payload["device_id"] = latest.device.name
+                            payload["device_uuid"] = str(latest.device.id)
+                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
+                            payload["property"] = latest.device.property or {}
+                            if latest.device.location:
+                                payload["location"] = latest.device.location
+                                payload["location_name"] = latest.device.location
+                                self._device_locations[latest.device.name] = latest.device.location
+                                self._device_locations[str(latest.device.id)] = latest.device.location
+                            self._device_properties[latest.device.name] = latest.device.property or {}
+                            self._device_properties[str(latest.device.id)] = latest.device.property or {}
                         if latest.recorded_at:
                             from datetime import timezone, timedelta
                             WIB = timezone(timedelta(hours=7))
@@ -80,6 +102,8 @@ class DVRService:
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL (ignoring soft-deleted records)."""
         self._live_gateways.clear()
+        self._device_properties.clear()
+        self._device_locations.clear()
         self._load_persisted_telemetry()
         logger.info(f"DVRService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
@@ -87,6 +111,8 @@ class DVRService:
         """Ingests live MQTT telemetry and updates DVR fleet item & detailed diagnostics."""
         device_id = nms_payload.get("device_id")
         if not device_id:
+            return
+        if getattr(self, "_inactive_gateways", None) and device_id in self._inactive_gateways:
             return
 
         nvr = nms_payload.get("nvr_surveillance", {})
@@ -145,7 +171,8 @@ class DVRService:
                     break
 
         loc_name = (
-            nms_payload.get("location_name")
+            getattr(self, "_device_locations", {}).get(device_id)
+            or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
@@ -157,22 +184,50 @@ class DVRService:
         ip_addr = nvr_endpoint.split(":")[0] if ":" in nvr_endpoint else nvr_endpoint
         port_num = nvr_endpoint.split(":")[1] if ":" in nvr_endpoint else "80"
 
-        total_kamera = cameras_info.get("total_cameras", 0) or len(log_cams) or 4
+        dev_prop = nms_payload.get("property") or self._device_properties.get(device_id) or {}
+        selected_cams = dev_prop.get("selected_cameras")
+        raw_cam_list = list(cameras_info.get("camera_list", []))
 
-        # 1. Kamera Fisik Terhubung (Online / ON CAM vs No Video)
-        if "online_count" in cameras_info and cameras_info["online_count"] is not None:
-            kamera_online = cameras_info["online_count"]
+        if not is_connected:
+            if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+                total_kamera = len(set(str(x) for x in selected_cams))
+            else:
+                total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
+            kamera_online = 0
+            kamera_offline_raw = 0
+        elif selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+            sel_set = {str(x) for x in selected_cams}
+            total_kamera = len(sel_set)
+            if log_cams:
+                log_cams = {cid: st for cid, st in log_cams.items() if str(cid) in sel_set}
+            if raw_cam_list:
+                raw_cam_list = [c for c in raw_cam_list if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
+                kamera_online = sum(1 for c in raw_cam_list if c.get("is_online"))
+            elif log_cams:
+                kamera_online = sum(1 for st in log_cams.values() if "RECORD" in st or "OK" in st)
+            else:
+                kamera_online = min(total_kamera, cameras_info.get("online_count", 0))
+            kamera_offline_raw = max(0, total_kamera - kamera_online)
         else:
-            no_video_c = sum(1 for line in lines_list[-15:] if "NO VIDEO" in line or "terputus" in line)
-            kamera_online = max(0, total_kamera - no_video_c)
-        kamera_offline_raw = max(0, total_kamera - kamera_online)
+            total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
+            # 1. Kamera Fisik Terhubung (Online / ON CAM vs No Video)
+            if "online_count" in cameras_info and cameras_info["online_count"] is not None:
+                kamera_online = min(total_kamera, cameras_info["online_count"])
+            else:
+                no_video_c = sum(1 for line in lines_list[-15:] if "NO VIDEO" in line or "terputus" in line)
+                kamera_online = max(0, total_kamera - no_video_c)
+            kamera_offline_raw = max(0, total_kamera - kamera_online)
 
         # 2. Kamera Aktif Merekam Video (Active Recording dari NVR RECORDING: (...))
-        if log_cams:
+        if not is_connected:
+            kamera_rec_count = 0
+            is_rec = False
+        elif log_cams:
             kamera_rec_count = sum(1 for st in log_cams.values() if "RECORD" in st and "NOT" not in st)
+            is_rec = (kamera_rec_count > 0)
         else:
             kamera_rec_count = recording_info.get("cameras_recording_count", 0 if not is_rec else kamera_online)
-        is_rec = (kamera_rec_count > 0)
+            is_rec = (kamera_rec_count > 0)
 
         cap_gb = float(nvr.get("total_capacity_gb", 0.0))
         used_gb = float(nvr.get("total_used_gb", 0.0))
@@ -199,9 +254,26 @@ class DVRService:
         ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
 
+        sla_cust = None
+        try:
+            from app.services.sla_report_service import sla_report_service
+            sc = sla_report_service._live_gateways.get(device_id, {}).get("customer")
+            if sc and sc != "-":
+                sla_cust = sc
+        except Exception:
+            pass
+        ec = self._live_gateways.get(device_id, {}).get("table_item", {}).get("customer")
+        existing_cust = ec if (ec and ec != "-") else None
+        raw_cust = nms_payload.get("customer")
+        customer_val = (raw_cust if (raw_cust and raw_cust != "-") else None) or sla_cust or existing_cust or "-"
+        device_uuid = nms_payload.get("device_uuid") or str(device_id)
+
         gw_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
+            "device_uuid": device_uuid,
+            "customer": customer_val,
+            "client_name": customer_val,
             "location": loc_name,
             "type": box_type,
             "dvr_model": dvr_model,
@@ -218,7 +290,6 @@ class DVRService:
             "last_update": clean_update,
         }
 
-        raw_cam_list = cameras_info.get("camera_list", [])
         cam_previews = []
         if log_cams:
             for cid_int in sorted(log_cams.keys()):
@@ -282,6 +353,9 @@ class DVRService:
 
         detail_obj = {
             "id": device_id,
+            "device_uuid": device_uuid,
+            "customer": customer_val,
+            "client_name": customer_val,
             "location": loc_name,
             "type": gw_item["type"],
             "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
@@ -345,7 +419,7 @@ class DVRService:
             "last_seen_epoch": last_seen_epoch,
         }
 
-    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika ingin 5 menit, cukup ganti ke 300 di sini
+    ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika data telemetri berhenti > 1 jam, status menjadi Offline
 
     @staticmethod
     def _parse_payload_epoch(payload: Dict[str, Any]) -> float:
@@ -597,6 +671,108 @@ class DVRService:
             },
         }
 
+    def _apply_sorting(
+        self,
+        items: List[Dict[str, Any]],
+        sort_by: Optional[str],
+        sort_order: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        if not sort_by:
+            return items
+        is_desc = (sort_order or "asc").lower() == "desc"
+        key = sort_by.strip().lower()
+
+        if key == "status":
+            def status_rank(g: Dict[str, Any]) -> int:
+                s = str(g.get("status", "")).lower()
+                if s == "offline":
+                    return 0
+                if s in ("warning", "degraded"):
+                    return 1
+                return 2
+            return sorted(items, key=status_rank, reverse=is_desc)
+
+        if key == "cpu_dvr":
+            def cpu_dvr_rank(g: Dict[str, Any]) -> int:
+                if g.get("status") == "Offline":
+                    return 0
+                cd = str(g.get("cpu_dvr", "")).lower()
+                if cd == "connected":
+                    return 2
+                if cd == "degraded":
+                    return 1
+                return 0
+            return sorted(items, key=cpu_dvr_rank, reverse=is_desc)
+
+        if key == "camera":
+            valid = []
+            missing = []
+            for g in items:
+                online = g.get("kamera_online")
+                total = g.get("total_kamera")
+                if g.get("status") != "Offline" and isinstance(online, (int, float)):
+                    tot = float(total) if isinstance(total, (int, float)) and total > 0 else 0.0
+                    ratio = (float(online) / tot) if tot > 0 else 0.0
+                    diff = float(online) - tot
+                    valid.append(((ratio, diff, float(online)), g))
+                else:
+                    missing.append(g)
+            valid.sort(key=lambda x: x[0], reverse=is_desc)
+            return [g for _, g in valid] + missing
+
+        if key == "recording_status":
+            import re
+            def rec_rank(g: Dict[str, Any]) -> tuple:
+                if g.get("status") == "Offline":
+                    return (0, 0.0, 0)
+                if g.get("cpu_dvr") != "Connected":
+                    return (0, 0.0, 0)
+                rec_str = str(g.get("recording_status") or "Not Recording")
+                m = re.search(r"(\d+)\s*/\s*(\d+)", rec_str)
+                if m:
+                    rec_count = int(m.group(1))
+                    tot_count = int(m.group(2))
+                else:
+                    low = rec_str.lower()
+                    if "recording" in low and "not" not in low and isinstance(g.get("kamera_online"), (int, float)):
+                        rec_count = int(g["kamera_online"])
+                    else:
+                        rec_count = 0
+                    tot_count = int(g.get("total_kamera") or 0)
+                if tot_count <= 0 or rec_count <= 0:
+                    return (0, 0.0, 0)
+                ratio = rec_count / tot_count
+                if rec_count >= tot_count:
+                    return (2, ratio, rec_count)
+                return (1, ratio, rec_count)
+            return sorted(items, key=rec_rank, reverse=is_desc)
+
+        if key in ("storage", "storage_percent", "storage_usage_percent"):
+            valid = []
+            missing = []
+            for g in items:
+                val = g.get("storage_usage_percent")
+                if g.get("status") != "Offline" and isinstance(val, (int, float)):
+                    valid.append((float(val), g))
+                else:
+                    missing.append(g)
+            valid.sort(key=lambda x: x[0], reverse=is_desc)
+            return [g for _, g in valid] + missing
+
+        if key == "dvr_health":
+            def dvr_health_rank(g: Dict[str, Any]) -> int:
+                if g.get("status") == "Offline":
+                    return 0
+                h = str(g.get("dvr_health", "")).lower()
+                if h in ("good", "normal"):
+                    return 2
+                if h in ("warning", "caution"):
+                    return 1
+                return 0
+            return sorted(items, key=dvr_health_rank, reverse=is_desc)
+
+        return items
+
     def get_gateways(
         self,
         search: Optional[str] = None,
@@ -604,6 +780,8 @@ class DVRService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Filters & paginates real gateway records for the table"""
         self._sync_freshness()
@@ -611,6 +789,15 @@ class DVRService:
 
         for idx, it in enumerate(items, 1):
             it["no"] = idx
+            if not it.get("customer") or it.get("customer") == "-":
+                try:
+                    from app.services.sla_report_service import sla_report_service
+                    s_cust = sla_report_service._live_gateways.get(it["id"], {}).get("customer")
+                    if s_cust and s_cust != "-":
+                        it["customer"] = s_cust
+                        it["client_name"] = s_cust
+                except Exception:
+                    pass
 
         filtered = items
 
@@ -658,6 +845,8 @@ class DVRService:
                     if g.get("cpu_dvr") in ["Not Connected", "No Response", "Offline"] or g.get("dvr_health") == "Critical"
                 ]
 
+        filtered = self._apply_sorting(filtered, sort_by, sort_order)
+
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
         page = max(1, min(page, total_pages))
@@ -685,6 +874,8 @@ class DVRService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Unified dashboard payload for frontend consumer"""
         summary = self.get_summary()
@@ -695,6 +886,8 @@ class DVRService:
             status=status,
             page=page,
             page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
 
         return {
@@ -793,21 +986,41 @@ class DVRService:
     ) -> Dict[str, Any]:
         """Enriches DVR detail with 100% REAL historical telemetries, camera status, bad sectors, and event logs from DB."""
         detail = dict(base_detail)
+        if not detail.get("customer") or detail.get("customer") == "-":
+            try:
+                from app.services.sla_report_service import sla_report_service
+                s_cust = sla_report_service._live_gateways.get(dev_id, {}).get("customer")
+                if s_cust and s_cust != "-":
+                    detail["customer"] = s_cust
+                    detail["client_name"] = s_cust
+            except Exception:
+                pass
         from app.core.database import SessionLocal
         from app.models.base_models import GatewayTelemetryHistory
         from datetime import timezone, timedelta
+        import uuid as _uuid
+        from app.models.base_models import Device
 
         WIB = timezone(timedelta(hours=7))
 
         db = SessionLocal()
         rows: List[GatewayTelemetryHistory] = []
         try:
-            rows = (
-                db.query(GatewayTelemetryHistory)
-                .filter(GatewayTelemetryHistory.device_id == dev_id)
-                .order_by(GatewayTelemetryHistory.recorded_at.asc())
-                .all()
-            )
+            target_uuid = None
+            try:
+                target_uuid = _uuid.UUID(str(dev_id))
+            except Exception:
+                dev_obj = db.query(Device).filter(Device.name == str(dev_id)).first()
+                if dev_obj:
+                    target_uuid = dev_obj.id
+
+            if target_uuid:
+                rows = (
+                    db.query(GatewayTelemetryHistory)
+                    .filter(GatewayTelemetryHistory.device_id == target_uuid)
+                    .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                    .all()
+                )
         except Exception as e:
             logger.error(f"Error querying telemetry history for DVR {dev_id}: {e}")
         finally:
@@ -1093,8 +1306,10 @@ class DVRService:
         matched_gid = None
         raw_payload = None
 
+        target_id_low = gateway_id.lower().strip()
         for gid, gdata in self._live_gateways.items():
-            if gid.lower() == gateway_id.lower() or gateway_id.lower() in gid.lower():
+            g_uuid = str(gdata.get("device_uuid") or gdata.get("detail_item", {}).get("device_uuid") or "").lower()
+            if gid.lower() == target_id_low or (g_uuid and g_uuid == target_id_low) or target_id_low in gid.lower():
                 matched_gw = gdata["detail_item"]
                 matched_gid = gid
                 raw_payload = gdata.get("raw_payload")

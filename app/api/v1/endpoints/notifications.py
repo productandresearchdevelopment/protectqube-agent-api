@@ -156,14 +156,7 @@ def list_notification_events(
         query = query.filter(NotificationEvent.category.ilike(category.strip()))
     if search and search.strip():
         s = f"%{search.strip()}%"
-        query = query.filter(
-            or_(
-                NotificationEvent.name.ilike(s),
-                NotificationEvent.event_code.ilike(s),
-                NotificationEvent.description.ilike(s),
-                NotificationEvent.category.ilike(s),
-            )
-        )
+        query = query.filter(NotificationEvent.name.ilike(s))
     total = query.count()
     events = (
         query.order_by(NotificationEvent.category, NotificationEvent.name)

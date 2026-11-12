@@ -1,4 +1,5 @@
 import re
+import uuid
 import logging
 import calendar
 from typing import Dict, Any, List, Optional, Tuple
@@ -8,7 +9,7 @@ from app.models.base_models import GatewayTelemetryHistory, GatewayIncidentAlert
 
 logger = logging.getLogger("sla-calculator-service")
 
-GAP_THRESHOLD_SECONDS = 600  # 10 Menit: ambang batas offline valid (2 siklus simpan 5 menit)
+GAP_THRESHOLD_SECONDS = 3600  # 1 Jam (3600 detik): ambang batas offline valid
 WIB = timezone(timedelta(hours=7))
 
 
@@ -717,6 +718,18 @@ class SLACalculatorService:
 
         return results
 
+    @staticmethod
+    def _is_uuid(val: Any) -> bool:
+        if isinstance(val, uuid.UUID):
+            return True
+        if not val or not isinstance(val, str):
+            return False
+        try:
+            uuid.UUID(str(val))
+            return True
+        except (ValueError, AttributeError):
+            return False
+
     def get_fast_batch_telemetry_aggregates(
         self,
         device_ids: List[str],
@@ -746,6 +759,17 @@ class SLACalculatorService:
         try:
             db = SessionLocal()
             from sqlalchemy import func
+            from app.models.gateway_models import Device
+
+            uuid_list = [uuid.UUID(str(d)) for d in device_ids if self._is_uuid(d)]
+            dev_rows = db.query(Device.id, Device.name).filter(
+                (Device.name.in_(device_ids)) | (Device.id.in_(uuid_list))
+            ).all()
+            uuid_to_name = {r.id: r.name for r in dev_rows}
+            target_uuids = list(uuid_to_name.keys())
+            if not target_uuids:
+                return {}
+
             records = (
                 db.query(
                     GatewayTelemetryHistory.device_id,
@@ -762,7 +786,7 @@ class SLACalculatorService:
                     func.max(GatewayTelemetryHistory.disk_used_percent).label("max_disk"),
                 )
                 .filter(
-                    GatewayTelemetryHistory.device_id.in_(device_ids),
+                    GatewayTelemetryHistory.device_id.in_(target_uuids),
                     GatewayTelemetryHistory.deleted_at.is_(None),
                     GatewayTelemetryHistory.recorded_at >= s_utc,
                     GatewayTelemetryHistory.recorded_at <= e_utc,
@@ -771,7 +795,7 @@ class SLACalculatorService:
                 .all()
             )
             for r in records:
-                dev = r.device_id
+                dev = uuid_to_name.get(r.device_id, str(r.device_id))
                 csq_f = float(r.avg_csq) if r.avg_csq is not None else 0.0
                 if r.avg_rsrp is not None:
                     rsrp_val = int(round(float(r.avg_rsrp)))
@@ -827,7 +851,16 @@ class SLACalculatorService:
             db = None
             try:
                 db = SessionLocal()
-                query = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id.in_(device_ids))
+                from app.models.gateway_models import Device
+                uuid_list = [uuid.UUID(str(d)) for d in device_ids if self._is_uuid(d)]
+                dev_rows = db.query(Device.id, Device.name).filter(
+                    (Device.name.in_(device_ids)) | (Device.id.in_(uuid_list))
+                ).all()
+                uuid_to_name = {r.id: r.name for r in dev_rows}
+                name_to_uuid = {r.name: r.id for r in dev_rows}
+                target_uuids = list(uuid_to_name.keys())
+
+                query = db.query(GatewayIncidentAlert).filter(GatewayIncidentAlert.device_id.in_(target_uuids))
                 if start_dt and end_dt:
                     from datetime import timedelta, timezone
                     s_utc = start_dt.astimezone(timezone.utc) if start_dt.tzinfo else (start_dt - timedelta(hours=7))
@@ -837,8 +870,9 @@ class SLACalculatorService:
                     )
                 all_alerts = query.order_by(GatewayIncidentAlert.start_time.desc()).all()
                 for a in all_alerts:
-                    if a.device_id in alerts_by_dev:
-                        alerts_by_dev[a.device_id].append(a)
+                    dev_key = uuid_to_name.get(a.device_id, str(a.device_id))
+                    if dev_key in alerts_by_dev:
+                        alerts_by_dev[dev_key].append(a)
                 self._db_available = True
             except Exception as e:
                 self._db_available = False
@@ -872,8 +906,16 @@ class SLACalculatorService:
             db = None
             try:
                 db = SessionLocal()
+                from app.models.gateway_models import Device
+                uuid_list = [uuid.UUID(str(d)) for d in device_ids if self._is_uuid(d)]
+                dev_rows = db.query(Device.id, Device.name).filter(
+                    (Device.name.in_(device_ids)) | (Device.id.in_(uuid_list))
+                ).all()
+                uuid_to_name = {r.id: r.name for r in dev_rows}
+                target_uuids = list(uuid_to_name.keys())
+
                 query = db.query(GatewayTelemetryHistory).filter(
-                    GatewayTelemetryHistory.device_id.in_(device_ids),
+                    GatewayTelemetryHistory.device_id.in_(target_uuids),
                     GatewayTelemetryHistory.deleted_at.is_(None)
                 )
                 if start_dt and end_dt:
@@ -885,8 +927,9 @@ class SLACalculatorService:
                     )
                 all_rows = query.order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.asc()).all()
                 for r in all_rows:
-                    if r.device_id in rows_by_dev:
-                        rows_by_dev[r.device_id].append(r)
+                    dev_key = uuid_to_name.get(r.device_id, str(r.device_id))
+                    if dev_key in rows_by_dev:
+                        rows_by_dev[dev_key].append(r)
                 self._db_available = True
             except Exception as e:
                 self._db_available = False
@@ -946,9 +989,17 @@ class SLACalculatorService:
 
             if db:
                 try:
-                    if need_query_rows:
+                    from app.models.gateway_models import Device
+                    dev_obj = None
+                    if self._is_uuid(device_id):
+                        dev_obj = db.query(Device).filter(Device.id == uuid.UUID(str(device_id))).first()
+                    if not dev_obj:
+                        dev_obj = db.query(Device).filter(Device.name == str(device_id)).first()
+                    target_dev_uuid = dev_obj.id if dev_obj else None
+
+                    if need_query_rows and target_dev_uuid:
                         query = db.query(GatewayTelemetryHistory).filter(
-                            GatewayTelemetryHistory.device_id == device_id,
+                            GatewayTelemetryHistory.device_id == target_dev_uuid,
                             GatewayTelemetryHistory.deleted_at.is_(None)
                         )
                         if start_dt and end_dt:
@@ -959,7 +1010,7 @@ class SLACalculatorService:
                             prev_row = (
                                 db.query(GatewayTelemetryHistory)
                                 .filter(
-                                    GatewayTelemetryHistory.device_id == device_id,
+                                    GatewayTelemetryHistory.device_id == target_dev_uuid,
                                     GatewayTelemetryHistory.deleted_at.is_(None),
                                     GatewayTelemetryHistory.recorded_at < s_utc
                                 )
@@ -969,7 +1020,7 @@ class SLACalculatorService:
                             range_rows = (
                                 db.query(GatewayTelemetryHistory)
                                 .filter(
-                                    GatewayTelemetryHistory.device_id == device_id,
+                                    GatewayTelemetryHistory.device_id == target_dev_uuid,
                                     GatewayTelemetryHistory.deleted_at.is_(None),
                                     GatewayTelemetryHistory.recorded_at >= s_utc,
                                     GatewayTelemetryHistory.recorded_at <= e_utc
@@ -984,9 +1035,9 @@ class SLACalculatorService:
                             rows = query.order_by(GatewayTelemetryHistory.recorded_at.desc()).limit(1000).all()
                             rows.reverse()
 
-                    if need_query_alerts:
+                    if need_query_alerts and target_dev_uuid:
                         alert_q = db.query(GatewayIncidentAlert).filter(
-                            GatewayIncidentAlert.device_id == device_id,
+                            GatewayIncidentAlert.device_id == target_dev_uuid,
                             GatewayIncidentAlert.deleted_at.is_(None)
                         )
                         if start_dt and end_dt:
@@ -1201,6 +1252,56 @@ class SLACalculatorService:
                     except Exception:
                         pass
 
+        # If gateway has stopped sending telemetry (> GAP_THRESHOLD_SECONDS / 10m), ensure daily Active offline events exist
+        now_wib_ev = datetime.now(timezone.utc).astimezone(WIB)
+        last_seen_ev = self._resolve_last_seen_wib(live_payload=live_payload, rows=rows)
+        if last_seen_ev and (now_wib_ev - last_seen_ev).total_seconds() > GAP_THRESHOLD_SECONDS:
+            p_start_wib = start_dt.replace(tzinfo=WIB) if (start_dt and start_dt.tzinfo is None) else (start_dt.astimezone(WIB) if start_dt else last_seen_ev)
+            p_end_wib = end_dt.replace(tzinfo=WIB) if (end_dt and end_dt.tzinfo is None) else (end_dt.astimezone(WIB) if end_dt else now_wib_ev)
+            gap_s = max(last_seen_ev, p_start_wib)
+            gap_e = min(now_wib_ev, p_end_wib)
+            if gap_e > gap_s:
+                last_seen_label = last_seen_ev.strftime("%d %b %Y %H:%M:%S WIB")
+                existing_active = {
+                    (ev.get("metric"), ev.get("date_str"))
+                    for ev in trouble_events
+                    if ev.get("status") == "Active"
+                }
+                cur_s = gap_s
+                while cur_s < gap_e:
+                    next_midnight = datetime(cur_s.year, cur_s.month, cur_s.day, 23, 59, 59, tzinfo=WIB)
+                    next_day_start = datetime(cur_s.year, cur_s.month, cur_s.day, 0, 0, 0, tzinfo=WIB) + timedelta(days=1)
+                    cur_e = min(gap_e, next_day_start)
+                    display_end = min(gap_e, next_midnight)
+                    dur_sec = max(60.0, (cur_e - cur_s).total_seconds())
+                    dur_m = max(1, int(round(dur_sec / 60.0)))
+                    dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                    d_key = cur_s.strftime("%Y-%m-%d")
+                    end_disp = "Now" if cur_e >= gap_e and gap_e >= (now_wib_ev - timedelta(minutes=2)) else display_end.strftime("%Y-%m-%d %H:%M:%S")
+                    for m_key, c_lbl in [("cpu_modem", "CPU - Modem"), ("cellular", "Cellular Network"), ("cpu_dvr", "CPU - DVR")]:
+                        if (m_key, d_key) in existing_active:
+                            continue
+                        desc = f"Gateway Offline / Telemetry Stopped (No data since {last_seen_label})"
+                        trouble_events.append({
+                            "no": len(trouble_events) + 1,
+                            "start_time": cur_s.strftime("%Y-%m-%d %H:%M:%S"),
+                            "end_time": end_disp,
+                            "duration": dur_str,
+                            "duration_minutes": float(dur_m),
+                            "category": c_lbl,
+                            "metric": m_key,
+                            "date_str": d_key,
+                            "day_downtime_minutes": float(dur_m),
+                            "title": desc,
+                            "description": desc,
+                            "cause": desc,
+                            "reason": desc,
+                            "status": "Active",
+                            "telemetry_history_id": None,
+                            "_raw_dt": cur_s,
+                            "epoch": cur_s.timestamp(),
+                        })
+                    cur_s = next_day_start
 
         if not rows:
             obs_sec = max(3600, kernel_uptime_sec)
@@ -1230,6 +1331,7 @@ class SLACalculatorService:
                 target_sla_pct=98.0,
                 live_payload=live_payload,
                 kernel_uptime_sec=kernel_uptime_sec,
+                first_seen_dt=self._get_device_first_seen_wib(device_id),
             )
 
             if daily_summary and daily_summary.get("total_obs_min"):
@@ -1465,6 +1567,7 @@ class SLACalculatorService:
             target_sla_pct=98.0,
             live_payload=live_payload,
             kernel_uptime_sec=kernel_uptime_sec,
+            first_seen_dt=self._get_device_first_seen_wib(device_id),
         )
 
         if daily_summary and daily_summary.get("total_obs_min"):
@@ -1535,6 +1638,90 @@ class SLACalculatorService:
         self._sla_mem_cache[cache_key] = (now_ts, result)
         return result
 
+    def _get_device_first_seen_wib(self, device_id: str) -> Optional[datetime]:
+        """Returns the earliest recorded_at timestamp (WIB) in GatewayTelemetryHistory for a device (5m cached)."""
+        import time as _time
+        now_ts = _time.time()
+        cache_ts = getattr(self, "_first_seen_cache_ts", 0.0)
+        if not hasattr(self, "_first_seen_cache") or (now_ts - cache_ts) >= 300.0:
+            new_map: Dict[str, datetime] = {}
+            db = None
+            try:
+                from sqlalchemy import func
+                from app.models.gateway_models import Device
+                db = SessionLocal()
+                rows = (
+                    db.query(Device.id, Device.name, func.min(GatewayTelemetryHistory.recorded_at))
+                    .join(GatewayTelemetryHistory, GatewayTelemetryHistory.device_id == Device.id)
+                    .filter(GatewayTelemetryHistory.deleted_at.is_(None))
+                    .group_by(Device.id, Device.name)
+                    .all()
+                )
+                for d_uuid, d_name, min_rec in rows:
+                    if min_rec:
+                        dt_wib = min_rec.replace(tzinfo=timezone.utc).astimezone(WIB) if min_rec.tzinfo is None else min_rec.astimezone(WIB)
+                        new_map[str(d_uuid)] = dt_wib
+                        if d_name:
+                            new_map[d_name] = dt_wib
+            except Exception as e:
+                logger.debug(f"Could not preload device first_seen timestamps: {e}")
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+            self._first_seen_cache = new_map
+            self._first_seen_cache_ts = now_ts
+        return self._first_seen_cache.get(str(device_id))
+
+    @staticmethod
+    def _resolve_last_seen_wib(
+        live_payload: Optional[Dict[str, Any]] = None,
+        rows: Optional[List[GatewayTelemetryHistory]] = None,
+    ) -> Optional[datetime]:
+        """Returns the latest real telemetry datetime (WIB-aware) observed from the gateway."""
+        now_wib = datetime.now(timezone.utc).astimezone(WIB)
+        candidates: List[datetime] = []
+
+        if rows:
+            for r in rows:
+                if r and r.recorded_at:
+                    r_dt = r.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if r.recorded_at.tzinfo is None else r.recorded_at.astimezone(WIB)
+                    candidates.append(r_dt)
+
+        if live_payload and isinstance(live_payload, dict):
+            rec_str = live_payload.get("recorded_at") or live_payload.get("datetime_utc7")
+            if rec_str:
+                clean_rec = str(rec_str).split(" (")[0].strip()
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                    try:
+                        candidates.append(datetime.strptime(clean_rec[:19], fmt).replace(tzinfo=WIB))
+                        break
+                    except Exception:
+                        pass
+            ts = live_payload.get("timestamp")
+            if ts and isinstance(ts, (int, float)) and ts > 1000000000:
+                ts_sec = float(ts) / 1000.0 if ts > 100000000000 else float(ts)
+                candidates.append(datetime.fromtimestamp(ts_sec, timezone.utc).astimezone(WIB))
+
+            logs = live_payload.get("recent_system_logs")
+            if logs:
+                if isinstance(logs, str):
+                    logs = logs.strip().split("\n")
+                for line in logs:
+                    m = re.search(r'\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]', str(line))
+                    if m:
+                        try:
+                            candidates.append(datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB))
+                        except Exception:
+                            pass
+
+        if not candidates:
+            return None
+        latest = max(candidates)
+        return min(latest, now_wib)
+
     @staticmethod
     def _merge_intervals(raw_intervals: List[Tuple[datetime, datetime]]) -> List[Tuple[datetime, datetime]]:
         if not raw_intervals:
@@ -1557,7 +1744,8 @@ class SLACalculatorService:
         rows: Optional[List[GatewayTelemetryHistory]] = None,
         target_sla_pct: float = 98.0,
         live_payload: Optional[Dict[str, Any]] = None,
-        kernel_uptime_sec: int = 0
+        kernel_uptime_sec: int = 0,
+        first_seen_dt: Optional[datetime] = None,
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Menghasilkan rincian SLA harian (Day 1..Day N) dengan algoritma Daily Time-Slicing:
@@ -1582,10 +1770,14 @@ class SLACalculatorService:
                 _, last_day = calendar.monthrange(ref_dt.year, ref_dt.month)
                 e_date = datetime(ref_dt.year, ref_dt.month, last_day).date()
 
-        # 1. Collect all candidate timestamps to determine the device's true first active datetime
+        # 1. Collect all candidate timestamps to determine the device's true first active & last-seen datetime
+        last_seen_dt = self._resolve_last_seen_wib(live_payload=live_payload, rows=rows)
         candidate_dts: List[datetime] = []
+        if first_seen_dt:
+            candidate_dts.append(first_seen_dt)
         if kernel_uptime_sec and kernel_uptime_sec > 0:
-            candidate_dts.append(now_wib - timedelta(seconds=kernel_uptime_sec))
+            boot_ref = last_seen_dt if last_seen_dt else now_wib
+            candidate_dts.append(boot_ref - timedelta(seconds=kernel_uptime_sec))
 
         if rows:
             for r in rows:
@@ -1674,24 +1866,35 @@ class SLACalculatorService:
         total_rec_down_sec = 0.0
         total_obs_sec = 0.0
 
-        # Pre-process alerts for fallback intervals
+        # Pre-process alerts (both RESOLVED and open ACTIVE) + live stale offline gap (> 10 minutes)
         cpu_raw: List[Tuple[datetime, datetime]] = []
         cell_raw: List[Tuple[datetime, datetime]] = []
         dvr_raw: List[Tuple[datetime, datetime]] = []
         rec_raw: List[Tuple[datetime, datetime]] = []
         if alerts:
             for a in alerts:
-                if a.start_time and a.end_time and a.end_time > a.start_time:
+                if a.start_time:
                     s = a.start_time.astimezone(WIB) if a.start_time.tzinfo else a.start_time.replace(tzinfo=timezone.utc).astimezone(WIB)
-                    e = a.end_time.astimezone(WIB) if a.end_time.tzinfo else a.end_time.replace(tzinfo=timezone.utc).astimezone(WIB)
-                    if a.metric == "cpu_modem":
-                        cpu_raw.append((s, e))
-                    elif a.metric == "cellular":
-                        cell_raw.append((s, e))
-                    elif a.metric == "cpu_dvr":
-                        dvr_raw.append((s, e))
-                    elif a.metric == "recording":
-                        rec_raw.append((s, e))
+                    e = (a.end_time.astimezone(WIB) if a.end_time.tzinfo else a.end_time.replace(tzinfo=timezone.utc).astimezone(WIB)) if a.end_time else now_wib
+                    if e > s:
+                        if a.metric == "cpu_modem":
+                            cpu_raw.append((s, e))
+                        elif a.metric == "cellular":
+                            cell_raw.append((s, e))
+                        elif a.metric == "cpu_dvr":
+                            dvr_raw.append((s, e))
+                        elif a.metric == "recording":
+                            rec_raw.append((s, e))
+
+        # Provisional offline: if gateway stopped sending telemetry > 10 minutes, stop Uptime at last_seen_dt
+        # and count [last_seen_dt, now_wib] as ongoing downtime across all subsystems until telemetry recovers.
+        if last_seen_dt and (now_wib - last_seen_dt).total_seconds() > GAP_THRESHOLD_SECONDS:
+            offline_span = (last_seen_dt, now_wib)
+            cpu_raw.append(offline_span)
+            cell_raw.append(offline_span)
+            dvr_raw.append(offline_span)
+            rec_raw.append(offline_span)
+
         cpu_merged = self._merge_intervals(cpu_raw)
         cell_merged = self._merge_intervals(cell_raw)
         dvr_merged = self._merge_intervals(dvr_raw)
@@ -1721,14 +1924,14 @@ class SLACalculatorService:
 
             if cur_date > now_wib.date():
                 pass
-            elif alerts or (d_str in unique_day_logs and unique_day_logs[d_str]):
-                # 1. Primary authoritative source: Merged Incident Alerts
+            elif cpu_merged or cell_merged or dvr_merged or rec_merged or (d_str in unique_day_logs and unique_day_logs[d_str]):
+                # 1. Primary authoritative source: Merged Incident Alerts + Provisional Offline Gap
                 alert_cpu_sec = 0.0
                 alert_cell_sec = 0.0
                 alert_dvr_sec = 0.0
                 alert_rec_sec = 0.0
 
-                if alerts:
+                if cpu_merged or cell_merged or dvr_merged or rec_merged:
                     for s, e in cpu_merged:
                         overlap_s = max(s, d_start)
                         overlap_e = min(e, d_end)
@@ -1904,21 +2107,24 @@ class SLACalculatorService:
 
             cur_date += timedelta(days=1)
 
-        total_cpu_up_min = round(max(0.0, (total_obs_sec - total_cpu_down_sec) / 60.0), 1)
+        total_obs_min_exact = total_obs_sec / 60.0
+        total_obs_min_rounded = round(total_obs_min_exact, 1)
+
+        total_cpu_up_min = min(total_obs_min_rounded, round(max(0.0, (total_obs_sec - total_cpu_down_sec) / 60.0), 1))
         total_cpu_down_min = round(total_cpu_down_sec / 60.0, 1)
-        avg_cpu_sr = round((total_cpu_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
+        avg_cpu_sr = round(min(100.0, max(0.0, ((total_obs_sec - total_cpu_down_sec) / total_obs_sec) * 100.0)), 1) if total_obs_sec > 0 else 100.0
 
-        total_cell_up_min = round(max(0.0, (total_obs_sec - total_cell_down_sec) / 60.0), 1)
+        total_cell_up_min = min(total_obs_min_rounded, round(max(0.0, (total_obs_sec - total_cell_down_sec) / 60.0), 1))
         total_cell_down_min = round(total_cell_down_sec / 60.0, 1)
-        avg_cell_sr = round((total_cell_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
+        avg_cell_sr = round(min(100.0, max(0.0, ((total_obs_sec - total_cell_down_sec) / total_obs_sec) * 100.0)), 1) if total_obs_sec > 0 else 100.0
 
-        total_dvr_up_min = round(max(0.0, (total_obs_sec - total_dvr_down_sec) / 60.0), 1)
+        total_dvr_up_min = min(total_obs_min_rounded, round(max(0.0, (total_obs_sec - total_dvr_down_sec) / 60.0), 1))
         total_dvr_down_min = round(total_dvr_down_sec / 60.0, 1)
-        avg_dvr_sr = round((total_dvr_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
+        avg_dvr_sr = round(min(100.0, max(0.0, ((total_obs_sec - total_dvr_down_sec) / total_obs_sec) * 100.0)), 1) if total_obs_sec > 0 else 100.0
 
-        total_rec_up_min = round(max(0.0, (total_obs_sec - total_rec_down_sec) / 60.0), 1)
+        total_rec_up_min = min(total_obs_min_rounded, round(max(0.0, (total_obs_sec - total_rec_down_sec) / 60.0), 1))
         total_rec_down_min = round(total_rec_down_sec / 60.0, 1)
-        avg_rec_sr = round((total_rec_up_min / (total_obs_sec / 60.0)) * 100.0, 1) if total_obs_sec > 0 else 100.0
+        avg_rec_sr = round(min(100.0, max(0.0, ((total_obs_sec - total_rec_down_sec) / total_obs_sec) * 100.0)), 1) if total_obs_sec > 0 else 100.0
 
         daily_summary = {
             "total_days": len(daily_records),

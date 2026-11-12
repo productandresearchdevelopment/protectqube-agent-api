@@ -33,6 +33,8 @@ from app.models.auth_models import (
     UserOtp,
 )
 from app.models.gateway_models import (
+    Client,
+    Device,
     GatewayTelemetryHistory,
     GatewayIncidentAlert,
 )
