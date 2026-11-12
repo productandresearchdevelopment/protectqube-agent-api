@@ -80,7 +80,7 @@ def upgrade() -> None:
                 location, 
                 hardware_model 
             FROM gateway_telemetry_history 
-            WHERE device_id IS NOT NULL AND device_id != ''
+            WHERE device_id IS NOT NULL AND device_id::text != ''
             ORDER BY device_id, recorded_at DESC NULLS LAST
         ) t
         WHERE NOT EXISTS (
@@ -98,7 +98,7 @@ def upgrade() -> None:
             TRUE
         FROM gateway_incident_alerts a
         WHERE a.device_id IS NOT NULL 
-          AND a.device_id != ''
+          AND a.device_id::text != ''
           AND NOT EXISTS (
               SELECT 1 FROM devices d WHERE d.name = a.device_id
           );

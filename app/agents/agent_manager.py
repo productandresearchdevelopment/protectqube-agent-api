@@ -106,7 +106,7 @@ class GatewayAgentManager:
                 dev_obj = db.query(Device).filter(Device.name == dev_id).first()
                 if not dev_obj:
                     client_obj = db.query(Client).first()
-                    client_id = client_obj.id if client_obj else _uuid.uuid4()
+                    client_id = client_obj.id if client_obj else None
                     dev_obj = Device(
                         client_id=client_id,
                         name=dev_id,
