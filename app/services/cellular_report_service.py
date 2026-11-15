@@ -404,6 +404,18 @@ class CellularReportService:
             item["modem_temp"] = sla.get("avg_temp", item.get("modem_temp", 42))
             item["trouble_events_count"] = len(cell_events_r)
             try:
+                from app.services.cellular_service import cellular_service
+                if dev_id in cellular_service._live_gateways:
+                    c_item = cellular_service._live_gateways[dev_id].get("item", {})
+                    if c_item.get("cpu_modem") in ("Not Connected", "No Response"):
+                        item["modem"] = "Not Detected"
+                        item["cpu_modem"] = c_item.get("cpu_modem")
+                    if c_item.get("sim_status") in ("Not Detected", "No SIM"):
+                        item["sim_status"] = "Not Detected"
+                        item["provider"] = "No SIM"
+            except Exception:
+                pass
+            try:
                 from app.services.sla_report_service import sla_report_service
                 s_cust = sla_report_service._live_gateways.get(dev_id, {}).get("customer")
                 if s_cust and s_cust != "-":
@@ -568,6 +580,136 @@ class CellularReportService:
             detail["network_offline"] = sla.get("network_offline_str", sla["cellular_offline_str"])
             detail["network_offline_pct"] = f"{round(100.0 - sla.get('network_success_rate', sla['cellular_sla_pct']), 1)}%"
             cell_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_modem", "cellular"] or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]]
+
+            try:
+                from app.services.cellular_service import cellular_service
+                cellular_service._sync_freshness()
+                cell_live = cellular_service._live_gateways.get(target_gid, {})
+                if not cell_live:
+                    for k, v in cellular_service._live_gateways.items():
+                        if k.lower() == target_gid.lower() or target_gid.lower() in k.lower():
+                            cell_live = v
+                            break
+                cell_item = cell_live.get("item", {})
+
+                is_cpu_down = cell_item.get("cpu_modem") in ("Not Connected", "No Response")
+                is_sim_down = cell_item.get("sim_status") in ("Not Detected", "No SIM")
+
+                if is_cpu_down:
+                    detail["cpu_modem"] = cell_item.get("cpu_modem")
+                    detail["modem"] = "Not Detected"
+                if is_sim_down:
+                    detail["sim_status"] = "Not Detected"
+                    detail["provider"] = "No SIM"
+
+                now_dt = datetime.now(timezone.utc).astimezone(WIB)
+                today_iso = now_dt.strftime("%Y-%m-%d")
+
+                # Dynamically resolve actual disconnect start time for active incident
+                def _resolve_active_start_dt(metric_name: str) -> datetime:
+                    # 1. End time of the most recent resolved incident today for this metric
+                    m_evs = [
+                        ev for ev in cell_events_d 
+                        if (ev.get("metric") == metric_name or (metric_name == "cellular" and ev.get("category") in ["Seluler / Network", "Cellular Network", "Cellular"])) 
+                        and ev.get("status") != "Active"
+                    ]
+                    if m_evs:
+                        latest_ev = max(m_evs, key=lambda x: x.get("epoch") or 0.0)
+                        e_end = latest_ev.get("end_time") or latest_ev.get("start_time")
+                        if e_end and len(str(e_end)) >= 19:
+                            try:
+                                return datetime.strptime(str(e_end)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                            except Exception:
+                                pass
+                    # 2. Check last_incident in cell_live
+                    li_time = cell_live.get("detail", {}).get("last_incident", {}).get("time_wib")
+                    if li_time:
+                        import re
+                        m = re.search(r'(\d{1,2})\s+([A-Za-z]+)\s+(\d{4}),?\s+(\d{2}:\d{2})', str(li_time))
+                        if m:
+                            try:
+                                return datetime.strptime(f"{m.group(3)}-{m.group(2)}-{m.group(1)} {m.group(4)}:00", "%Y-%b-%d %H:%M:%S").replace(tzinfo=WIB)
+                            except Exception:
+                                pass
+                    # 3. Check cell_item.get("last_update") or cell_live detail last_update
+                    lu = cell_item.get("last_update") or cell_live.get("detail", {}).get("last_update")
+                    if lu and len(str(lu)) >= 19:
+                        try:
+                            return datetime.strptime(str(lu)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                        except Exception:
+                            pass
+                    # 4. Fallback to now_dt - 1 minute
+                    return now_dt - timedelta(minutes=1)
+
+                # If sub-system is currently disconnected, ensure active ongoing incident exists in Incident History
+                if is_cpu_down:
+                    has_active_cpu = any(ev.get("metric") == "cpu_modem" and ev.get("status") == "Active" for ev in cell_events_d)
+                    if not has_active_cpu:
+                        st_dt = _resolve_active_start_dt("cpu_modem")
+                        if st_dt > now_dt:
+                            st_dt = now_dt
+                        st_str = st_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
+                        dur_m = int(round(dur_sec / 60.0))
+                        dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                        cell_events_d.insert(0, {
+                            "no": 1,
+                            "start_time": st_str,
+                            "end_time": "Now (Ongoing)",
+                            "duration": dur_str,
+                            "duration_minutes": float(dur_m),
+                            "category": "CPU - Modem",
+                            "metric": "cpu_modem",
+                            "date_str": today_iso,
+                            "day_downtime_minutes": float(dur_m),
+                            "title": "Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS])",
+                            "description": "Modem USB Port Communication Lost ([MODEM-CPU: TERPUTUS])",
+                            "cause": "Serial USB port /dev/ttyUSB disconnected from CPU. Gateway lost serial communication with Quectel Modem.",
+                            "reason": "Serial USB port /dev/ttyUSB disconnected from CPU. Gateway lost serial communication with Quectel Modem.",
+                            "status": "Active",
+                            "telemetry_history_id": None,
+                            "_raw_dt": st_dt,
+                            "epoch": st_dt.timestamp(),
+                        })
+
+                if is_sim_down:
+                    has_active_sim = any(ev.get("metric") == "cellular" and ev.get("status") == "Active" for ev in cell_events_d)
+                    if not has_active_sim:
+                        st_dt = _resolve_active_start_dt("cellular")
+                        if st_dt > now_dt:
+                            st_dt = now_dt
+                        st_str = st_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
+                        dur_m = int(round(dur_sec / 60.0))
+                        dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                        cell_events_d.insert(0, {
+                            "no": 1,
+                            "start_time": st_str,
+                            "end_time": "Now (Ongoing)",
+                            "duration": dur_str,
+                            "duration_minutes": float(dur_m),
+                            "category": "Cellular Network",
+                            "metric": "cellular",
+                            "date_str": today_iso,
+                            "day_downtime_minutes": float(dur_m),
+                            "title": "Cellular Network Connection Disconnected (SIM Not Detected)",
+                            "description": "Cellular Network Connection Disconnected (SIM Not Detected)",
+                            "cause": "Modem SIM card tray reports no valid SIM card detected (SIM Not Detected). Cellular data transmission halted.",
+                            "reason": "Modem SIM card tray reports no valid SIM card detected (SIM Not Detected). Cellular data transmission halted.",
+                            "status": "Active",
+                            "telemetry_history_id": None,
+                            "_raw_dt": st_dt,
+                            "epoch": st_dt.timestamp(),
+                        })
+
+                # Strictly sort: Active events first on top, followed by newest resolved events descending
+                cell_events_d.sort(key=lambda x: (0 if x.get("status") == "Active" else 1, -(x.get("epoch") or 0.0)))
+
+                for idx, ev in enumerate(cell_events_d, 1):
+                    ev["no"] = idx
+            except Exception as e:
+                logger.error(f"Error syncing cellular live events: {e}")
+
             detail["total_gangguan"] = f"{len(cell_events_d)} events"
             if sla.get("timeline_tracks") and sla["timeline_tracks"][0].get("segments"):
                 detail["timeline_segments"] = sla["timeline_tracks"][0]["segments"]

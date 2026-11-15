@@ -417,6 +417,9 @@ class DVRService:
             "health": health,
             "raw_payload": nms_payload,
             "last_seen_epoch": last_seen_epoch,
+            "last_kamera_online": kamera_online,
+            "last_storage_pct": storage_pct,
+            "last_recording_status": rec_status,
         }
 
     ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika data telemetri berhenti > 1 jam, status menjadi Offline
@@ -452,24 +455,32 @@ class DVRService:
             if age_sec > self.ONLINE_TIMEOUT_SECONDS:
                 g["status"] = "Offline"
                 table_item["status"] = "Offline"
+                table_item["is_offline"] = True
                 table_item["cpu_dvr"] = "Not Connected"
                 table_item["dvr_health"] = "Critical"
-                table_item["recording_status"] = "Not Recording"
-                table_item["kamera_online"] = "-"
-                table_item["storage_usage_percent"] = "-"
+                # Preserve actual telemetry values as Last Known Good State:
+                if not isinstance(table_item.get("kamera_online"), (int, float)):
+                    table_item["kamera_online"] = g.get("last_kamera_online", 0)
+                if not isinstance(table_item.get("storage_usage_percent"), (int, float)):
+                    table_item["storage_usage_percent"] = g.get("last_storage_pct", 0)
+                if not table_item.get("recording_status") or table_item.get("recording_status") == "Not Recording":
+                    table_item["recording_status"] = g.get("last_recording_status", "0/4 Recording")
                 g["is_connected"] = False
                 g["health"] = "Critical"
                 detail_item["status"] = "Offline"
                 detail_item["service_status"] = "Stopped"
+                detail_item["is_offline"] = True
                 if "cpu_dvr" in detail_item:
                     detail_item["cpu_dvr"]["status"] = "Not Connected"
             else:
                 g["status"] = "Online"
                 table_item["status"] = "Online"
+                table_item["is_offline"] = False
                 is_conn = g.get("is_connected", False)
                 h = g.get("health", "Warning")
                 detail_item["status"] = "Online" if (is_conn and h == "Good") else ("Warning" if is_conn else "Offline")
                 detail_item["service_status"] = "Running" if is_conn else "Stopped"
+                detail_item["is_offline"] = False
 
     def get_summary(self) -> Dict[str, Any]:
         """Calculates dynamic summary metrics from 100% real live gateways"""
@@ -710,7 +721,7 @@ class DVRService:
             for g in items:
                 online = g.get("kamera_online")
                 total = g.get("total_kamera")
-                if g.get("status") != "Offline" and isinstance(online, (int, float)):
+                if isinstance(online, (int, float)):
                     tot = float(total) if isinstance(total, (int, float)) and total > 0 else 0.0
                     ratio = (float(online) / tot) if tot > 0 else 0.0
                     diff = float(online) - tot
@@ -723,11 +734,7 @@ class DVRService:
         if key == "recording_status":
             import re
             def rec_rank(g: Dict[str, Any]) -> tuple:
-                if g.get("status") == "Offline":
-                    return (0, 0.0, 0)
-                if g.get("cpu_dvr") != "Connected":
-                    return (0, 0.0, 0)
-                rec_str = str(g.get("recording_status") or "Not Recording")
+                rec_str = str(g.get("recording_status") or "0/4 Recording")
                 m = re.search(r"(\d+)\s*/\s*(\d+)", rec_str)
                 if m:
                     rec_count = int(m.group(1))
@@ -752,7 +759,7 @@ class DVRService:
             missing = []
             for g in items:
                 val = g.get("storage_usage_percent")
-                if g.get("status") != "Offline" and isinstance(val, (int, float)):
+                if isinstance(val, (int, float)):
                     valid.append((float(val), g))
                 else:
                     missing.append(g)
@@ -1239,54 +1246,41 @@ class DVRService:
 
         detail["events"] = real_events
 
-        # If gateway is offline (> 1h without telemetry), reflect fully offline downstream status:
+        # If gateway is offline (> 1h without telemetry), reflect offline status while preserving last known good state:
         g_live = self._live_gateways.get(dev_id, {})
         if g_live.get("status") == "Offline" or detail.get("status") == "Offline":
-            detail["status"] = "Offline"
-            detail["service_status"] = "Stopped"
-            detail["cpu_dvr"] = {
-                "status": "Not Connected",
-                "message": "Gateway Offline / ISAPI Port 80 unreachable (no telemetry)",
-                "port": "80 (ISAPI)",
-                "response_time": "Timeout",
-                "packet_loss": "100%",
-                "last_check": detail.get("last_update", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-            }
-            detail["recording_storage"] = {
-                "status": "Not Recording",
-                "used_tb": 0.0,
-                "total_tb": 0.0,
-                "percent": 0,
-                "retention_days": 0,
-                "sparkline": [0.0, 0.0],
-            }
-            detail["dvr_health"] = {
-                "status": "Critical",
-                "hdd_status": "N/A",
-                "temperature": "N/A",
-                "fan_status": "N/A",
-                "bad_sector": 0,
-            }
-            c_tot = detail.get("camera_status", {}).get("total", 4)
-            detail["camera_status"] = {
-                "total": c_tot,
-                "online": 0,
-                "no_video": 0,
-                "offline": c_tot,
-                "percent": 0.0,
-                "sparkline": [0.0, 0.0],
-            }
-            for cam in detail.get("cameras", []):
-                cam["status"] = "Offline"
-                cam["recording"] = "Not Recording"
-                cam["is_recording"] = False
-
             last_seen = g_live.get("last_seen_epoch") or payload_epoch
             age_sec = max(0.0, time.time() - last_seen)
             dur_m = int(age_sec // 60)
             dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 else f"{dur_m}m"
             if dur_m >= 1440:
                 dur_str = f"{dur_m // 1440}d {(dur_m % 1440) // 60}h"
+
+            detail["status"] = "Offline"
+            detail["service_status"] = "Stopped"
+            detail["is_offline"] = True
+            detail["offline_duration"] = dur_str
+            detail["last_telemetry_time"] = payload_wib_str
+
+            detail["cpu_dvr"] = {
+                "status": "Not Connected",
+                "message": f"Gateway Offline (> 1 Hour). NVR telemetry link lost since {payload_wib_str} ({dur_str} ago).",
+                "port": detail.get("cpu_dvr", {}).get("port") or "80 (ISAPI)",
+                "response_time": "Timeout",
+                "packet_loss": "100%",
+                "last_check": detail.get("last_update", payload_wib_str),
+            }
+
+            # PRESERVE last known good storage & S.M.A.R.T telemetry (Do NOT wipe to 0.0 or N/A):
+            if "recording_storage" in detail:
+                detail["recording_storage"]["is_offline"] = True
+            if "dvr_health" in detail:
+                detail["dvr_health"]["status"] = "Critical"
+                detail["dvr_health"]["is_offline"] = True
+            if "camera_status" in detail:
+                detail["camera_status"]["is_offline"] = True
+            for cam in detail.get("cameras", []):
+                cam["is_offline"] = True
             detail["events"].insert(0, {
                 "id": "evt-offline-active",
                 "title": f"Device Offline: NVR Telemetry & Streams Disconnected since {payload_wib_str} (Stopped sending data for {dur_str})",
