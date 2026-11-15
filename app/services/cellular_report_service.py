@@ -547,11 +547,15 @@ class CellularReportService:
             detail["cpu_modem_offline_pct"] = f"{round(100.0 - sla.get('cpu_modem_success_rate', sla['gateway_sla_pct']), 1)}%"
             detail["success_rate"] = f"{sla.get('cpu_modem_success_rate', sla['gateway_sla_pct'])}%"
             if is_gw_offline:
-                detail["sim_status"] = "Offline"
-                detail["avg_response_time"] = "-"
-                detail["avg_rsrp"] = "-"
-                detail["avg_modem_temp"] = "-"
-                detail["temp_range"] = "Gateway Offline"
+                # Do not wipe avg_rsrp and avg_modem_temp! Preserve last known / historical average:
+                detail["sim_status"] = detail.get("sim_status") or "Ready"
+                detail["avg_response_time"] = f"{sla.get('avg_ping')} ms" if sla.get("avg_ping") is not None else "-"
+                detail["avg_rsrp"] = f"{sla.get('avg_rsrp', -85)} dBm"
+                detail["avg_modem_temp"] = f"{sla.get('avg_temp', 42)}°C"
+                if sla.get("min_temp") is not None and sla.get("max_temp") is not None:
+                    detail["temp_range"] = f"(Min {sla['min_temp']}°C | Max {sla['max_temp']}°C)"
+                else:
+                    detail["temp_range"] = "Last Recorded"
             else:
                 if sla.get("avg_ping") is not None:
                     detail["avg_response_time"] = f"{sla['avg_ping']} ms"

@@ -466,6 +466,16 @@ class NotificationService:
         sim_info: Optional[str] = None,
     ):
         try:
+            # Synchronize location strictly from database Device table if available
+            if db and dev_id:
+                try:
+                    from app.models.gateway_models import Device
+                    dev_row = db.query(Device).filter(Device.name == dev_id).first()
+                    if dev_row and dev_row.location and dev_row.location.strip() and not dev_row.location.startswith("Gateway "):
+                        loc_name = dev_row.location
+                except Exception:
+                    pass
+
             dur = duration_str or "1 Menit"
             wib = timezone(timedelta(hours=7))
             t_wib = rec_dt.replace(tzinfo=timezone.utc).astimezone(wib) if rec_dt.tzinfo is None else rec_dt.astimezone(wib)

@@ -43,16 +43,66 @@ class GatewayAgentManager:
         self._mqtt_client: Optional[Any] = None
         self._latest_snapshot: Dict[str, Any] = {}
         self._last_saved_to_db: Dict[str, float] = {}
+        self._previous_states: Dict[str, Dict[str, Any]] = {}
         self._db_save_interval: float = 300.0
 
-    def _save_to_database(self, payload: Dict[str, Any]):
-        """Persists a historical telemetry snapshot to PostgreSQL every 5 minutes per device."""
+    def _extract_device_state(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Ekstrak status operasional esensial gateway untuk mendeteksi event state-change (bypass timer)."""
+        sim = payload.get("cellular_sim", {})
+        modem = payload.get("modem_usb", {})
+        pwr = payload.get("power_source", {})
+        nvr = payload.get("nvr_surveillance", {})
+        rec = nvr.get("recording", {}) if isinstance(nvr, dict) else {}
+        
+        # Check logs for quick keywords
+        logs = payload.get("recent_system_logs", [])
+        last_log = logs[-1] if logs else ""
+        has_log_event = any(k in last_log.upper() for k in ["FAIL", "TERPUTUS", "DISCONNECT", "PULIH", "RECOVERED", "OK"])
+
+        return {
+            "modem_connected": modem.get("connected", True) if isinstance(modem, dict) else True,
+            "sim_inserted": sim.get("sim_inserted", True) if isinstance(sim, dict) else True,
+            "overall_status": payload.get("overall_status", "NORMAL"),
+            "is_mains_online": pwr.get("is_mains_online", True) if isinstance(pwr, dict) else True,
+            "is_recording": rec.get("is_recording", True) if isinstance(rec, dict) else True,
+            "has_log_event": has_log_event,
+        }
+
+    def _save_to_database(self, payload: Dict[str, Any], force_save: bool = False):
+        """
+        Persists a historical telemetry snapshot to PostgreSQL.
+        Normal: every 5 minutes (300s).
+        Event-Driven Bypass: Detik itu juga jika terdeteksi perubahan status penting
+        (modem terputus, SIM lepas, listrik drop, rekaman bermasalah, atau status pulih).
+        """
         try:
             dev_id = payload.get("device_id") or settings.GATEWAY_ID
             now_ts = time.time()
             last_ts = self._last_saved_to_db.get(dev_id, 0.0)
 
-            if (now_ts - last_ts) < self._db_save_interval:
+            # Check state change
+            curr_state = self._extract_device_state(payload)
+            prev_state = self._previous_states.get(dev_id)
+
+            is_state_changed = False
+            if prev_state is not None:
+                if (
+                    curr_state["modem_connected"] != prev_state.get("modem_connected")
+                    or curr_state["sim_inserted"] != prev_state.get("sim_inserted")
+                    or curr_state["overall_status"] != prev_state.get("overall_status")
+                    or curr_state["is_mains_online"] != prev_state.get("is_mains_online")
+                    or curr_state["is_recording"] != prev_state.get("is_recording")
+                ):
+                    is_state_changed = True
+                    logger.info(
+                        f"[EVENT-BYPASS] State change detected on '{dev_id}': "
+                        f"Modem={prev_state.get('modem_connected')}->{curr_state['modem_connected']}, "
+                        f"SIM={prev_state.get('sim_inserted')}->{curr_state['sim_inserted']}, "
+                        f"Status={prev_state.get('overall_status')}->{curr_state['overall_status']}. "
+                        f"Bypassing 5-min timer and saving immediately!"
+                    )
+
+            if not force_save and not is_state_changed and (now_ts - last_ts) < self._db_save_interval:
                 return
 
             from app.core.database import SessionLocal
@@ -116,6 +166,9 @@ class GatewayAgentManager:
                     )
                     db.add(dev_obj)
                     db.flush()
+                else:
+                    if dev_obj.location and dev_obj.location.strip() and not dev_obj.location.startswith("Gateway "):
+                        loc_name = dev_obj.location
                 device_uuid = dev_obj.id
 
                 # Avoid inserting duplicate rows for the same timestamp (e.g. retained MQTT messages from broker)
@@ -129,6 +182,7 @@ class GatewayAgentManager:
                 )
                 if existing:
                     self._last_saved_to_db[dev_id] = now_ts
+                    self._previous_states[dev_id] = curr_state
                     return
 
                 hist_entry = GatewayTelemetryHistory(
@@ -157,6 +211,7 @@ class GatewayAgentManager:
                 db.add(hist_entry)
                 db.commit()
                 self._last_saved_to_db[dev_id] = now_ts
+                self._previous_states[dev_id] = curr_state
                 logger.info(f"[DB] Successfully recorded telemetry history for device '{dev_id}' (Time: {rec_dt})")
 
                 # Ingest & record incident alerts (power, SIM, downtime, etc.)

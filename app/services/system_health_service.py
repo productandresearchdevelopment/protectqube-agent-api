@@ -58,6 +58,9 @@ class SystemHealthService:
                             payload["device_id"] = latest.device.name
                             payload["device_uuid"] = str(latest.device.id)
                             payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
+                            if latest.device.location:
+                                payload["location"] = latest.device.location
+                                payload["location_name"] = latest.device.location
                         if latest.recorded_at:
                             from datetime import timezone, timedelta
                             WIB = timezone(timedelta(hours=7))

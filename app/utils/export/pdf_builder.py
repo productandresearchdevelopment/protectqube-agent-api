@@ -394,6 +394,12 @@ def _build_incident_table(styles, events: List[Dict[str, Any]], title: str = "In
         st_text = "Active" if is_active else "Resolved"
 
         desc = str(ev.get("title") or ev.get("description") or ev.get("cause") or "System Disturbance")
+        desc = re.sub(r'\s+for\s+\d+h\s+\d+m', '', desc, flags=re.IGNORECASE)
+        desc = re.sub(r'\s+for\s+\d+m', '', desc, flags=re.IGNORECASE)
+        desc = re.sub(r'\s+selama\s+\d+\s*jam\s+\d+\s*menit', '', desc, flags=re.IGNORECASE)
+        desc = re.sub(r'\s+selama\s+\d+\s*menit', '', desc, flags=re.IGNORECASE)
+        desc = desc.replace("Komunikasi Port USB Modem dengan CPU Terputus", "Modem USB Port Communication Lost")
+        desc = desc.replace("Koneksi Jaringan Seluler Terputus", "Cellular Network Connection Disconnected")
         dur = str(ev.get("duration", "-")).replace("menit", "m").replace("jam", "h")
 
         rows.append([
@@ -823,24 +829,36 @@ def build_cellular_detail_pdf(
     net_up_pct = detail.get("network_uptime_pct", "100.0%")
     net_off = detail.get("network_offline", "0m")
     net_off_pct = detail.get("network_offline_pct", "0.0%")
+    net_sr = detail.get("network_success_rate", "100.0%")
+    if isinstance(net_sr, (int, float)):
+        net_sr_str = f"{net_sr}%"
+    else:
+        net_sr_str = str(net_sr) if "%" in str(net_sr) else f"{net_sr}%"
 
-    avg_rsrp = detail.get("avg_rsrp", "-85 dBm")
-    avg_temp = detail.get("avg_modem_temp", "42°C")
+    avg_rsrp = str(detail.get("avg_rsrp", detail.get("network_avg_rsrp", "-85 dBm")))
+    if not avg_rsrp.endswith("dBm"):
+        avg_rsrp = f"{avg_rsrp} dBm"
+    avg_temp = str(detail.get("avg_modem_temp", detail.get("network_avg_temp", "42°C")))
+    if not avg_temp.endswith("°C") and not avg_temp.endswith("C"):
+        avg_temp = f"{avg_temp}°C"
 
     events = detail.get("trouble_events", [])
     ev_count = len(events)
 
+    # 10 KPI cards matching UI symmetry:
+    # Row 1: Period, CPU Uptime, CPU Downtime, CPU Success Rate, Avg Signal (RSRP)
+    # Row 2: Network Uptime, Network Downtime, Network Success Rate, Avg Modem Temp, Total Incidents
     cards = [
         {"title": "Period", "val": period_str, "sub": period_hours, "color": "#0F172A"},
         {"title": "CPU – Modem Uptime", "val": cpu_up, "sub": cpu_up_pct, "color": "#00A862"},
-        {"title": "CPU – Modem Offline", "val": cpu_off, "sub": cpu_off_pct, "color": "#E2445C" if cpu_off != "0m" else "#0F172A"},
+        {"title": "CPU – Modem Downtime", "val": cpu_off, "sub": cpu_off_pct, "color": "#E2445C" if cpu_off != "0m" else "#0F172A"},
         {"title": "Success Rate", "val": sr, "sub": sr_checks, "color": "#00A862"},
-        {"title": "Total Incidents", "val": f"{ev_count} events", "sub": "Recorded", "color": "#F59E0B" if ev_count > 0 else "#00A862"},
+        {"title": "Avg Signal (RSRP)", "val": avg_rsrp, "sub": "LTE Band", "color": "#0073EA"},
         {"title": "Network Uptime", "val": net_up, "sub": net_up_pct, "color": "#00A862"},
-        {"title": "Network Offline", "val": net_off, "sub": net_off_pct, "color": "#E2445C" if net_off != "0m" else "#0F172A"},
-        {"title": "Avg RSRP Signal", "val": avg_rsrp, "sub": "Excellent (LTE)", "color": "#0073EA"},
-        {"title": "Modem Temp", "val": avg_temp, "sub": "Normal Operating", "color": "#00A862"},
-        {"title": "SIM Data Quota", "val": detail.get("quota_main_gb", "15.4 GB"), "sub": "Active Package", "color": "#0073EA"},
+        {"title": "Network Downtime", "val": net_off, "sub": net_off_pct, "color": "#E2445C" if net_off != "0m" else "#0F172A"},
+        {"title": "Network Success Rate", "val": net_sr_str, "sub": sr_checks, "color": "#00A862"},
+        {"title": "Avg Modem Temp", "val": avg_temp, "sub": "Normal Operating", "color": "#0F172A"},
+        {"title": "Total Incidents", "val": f"{ev_count} events", "sub": "Recorded", "color": "#F59E0B" if ev_count > 0 else "#00A862"},
     ]
     story.append(_build_kpi_cards(styles, cards))
     story.append(Spacer(1, 6))
