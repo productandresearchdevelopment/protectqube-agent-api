@@ -362,11 +362,11 @@ class DVRService:
             "dvr_model": dvr_model,
             "ip_address": ip_addr,
             "last_update": clean_update,
-            "status": "Online" if (is_connected and health == "Good") else ("Warning" if is_connected else "Offline"),
-            "service_status": "Running" if is_connected else "Stopped",
+            "status": "Online",
+            "service_status": "Running",
             "cpu_dvr": {
                 "status": cpu_dvr_status,
-                "message": f"ISAPI/SDK protocol connected stably to {nvr_endpoint}" if is_connected else f"NVR connection failed: {nvr.get('error_message', 'Host unreachable / Timeout')}",
+                "message": f"ISAPI/SDK protocol connected stably to {nvr_endpoint}" if is_connected else f"NVR communication failed: {self._translate_log_to_en(nvr.get('error_message', 'Host unreachable / Timeout'))}",
                 "port": f"{port_num} (HTTP ISAPI)",
                 "response_time": "< 15 ms" if is_connected else "Timeout",
                 "packet_loss": "0%" if is_connected else "100%",
@@ -390,7 +390,7 @@ class DVRService:
             },
             "dvr_health": {
                 "status": health,
-                "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} (SMART {disk_smart_status})" if disks else "No Disk Detected",
+                "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} ({disk_smart_status})" if disks else "No Disk Detected",
                 "temperature": f"{disk_temp}°C",
                 "fan_status": "Normal" if is_connected else "N/A",
                 "bad_sector": disk_health_info.get("bad_sectors", 0),
@@ -478,8 +478,8 @@ class DVRService:
                 table_item["is_offline"] = False
                 is_conn = g.get("is_connected", False)
                 h = g.get("health", "Warning")
-                detail_item["status"] = "Online" if (is_conn and h == "Good") else ("Warning" if is_conn else "Offline")
-                detail_item["service_status"] = "Running" if is_conn else "Stopped"
+                detail_item["status"] = "Online"
+                detail_item["service_status"] = "Running"
                 detail_item["is_offline"] = False
 
     def get_summary(self) -> Dict[str, Any]:
@@ -972,6 +972,9 @@ class DVRService:
         t = re.sub(r'berstatus\s+READ-ONLY', 'status is READ-ONLY', t, flags=re.IGNORECASE)
         t = re.sub(r'Kapasitas\s+Harddisk\s+NVR\s+penuh', 'NVR Hard Drive storage full', t, flags=re.IGNORECASE)
         t = re.sub(r'Perekaman\s+mode\s+loop\s+overwrite\s+24/7\s+tetap\s+aktif', '24/7 loop overwrite active', t, flags=re.IGNORECASE)
+        t = re.sub(r'Timeout\s+koneksi\s+ke\s+NVR', 'Connection timeout to NVR', t, flags=re.IGNORECASE)
+        t = re.sub(r'koneksi\s+ke\s+NVR', 'connection to NVR', t, flags=re.IGNORECASE)
+        t = re.sub(r'koneksi', 'connection', t, flags=re.IGNORECASE)
         t = re.sub(r'terpakai', 'utilized', t, flags=re.IGNORECASE)
         t = re.sub(r'selesai', 'completed', t, flags=re.IGNORECASE)
         t = re.sub(r'terputus', 'disconnected', t, flags=re.IGNORECASE)
@@ -1239,16 +1242,17 @@ class DVRService:
             })
             real_events.append({
                 "id": "evt-live-health",
-                "title": f"Overall NVR Health & S.M.A.R.T: {h_status}",
+                "title": f"Overall NVR Health: {h_status}",
                 "time": curr_time,
                 "status": "success" if h_status == "Good" else "warning",
             })
 
         detail["events"] = real_events
 
-        # If gateway is offline (> 1h without telemetry), reflect offline status while preserving last known good state:
+        # If gateway is truly offline (> 1h without telemetry), reflect offline status while preserving last known good state:
         g_live = self._live_gateways.get(dev_id, {})
-        if g_live.get("status") == "Offline" or detail.get("status") == "Offline":
+        is_gw_truly_offline = (g_live.get("status") == "Offline") or (g_live.get("table_item", {}).get("status") == "Offline")
+        if is_gw_truly_offline:
             last_seen = g_live.get("last_seen_epoch") or payload_epoch
             age_sec = max(0.0, time.time() - last_seen)
             dur_m = int(age_sec // 60)
@@ -1290,6 +1294,10 @@ class DVRService:
                 "category": "DVR",
                 "epoch": now_wib.timestamp() + 1000,
             })
+        else:
+            detail["status"] = "Online"
+            detail["service_status"] = "Running"
+            detail["is_offline"] = False
 
         return detail
 

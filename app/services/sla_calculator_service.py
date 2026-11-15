@@ -129,8 +129,10 @@ class SLACalculatorService:
 
         # 2. Network Connection
         net_down = None
-        if "[SIM: N/A (Modem Terputus)]" in line_str or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', line_str, re.IGNORECASE):
-            net_down = False  # Opsi E: Excluded from network downtime
+        if cpu_down is True:
+            net_down = True  # Network interface runs on modem USB; modem loss cascades to cellular outage
+        elif "[SIM: N/A (Modem Terputus)]" in line_str or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', line_str, re.IGNORECASE):
+            net_down = True  # Network down because modem disconnected
         elif re.search(r'\[SIM:\s*[^\\\]]*\(4G\s*LTE,\s*CSQ\s*([1-9]|[1-2][0-9]|3[0-1])\)', line_str, re.IGNORECASE):
             net_down = False  # Opsi A
         elif "[SIM:" in line_str:
@@ -276,8 +278,10 @@ class SLACalculatorService:
                         is_recording = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
 
             # 3. Network Connection (SIM)
-            if "[SIM: N/A (Modem Terputus)]" in latest_log or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', latest_log, re.IGNORECASE):
-                network_up = True  # Opsi E: excluded from network downtime
+            if cpu_modem_up is False:
+                network_up = False
+            elif "[SIM: N/A (Modem Terputus)]" in latest_log or re.search(r'\[SIM:\s*N/A\s*\(Modem Terputus\)', latest_log, re.IGNORECASE):
+                network_up = False
             elif re.search(r'\[SIM:\s*[^\]]*\(4G\s*LTE,\s*CSQ\s*([1-9]|[1-2][0-9]|3[0-1])\)', latest_log, re.IGNORECASE):
                 network_up = True  # Opsi A
             elif "[SIM:" in latest_log:
@@ -307,7 +311,7 @@ class SLACalculatorService:
 
         if network_up is None:
             if not cpu_modem_up:
-                network_up = True  # Opsi E fallback
+                network_up = False  # If modem hardware is down, network connection is down
             else:
                 sim_obj = payload.get("cellular_sim", {})
                 csq = signal_csq_db if signal_csq_db is not None else sim_obj.get("signal", {}).get("csq", 0)
@@ -678,7 +682,7 @@ class SLACalculatorService:
             m_cnt = device_metric_counts.get(dev_id, {})
 
             cpu_modem_down_min = m_down.get("cpu_modem", 0.0)
-            cell_down_min = m_down.get("cellular", 0.0)
+            cell_down_min = max(m_down.get("cellular", 0.0), cpu_modem_down_min)
             cpu_dvr_down_min = m_down.get("cpu_dvr", 0.0)
             rec_down_min = m_down.get("recording") if "recording" in m_down else cpu_dvr_down_min
             tot_events = sum(m_cnt.values())
@@ -1203,16 +1207,34 @@ class SLACalculatorService:
                     metric = "cpu_dvr"
                     category = "CPU - DVR"
                     desc = "Gateway CPU to NVR Communication Lost"
+                elif "NVR RECORDING:" in line_str and "NOT_RECORD" in line_str:
+                    metric = "recording"
+                    category = "CCTV Recording"
+                    rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', line_str, re.IGNORECASE)
+                    if rec_m:
+                        not_rec_cams = [part.split(":")[0].strip() for part in rec_m.group(1).split(",") if "NOT_RECORD" in part.upper()]
+                        if len(not_rec_cams) >= 4:
+                            desc = "CCTV Video Recording Stopped (All Channels NOT_RECORD)"
+                        elif not_rec_cams:
+                            desc = f"Camera Not Recording: {', '.join(not_rec_cams)} (NOT_RECORD)"
+                        else:
+                            desc = "CCTV Camera Video Recording Inactive (NOT_RECORD)"
+                    else:
+                        desc = "CCTV Camera Video Recording Inactive (NOT_RECORD)"
                 elif "Kamera #" in line_str and ("terputus" in line_str or "NO VIDEO" in line_str or "mati" in line_str):
                     metric = "recording"
                     category = "CCTV Recording"
                     cam_m = re.search(r'Kamera\s*#(\d+)', line_str)
                     cam_id = f"Camera #{cam_m.group(1)}" if cam_m else "Camera"
-                    desc = f"{cam_id} Signal Loss / No Video"
+                    desc = f"{cam_id} Not Recording / No Video"
                 elif "TIDAK MASUK ke Harddisk" in line_str or "READ-ONLY" in line_str or "Bad Sector" in line_str:
                     metric = "recording"
                     category = "CCTV Recording"
                     desc = "Camera Recording Storage Error / Harddisk Issue"
+                elif "perekaman" in line_str.lower() and ("terhenti" in line_str.lower() or "berhenti" in line_str.lower() or "tidak merekam" in line_str.lower()):
+                    metric = "recording"
+                    category = "CCTV Recording"
+                    desc = "CCTV Continuous Recording Halted"
                 elif "Tegangan listrik" in line_str or "drop" in line_str.lower() or "undervoltage" in line_str.lower():
                     metric = "cpu_modem"
                     category = "CPU - Modem"
@@ -1879,6 +1901,7 @@ class SLACalculatorService:
                     if e > s:
                         if a.metric == "cpu_modem":
                             cpu_raw.append((s, e))
+                            cell_raw.append((s, e))  # Modem hardware loss directly cascades to cellular network downtime!
                         elif a.metric == "cellular":
                             cell_raw.append((s, e))
                         elif a.metric == "cpu_dvr":

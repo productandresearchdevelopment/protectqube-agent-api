@@ -219,6 +219,14 @@ class CellularService:
         customer_val = (raw_cust if (raw_cust and raw_cust != "-") else None) or sla_cust or existing_cust or "-"
         device_uuid = nms_payload.get("device_uuid") or str(device_id)
 
+        prev_entry = self._live_gateways.get(device_id, {})
+        prev_detail = prev_entry.get("detail", {})
+        prev_sig = prev_detail.get("signal_strength", {})
+        prev_net = prev_detail.get("network_sim", {})
+
+        last_known_op = prev_net.get("operator") or prev_detail.get("provider") or prev_entry.get("item", {}).get("provider")
+        resolved_provider = operator if (operator != "N/A" and operator != "No SIM") else (last_known_op if (last_known_op and last_known_op != "No SIM") else "No SIM")
+
         gw_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
@@ -229,7 +237,7 @@ class CellularService:
             "type": box_type,
             "model": hw.get("model") or hw.get("type") or "-",
             "modem": clean_modem_model,
-            "provider": operator if (operator != "N/A" and modem_connected and sim_inserted) else "No SIM",
+            "provider": resolved_provider,
             "sim_status": sim_status_label,
             "cpu_modem": cpu_modem_status,
             "network": sim.get("network_mode", "4G LTE") if (sim_inserted and modem_connected) else "No Service",
@@ -293,8 +301,8 @@ class CellularService:
             "location": loc_name,
             "type": gw_item["type"],
             "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
-            "modem": modem.get("model", "Quectel EG95 LTE Cat 4"),
-            "provider": operator if operator != "N/A" else "No SIM",
+            "modem": clean_modem_model,
+            "provider": resolved_provider,
             "sim_card": "Active" if sim_inserted else "Not Detected",
             "ip_address": cellular_ip,
             "last_update": ts_str,
@@ -503,9 +511,11 @@ class CellularService:
 
                 if not modem_connected or not sim_inserted:
                     item["signal_rsrp"] = "-"
-                    item["provider"] = "No SIM"
+                    if not item.get("provider") or item.get("provider") in ("-", "No SIM", "N/A"):
+                        item["provider"] = "No SIM"
                     if not modem_connected:
                         item["modem"] = "Not Detected"
+                        detail["modem"] = "Not Detected"
                 detail["status"] = "Online"
                 detail["service_status"] = "Running"
                 if "cpu_modem" in detail:
@@ -1590,7 +1600,7 @@ class CellularService:
                 detail["last_incident"] = {
                     "title": "CPU – Modem Communication Lost",
                     "duration": dur_str,
-                    "message": f"Komunikasi serial CPU ke Quectel Modem terputus (/dev/ttyUSB port lost sejak {time_wib_str}). Telemetri sinyal berhenti.",
+                    "message": f"Serial communication between CPU and Quectel Modem lost (/dev/ttyUSB port lost since {time_wib_str}). Signal telemetry stopped.",
                     "time_wib": time_wib_str,
                     "status": "active",
                     "disconnect_hour": disc_hr,
@@ -1599,7 +1609,7 @@ class CellularService:
                 detail["last_incident"] = {
                     "title": "SIM Card Not Detected / Removed",
                     "duration": dur_str,
-                    "message": f"Kartu SIM tidak terdeteksi pada modem (sejak {time_wib_str}). Layanan data dan sinyal berhenti.",
+                    "message": f"SIM card not detected on modem (since {time_wib_str}). Data service and signal stopped.",
                     "time_wib": time_wib_str,
                     "status": "active",
                     "disconnect_hour": disc_hr,
@@ -1610,7 +1620,7 @@ class CellularService:
             detail["last_incident"] = {
                 "title": "Cellular Network Connection Disconnected (No Internet Data)",
                 "duration": "1m",
-                "message": f"Aliran data seluler terhenti (No Internet Data sejak {time_wib_str}).",
+                "message": f"Cellular data stream halted (No Internet Data since {time_wib_str}).",
                 "time_wib": time_wib_str,
                 "status": "active",
                 "disconnect_hour": disc_dt.hour,
@@ -1634,203 +1644,203 @@ class CellularService:
             last_seen = g_live.get("last_seen_epoch") or payload_epoch
             age_sec = max(0.0, time.time() - last_seen)
             dur_m = int(age_sec // 60)
-            dur_str = f"{dur_m // 60}j {dur_m % 60}m" if dur_m >= 60 else f"{dur_m}m"
-            evidence_verdict = f"Gateway offline total. Tidak ada telemetri masuk sejak {payload_wib_str} ({dur_str} lalu). Diduga pemadaman listrik PLN / adaptor mati / koneksi gateway terputus."
+            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 else f"{dur_m}m"
+            evidence_verdict = f"Gateway completely offline. No telemetry received since {payload_wib_str} ({dur_str} ago). Suspected power outage / power adapter failure / network uplink disconnected."
             evidence_items = [
                 {
                     "num": 1,
-                    "label": "Status Port Fisik USB",
-                    "badge": "Connected (Last)" if modem_status == "Connected" else "Terputus",
+                    "label": "USB Physical Port Status",
+                    "badge": "Connected (Last)" if modem_status == "Connected" else "Disconnected",
                     "status": "warn" if modem_status == "Connected" else "bad",
                     "detail": f"{active_port} - Driver: {detail.get('cpu_modem', {}).get('driver', 'option')}",
                 },
                 {
                     "num": 2,
-                    "label": "Status Kartu SIM",
-                    "badge": "Terdeteksi (Last)" if sim_status in ("Ready", "Active", "Aktif") else "Not Detected",
+                    "label": "SIM Card Status",
+                    "badge": "Detected (Last)" if sim_status in ("Ready", "Active", "Aktif") else "Not Detected",
                     "status": "warn" if sim_status in ("Ready", "Active", "Aktif") else "bad",
                     "detail": f"{operator} - IMSI: {detail.get('network_sim', {}).get('imsi', '-')}",
                 },
                 {
                     "num": 3,
-                    "label": "Sinyal Sebelum Putus",
+                    "label": "Pre-Disconnect Signal",
                     "badge": f"CSQ {csq or '-'} ({rsrp} dBm)",
                     "status": "warn" if (rsrp and rsrp >= -85) else "bad",
-                    "detail": "Sangat Kuat" if (rsrp and rsrp >= -70) else "Kuat" if (rsrp and rsrp >= -85) else "Cukup" if (rsrp and rsrp >= -95) else "Lemah",
+                    "detail": "Excellent" if (rsrp and rsrp >= -70) else "Good" if (rsrp and rsrp >= -85) else "Fair" if (rsrp and rsrp >= -95) else "Poor",
                 },
                 {
                     "num": 4,
                     "label": "Data Traffic & Ping",
                     "badge": "Packet Loss 100% | Ping No Response",
                     "status": "bad",
-                    "detail": "Aliran paket data seluler terhenti (Tidak ada respons)",
+                    "detail": "Cellular data packet flow stopped (No response)",
                 },
                 {
                     "num": 5,
-                    "label": "Bukti Log / Telemetri",
-                    "badge": f"[{payload_wib_str}] Telemetri Terhenti",
+                    "label": "Telemetry Evidence",
+                    "badge": f"[{payload_wib_str}] Telemetry Stalled",
                     "status": "bad",
-                    "detail": f"Tidak ada pengiriman data selama {dur_str}",
+                    "detail": f"No data transmission for {dur_str}",
                 },
             ]
         elif modem_status != "Connected":
             evidence_badge = "HARDWARE_USB_ERROR"
-            evidence_verdict = f"Gangguan Hardware USB: CPU gagal mendeteksi atau berkomunikasi dengan Modem Quectel pada port {active_port}."
+            evidence_verdict = f"USB Hardware Fault: CPU failed to detect or communicate with Quectel Modem on port {active_port}."
             evidence_items = [
                 {
                     "num": 1,
-                    "label": "Status Port Fisik USB",
-                    "badge": "Terputus (No Response)",
+                    "label": "USB Physical Port Status",
+                    "badge": "Disconnected (No Response)",
                     "status": "bad",
-                    "detail": f"Port {active_port} tidak merespon perintah AT",
+                    "detail": f"Port {active_port} not responding to AT commands",
                 },
                 {
                     "num": 2,
-                    "label": "Status Kartu SIM",
+                    "label": "SIM Card Status",
                     "badge": "Inaccessible (Modem Down)",
                     "status": "bad",
-                    "detail": "Slot SIM tidak terbaca karena modem mati",
+                    "detail": "SIM slot unreadable due to modem failure",
                 },
                 {
                     "num": 3,
-                    "label": "Sinyal Radio Seluler",
+                    "label": "Cellular Radio Signal",
                     "badge": "No Carrier",
                     "status": "bad",
-                    "detail": "Tidak dapat membaca level CSQ / RSRP",
+                    "detail": "Unable to read CSQ / RSRP levels",
                 },
                 {
                     "num": 4,
                     "label": "Data Traffic & Ping",
                     "badge": "Link Down / Inactive",
                     "status": "bad",
-                    "detail": "Antarmuka data seluler (ppp0) terminated",
+                    "detail": "Cellular data interface (ppp0) terminated",
                 },
                 {
                     "num": 5,
-                    "label": "Bukti Log Driver",
-                    "badge": "Port USB Longgar / Driver Hang",
+                    "label": "Driver Log Evidence",
+                    "badge": "Loose USB Port / Driver Hang",
                     "status": "bad",
-                    "detail": "Koneksi serial USB modem tidak merespon",
+                    "detail": "USB modem serial connection not responding",
                 },
             ]
         elif sim_status not in ("Ready", "Active", "Aktif"):
             evidence_badge = "SIM_HARDWARE_ERROR"
-            evidence_verdict = "Gangguan Kartu SIM: Modem USB terhubung normal, tetapi SIM card tidak terdeteksi (Lepas / Rusak / NO SIM)."
+            evidence_verdict = "SIM Card Fault: USB Modem connected normally, but SIM card is not detected (Loose / Damaged / NO SIM)."
             evidence_items = [
                 {
                     "num": 1,
-                    "label": "Status Port Fisik USB",
+                    "label": "USB Physical Port Status",
                     "badge": "Connected (Port OK)",
                     "status": "good",
-                    "detail": f"{active_port} aktif (115200 baud)",
+                    "detail": f"{active_port} active (115200 baud)",
                 },
                 {
                     "num": 2,
-                    "label": "Status Kartu SIM",
+                    "label": "SIM Card Status",
                     "badge": "Not Detected / NO_SIM",
                     "status": "bad",
-                    "detail": "Respon modem: AT+CPIN? -> SIM failure",
+                    "detail": "Modem response: AT+CPIN? -> SIM failure",
                 },
                 {
                     "num": 3,
-                    "label": "Registrasi BTS",
+                    "label": "BTS Registration",
                     "badge": "No Service",
                     "status": "bad",
-                    "detail": "Tidak dapat terdaftar di BTS tanpa SIM card",
+                    "detail": "Cannot register to BTS without SIM card",
                 },
                 {
                     "num": 4,
                     "label": "Data Traffic & Ping",
-                    "badge": "Mati (No IP)",
+                    "badge": "Down (No IP)",
                     "status": "bad",
-                    "detail": "Koneksi PPP0 tidak dapat aktif tanpa SIM",
+                    "detail": "PPP0 connection cannot activate without SIM",
                 },
                 {
                     "num": 5,
-                    "label": "Bukti Log SIM",
+                    "label": "SIM Log Evidence",
                     "badge": "SIM Card Slot Empty / Error",
                     "status": "bad",
-                    "detail": "Koneksi SIM card terlepas atau rusak",
+                    "detail": "SIM card connection loose, damaged, or unseated",
                 },
             ]
         elif (rsrp and rsrp < -105) or (csq and csq < 8) or (packet_loss_pct and packet_loss_pct >= 20.0):
             evidence_badge = "POOR_RADIO_SIGNAL"
-            evidence_verdict = f"Kualitas Sinyal Kritis: RSRP {rsrp} dBm (CSQ {csq or '-'}), transmisi seluler mengalami latensi tinggi/packet loss."
+            evidence_verdict = f"Critical Signal Quality: RSRP {rsrp} dBm (CSQ {csq or '-'}), cellular transmission experiencing high latency / packet loss."
             evidence_items = [
                 {
                     "num": 1,
-                    "label": "Status Port Fisik USB",
+                    "label": "USB Physical Port Status",
                     "badge": "Connected (Port OK)",
                     "status": "good",
-                    "detail": f"{active_port} responsif",
+                    "detail": f"{active_port} responsive",
                 },
                 {
                     "num": 2,
-                    "label": "Status Kartu SIM",
-                    "badge": f"Terpasang ({operator})",
+                    "label": "SIM Card Status",
+                    "badge": f"Installed ({operator})",
                     "status": "good",
                     "detail": f"IMSI: {detail.get('network_sim', {}).get('imsi', '-')}",
                 },
                 {
                     "num": 3,
-                    "label": "Kekuatan Sinyal RSRP",
-                    "badge": f"{rsrp} dBm (Sangat Lemah)",
+                    "label": "RSRP Signal Strength",
+                    "badge": f"{rsrp} dBm (Very Weak)",
                     "status": "bad",
-                    "detail": f"CSQ {csq or '-'} (Ambang normal: >= -95 dBm)",
+                    "detail": f"CSQ {csq or '-'} (Normal threshold: >= -95 dBm)",
                 },
                 {
                     "num": 4,
                     "label": "Data Traffic & Ping",
                     "badge": f"Loss {packet_loss_pct}% | Ping {ping_ms or '-'} ms",
                     "status": "warn" if (packet_loss_pct and packet_loss_pct < 50) else "bad",
-                    "detail": "Paket data seluler mengalami kendala drop",
+                    "detail": "Cellular data packets experiencing drops",
                 },
                 {
                     "num": 5,
-                    "label": "Bukti Log Jaringan",
+                    "label": "Network Log Evidence",
                     "badge": "Radio Link Degraded / High Loss",
                     "status": "warn",
-                    "detail": "Kualitas sinyal radio BTS mengalami degradasi",
+                    "detail": "BTS radio signal quality severely degraded",
                 },
             ]
         else:
             evidence_badge = "HEALTHY_NORMAL"
-            evidence_verdict = f"Koneksi Seluler Sehat: Terhubung normal ke {operator} (4G LTE) dengan sinyal RSRP {rsrp} dBm."
+            evidence_verdict = f"Healthy Cellular Link: Connected normally to {operator} (4G LTE) with RSRP {rsrp} dBm."
             evidence_items = [
                 {
                     "num": 1,
-                    "label": "Status Port Fisik USB",
+                    "label": "USB Physical Port Status",
                     "badge": "Connected (Port OK)",
                     "status": "good",
-                    "detail": f"{active_port} aktif (115200 baud)",
+                    "detail": f"{active_port} active (115200 baud)",
                 },
                 {
                     "num": 2,
-                    "label": "Status Kartu SIM",
-                    "badge": f"Terdeteksi ({operator})",
+                    "label": "SIM Card Status",
+                    "badge": f"Detected ({operator})",
                     "status": "good",
                     "detail": f"IMSI: {detail.get('network_sim', {}).get('imsi', '-')}",
                 },
                 {
                     "num": 3,
-                    "label": "Kekuatan Sinyal RSRP",
+                    "label": "RSRP Signal Strength",
                     "badge": f"CSQ {csq or '-'} ({rsrp} dBm)",
                     "status": "good",
-                    "detail": "Sangat Baik (Penerimaan BTS Optimal)",
+                    "detail": "Excellent (Optimal BTS Reception)",
                 },
                 {
                     "num": 4,
                     "label": "Data Traffic & Ping",
                     "badge": f"Loss {packet_loss_pct or 0}% | Ping {ping_ms or 28} ms",
                     "status": "good",
-                    "detail": "Transmisi paket data seluler lancar",
+                    "detail": "Cellular data transmission running smoothly",
                 },
                 {
                     "num": 5,
-                    "label": "Status Antarmuka PPP0",
+                    "label": "PPP0 Interface Status",
                     "badge": f"Link Up ({detail.get('ip_address', '10.x.x.x')})",
                     "status": "good",
-                    "detail": "Koneksi data seluler aktif normal",
+                    "detail": "Cellular data connection active and healthy",
                 },
             ]
 

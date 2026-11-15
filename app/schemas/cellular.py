@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
 
@@ -133,6 +133,7 @@ class SignalStrengthDetail(BaseModel):
     history: Optional[List[SignalHistoryPoint]] = None
     period_start: Optional[str] = None
     period_end: Optional[str] = None
+    disconnect_hour: Optional[int] = None
 
 
 class NetworkSIMDetail(BaseModel):
@@ -191,6 +192,13 @@ class CellularGatewayDetailData(BaseModel):
     network_sim: NetworkSIMDetail
     modem_temperature: ModemTempDetail
     events: Optional[List[CellularEventItem]] = None
+    last_incident: Optional[Dict[str, Any]] = None
+    evidence: Optional[List[Dict[str, Any]]] = None
+    evidence_badge: Optional[str] = None
+    evidence_verdict: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
 class CellularGatewayDetailResponse(BaseModel):

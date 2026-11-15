@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 import io
@@ -278,9 +279,19 @@ class DVRReportService:
 
         active_period = get_default_period_str()
 
+        # Gateway status: Online if gateway telemetry is actively reporting
+        gw_status = "Online"
+        try:
+            from app.services.dvr_service import dvr_service
+            dvr_live = dvr_service._live_gateways.get(device_id, {})
+            gw_status = dvr_live.get("table_item", {}).get("status") or dvr_live.get("status") or "Online"
+        except Exception:
+            pass
+
         detail = {
             "id": device_id,
-            "status": "Online" if nvr_reachable else "Offline",
+            "status": gw_status,
+            "cpu_dvr_status": "Connected" if nvr_reachable else "Not Connected",
             "location": loc_name,
             "type": box_type,
             "dvr_model": dvr_model,
@@ -614,6 +625,213 @@ class DVRReportService:
                 cam_sr = round(min(100.0, (cam_on / max(1, cam_tot)) * 100.0), 1)
                 detail["sla"] = round(min(100.0, (cpu_sr + cam_sr + rec_sr) / 3.0), 1)
                 dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
+
+                from datetime import datetime, timezone, timedelta
+                from app.services.sla_calculator_service import WIB
+                now_dt = datetime.now(timezone.utc).astimezone(WIB)
+                today_iso = now_dt.strftime("%Y-%m-%d")
+
+                # Dynamically resolve actual disconnect start time for active DVR/Recording incident
+                def _resolve_active_dvr_start_dt(metric_name: str) -> datetime:
+                    if metric_name == "recording":
+                        rec = raw_payload.get("nvr_surveillance", {}).get("recording", {})
+                        if rec.get("is_stalled") or rec.get("minutes_since_last_record", 0) > 0:
+                            latest_str = rec.get("latest_record_time") or ""
+                            m_wib = re.search(r'(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', latest_str)
+                            if m_wib:
+                                try:
+                                    return datetime.strptime(f"{m_wib.group(1)} {m_wib.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                                except Exception:
+                                    pass
+                            m_std = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', latest_str)
+                            if m_std:
+                                try:
+                                    return datetime.strptime(m_std.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                                except Exception:
+                                    pass
+                            mins = rec.get("minutes_since_last_record", 0)
+                            if mins > 0:
+                                return now_dt - timedelta(minutes=mins)
+
+                    m_evs = [
+                        ev for ev in dvr_events_d
+                        if (ev.get("metric") == metric_name or (metric_name == "recording" and "cctv" in str(ev.get("category", "")).lower()))
+                        and ev.get("status") != "Active"
+                    ]
+                    if m_evs:
+                        latest_ev = max(m_evs, key=lambda x: x.get("epoch") or 0.0)
+                        e_end = latest_ev.get("end_time") or latest_ev.get("start_time")
+                        if e_end and len(str(e_end)) >= 19:
+                            try:
+                                return datetime.strptime(str(e_end)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                            except Exception:
+                                pass
+                    # Check raw_payload timestamp or last_update
+                    ts_raw = raw_payload.get("datetime_utc7") or raw_payload.get("recorded_at") or detail.get("last_update")
+                    if ts_raw and len(str(ts_raw)) >= 19:
+                        try:
+                            return datetime.strptime(str(ts_raw)[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                        except Exception:
+                            pass
+                    return now_dt - timedelta(minutes=1)
+
+                try:
+                    from app.services.dvr_service import dvr_service
+                    dvr_service._sync_freshness()
+                    dvr_live = dvr_service._live_gateways.get(gid, {})
+                    dvr_item = dvr_live.get("table_item", {})
+
+                    is_cpu_dvr_down = dvr_item.get("cpu_dvr") in ("Not Connected", "No Response", "Terputus") or detail.get("status") == "Offline"
+
+                    cam_list = detail.get("camera_list", [])
+                    offline_cams = [c for c in cam_list if not c.get("is_online") or str(c.get("recording_status", "")).upper() == "NOT_RECORD"]
+                    is_rec_down = len(offline_cams) > 0
+
+                    if is_cpu_dvr_down:
+                        has_active_cpu = any(ev.get("metric") == "cpu_dvr" and ev.get("status") == "Active" for ev in dvr_events_d)
+                        if not has_active_cpu:
+                            st_dt = _resolve_active_dvr_start_dt("cpu_dvr")
+                            if st_dt > now_dt:
+                                st_dt = now_dt
+                            st_str = st_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
+                            dur_m = int(round(dur_sec / 60.0))
+                            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                            dvr_events_d.insert(0, {
+                                "no": 1,
+                                "start_time": st_str,
+                                "end_time": "Now (Ongoing)",
+                                "duration": dur_str,
+                                "duration_minutes": float(dur_m),
+                                "category": "CPU - DVR",
+                                "metric": "cpu_dvr",
+                                "date_str": today_iso,
+                                "day_downtime_minutes": float(dur_m),
+                                "title": "Gateway CPU to NVR Communication Lost",
+                                "description": "Gateway CPU to NVR Communication Lost",
+                                "cause": "Network / Serial communication between Gateway CPU and NVR Surveillance device lost.",
+                                "reason": "Network / Serial communication between Gateway CPU and NVR Surveillance device lost.",
+                                "status": "Active",
+                                "telemetry_history_id": None,
+                                "_raw_dt": st_dt,
+                                "epoch": st_dt.timestamp(),
+                            })
+
+                    if is_rec_down:
+                        has_active_rec = any(ev.get("metric") in ["recording", "camera"] and ev.get("status") == "Active" for ev in dvr_events_d)
+                        if not has_active_rec:
+                            st_dt = _resolve_active_dvr_start_dt("recording")
+                            if st_dt > now_dt:
+                                st_dt = now_dt
+                            st_str = st_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
+                            dur_m = int(round(dur_sec / 60.0))
+                            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                            
+                            not_rec_cams = [c for c in offline_cams if str(c.get("recording_status", "")).upper() == "NOT_RECORD"]
+                            cam_names = ", ".join(c.get("name") or f"Ch {c.get('id', '?')}" for c in offline_cams)
+                            
+                            if len(offline_cams) == len(cam_list) and len(cam_list) > 0:
+                                ev_title = f"CCTV Video Recording Stopped (All {len(cam_list)} Channels NOT_RECORD)"
+                                ev_desc = f"Continuous video recording halted for all channels ({cam_names})."
+                            elif not_rec_cams:
+                                nr_names = ", ".join(c.get("name") or f"Ch {c.get('id', '?')}" for c in not_rec_cams)
+                                ev_title = f"Camera Not Recording: {nr_names} (NOT_RECORD)"
+                                ev_desc = f"{len(not_rec_cams)} camera channel(s) reporting NOT_RECORD ({nr_names}). Video stream not writing to storage."
+                            else:
+                                ev_title = f"Camera Not Recording / No Video ({cam_names})"
+                                ev_desc = f"{len(offline_cams)} camera channel(s) reporting NO VIDEO ({cam_names})."
+
+                            dvr_events_d.insert(0, {
+                                "no": 1,
+                                "start_time": st_str,
+                                "end_time": "Now (Ongoing)",
+                                "duration": dur_str,
+                                "duration_minutes": float(dur_m),
+                                "category": "CCTV Recording",
+                                "metric": "recording",
+                                "date_str": today_iso,
+                                "day_downtime_minutes": float(dur_m),
+                                "title": ev_title,
+                                "description": ev_desc,
+                                "cause": ev_desc,
+                                "reason": ev_desc,
+                                "status": "Active",
+                                "telemetry_history_id": None,
+                                "_raw_dt": st_dt,
+                                "epoch": st_dt.timestamp(),
+                            })
+
+                    # Inject individual active alerts from telemetry raw_payload
+                    alerts_all = raw_payload.get("active_alerts", {}).get("all", []) or raw_payload.get("active_alerts", {}).get("nvr", [])
+                    seen_alert_titles = {ev.get("title") for ev in dvr_events_d}
+                    for a in alerts_all:
+                        cat = a.get("category", "")
+                        code = a.get("code", "")
+                        msg = a.get("message", "")
+                        comp = a.get("component", "")
+                        
+                        if cat in ["nvr", "storage"] and "STORAGE_PARTITION" not in code and "STORAGE_HEALTH" not in code:
+                            if "NVR_RECORDING_STALLED" in code or "NOT_RECORDING" in code:
+                                # Already captured by the primary CCTV Video Recording Stopped active event
+                                continue
+
+                            a_dt = now_dt
+                            m_a = re.search(r'(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', msg)
+                            if m_a:
+                                try:
+                                    a_dt = datetime.strptime(f"{m_a.group(1)} {m_a.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                                except Exception:
+                                    pass
+                            elif "CAMERA_RECORDING_STALLED" in code:
+                                a_dt = _resolve_active_dvr_start_dt("recording")
+
+                            dur_sec = max(60.0, (now_dt - a_dt).total_seconds())
+                            dur_m = int(round(dur_sec / 60.0))
+                            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                            
+                            if "CAMERA_RECORDING_STALLED" in code:
+                                a_title = f"{comp} Video Recording Stalled (NOT_RECORD)"
+                            elif "CAMERA_OFFLINE" in code:
+                                a_title = f"{comp} Signal Loss / No Video (NOT_RECORD)"
+                            elif "HDD_FULL" in code:
+                                a_title = f"Harddisk NVR Storage Full (0.0% Remaining)"
+                            else:
+                                a_title = f"{comp}: {msg[:60]}"
+                                
+                            if a_title in seen_alert_titles:
+                                continue
+                            seen_alert_titles.add(a_title)
+
+                            dvr_events_d.append({
+                                "no": len(dvr_events_d) + 1,
+                                "start_time": a_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                "end_time": "Now (Ongoing)",
+                                "duration": dur_str,
+                                "duration_minutes": float(dur_m),
+                                "category": "CCTV Recording",
+                                "metric": "recording",
+                                "date_str": a_dt.strftime("%Y-%m-%d"),
+                                "day_downtime_minutes": float(dur_m),
+                                "title": a_title,
+                                "description": msg,
+                                "cause": msg,
+                                "reason": msg,
+                                "status": "Active",
+                                "telemetry_history_id": None,
+                                "_raw_dt": a_dt,
+                                "epoch": a_dt.timestamp(),
+                            })
+
+                    # Strictly sort: Active events first on top, followed by newest resolved events descending
+                    dvr_events_d.sort(key=lambda x: (0 if x.get("status") == "Active" else 1, -(x.get("epoch") or 0.0)))
+                    for idx, ev in enumerate(dvr_events_d, 1):
+                        ev["no"] = idx
+
+                    detail["cpu_dvr"] = dvr_item.get("cpu_dvr", "Connected")
+                except Exception as e:
+                    logger.error(f"Error syncing DVR live events: {e}")
+
                 detail["trouble_events"] = dvr_events_d
                 detail["jumlah_event"] = len(dvr_events_d)
                 detail["daily_breakdown"] = sla.get("daily_breakdown", [])
