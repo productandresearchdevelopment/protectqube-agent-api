@@ -190,6 +190,12 @@ class SLACalculatorService:
                     is_rec = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
                     rec_loss_ratio = 0.0 if is_rec else 1.0
 
+        # Cascading Downtime: If CPU cannot communicate with NVR/DVR (dvr_down is True),
+        # CCTV video recording is also considered unreachable/halted from Gateway CPU's perspective.
+        if dvr_down is True:
+            is_rec = False
+            rec_loss_ratio = 1.0
+
         return ts_str, cpu_down, net_down, dvr_down, is_rec, rec_loss_ratio, cam_statuses
 
     @staticmethod
@@ -276,6 +282,10 @@ class SLACalculatorService:
                         is_recording = False
                     else:
                         is_recording = ("SEDANG MEREKAM" in nvr_val or "MEREKAM" in nvr_val)
+
+            # Cascading Downtime: If CPU cannot communicate with NVR/DVR, recording is considered down
+            if cpu_dvr_up is False:
+                is_recording = False
 
             # 3. Network Connection (SIM)
             if cpu_modem_up is False:

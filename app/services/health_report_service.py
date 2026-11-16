@@ -657,19 +657,36 @@ class HealthReportService:
                 if "max_temp" in sla:
                     detail["temp_max"] = sla["max_temp"]
             
-            # Use Gateway System incidents from sla_calculator_service
+            # Use Gateway System incidents from sla_calculator_service (strictly device/system issues)
             gw_events = []
             for ev in sla.get("trouble_events", []):
                 metric = str(ev.get("metric", "")).lower()
-                if metric in ["cpu_modem", "gateway_system", "power", "system"]:
-                    ev_copy = dict(ev)
-                    if not ev_copy.get("value"):
-                        ev_copy["value"] = ev_copy.get("duration", "-")
-                    gw_events.append(ev_copy)
+                cat = str(ev.get("category", "")).lower()
+                desc = str(ev.get("description", "")).lower()
+                title = str(ev.get("title", "")).lower()
+                
+                # Exclude cellular, modem, dvr, camera, and recording incidents
+                if any(x in metric for x in ["cellular", "cpu_modem", "modem", "dvr", "cpu_dvr", "recording", "camera"]):
+                    continue
+                if any(x in cat for x in ["cellular", "modem", "dvr", "camera", "cctv"]):
+                    continue
+                if any(x in desc or x in title for x in ["kamera", "camera", "nvr", "dvr", "cctv", "modem", "seluler", "cellular", "sim:", "rsrp"]):
+                    continue
+
+                ev_copy = dict(ev)
+                if not ev_copy.get("value"):
+                    ev_copy["value"] = ev_copy.get("duration", "-")
+                gw_events.append(ev_copy)
 
             detail["events"] = gw_events
             detail["daily_breakdown"] = list(sla.get("daily_breakdown", []))
             detail["daily_summary"] = sla.get("daily_summary")
+            
+            is_offline = (detail.get("status") or "").lower() == "offline" or (target_gdata.get("status") or "").lower() == "offline"
+            detail["is_offline"] = is_offline
+            detail["is_last_known"] = is_offline
+            if is_offline:
+                detail["status"] = "Offline"
             return detail
 
         return {

@@ -185,6 +185,22 @@ class DVRService:
         port_num = nvr_endpoint.split(":")[1] if ":" in nvr_endpoint else "80"
 
         dev_prop = nms_payload.get("property") or self._device_properties.get(device_id) or {}
+        if not dev_prop:
+            try:
+                from app.core.database import SessionLocal
+                from app.models.base_models import Device
+                db_p = SessionLocal()
+                try:
+                    d_obj = db_p.query(Device).filter(Device.name == str(device_id)).first()
+                    if d_obj and d_obj.property:
+                        dev_prop = d_obj.property
+                        self._device_properties[device_id] = dev_prop
+                        self._device_properties[str(d_obj.id)] = dev_prop
+                finally:
+                    db_p.close()
+            except Exception:
+                pass
+
         selected_cams = dev_prop.get("selected_cameras")
         raw_cam_list = list(cameras_info.get("camera_list", []))
 
@@ -278,6 +294,8 @@ class DVRService:
             "type": box_type,
             "dvr_model": dvr_model,
             "status": "Online",
+            "is_connected": is_connected,
+            "is_offline": False,
             "ip_address": ip_addr,
             "cpu_dvr": cpu_dvr_status,
             "total_kamera": total_kamera,
@@ -317,6 +335,9 @@ class DVRService:
                     "timestamp": clean_update,
                 })
         elif raw_cam_list:
+            if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+                sel_set = {str(x) for x in selected_cams}
+                raw_cam_list = [c for c in raw_cam_list if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
             for idx, c in enumerate(raw_cam_list):
                 c_online = c.get("is_online", False)
                 cam_previews.append({
@@ -330,11 +351,11 @@ class DVRService:
                     "timestamp": clean_update,
                 })
         else:
-            fallback_count = max(4, total_kamera)
-            for idx in range(fallback_count):
+            ch_list = [int(x) for x in selected_cams] if (selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0) else list(range(1, total_kamera + 1))
+            for cid in ch_list:
                 cam_previews.append({
-                    "channel": idx + 1,
-                    "name": f"CAM {idx + 1:02d} - Channel {idx + 1}",
+                    "channel": cid,
+                    "name": f"CAM {cid:02d} - Channel {cid}",
                     "status": "Offline",
                     "is_recording": False,
                     "fps": 0,
@@ -363,6 +384,8 @@ class DVRService:
             "ip_address": ip_addr,
             "last_update": clean_update,
             "status": "Online",
+            "is_connected": is_connected,
+            "is_offline": False,
             "service_status": "Running",
             "cpu_dvr": {
                 "status": cpu_dvr_status,
@@ -466,10 +489,12 @@ class DVRService:
                 if not table_item.get("recording_status") or table_item.get("recording_status") == "Not Recording":
                     table_item["recording_status"] = g.get("last_recording_status", "0/4 Recording")
                 g["is_connected"] = False
+                table_item["is_connected"] = False
                 g["health"] = "Critical"
                 detail_item["status"] = "Offline"
                 detail_item["service_status"] = "Stopped"
                 detail_item["is_offline"] = True
+                detail_item["is_connected"] = False
                 if "cpu_dvr" in detail_item:
                     detail_item["cpu_dvr"]["status"] = "Not Connected"
             else:
@@ -477,10 +502,12 @@ class DVRService:
                 table_item["status"] = "Online"
                 table_item["is_offline"] = False
                 is_conn = g.get("is_connected", False)
+                table_item["is_connected"] = is_conn
                 h = g.get("health", "Warning")
                 detail_item["status"] = "Online"
                 detail_item["service_status"] = "Running"
                 detail_item["is_offline"] = False
+                detail_item["is_connected"] = is_conn
 
     def get_summary(self) -> Dict[str, Any]:
         """Calculates dynamic summary metrics from 100% real live gateways"""
@@ -1067,6 +1094,131 @@ class DVRService:
             detail["recording_storage"]["sparkline"] = spark_s
         else:
             detail["recording_storage"]["sparkline"] = [float(curr_pct), float(curr_pct)]
+
+        # 2b. Enrich with Last Known Good NVR Telemetry if CPU-to-DVR is currently Not Connected or storage is 0
+        cpu_status = detail.get("cpu_dvr", {}).get("status", "")
+        # A device CPU is considered connected if cpu_dvr status is "Connected", status is not "Offline", and is_connected is not explicitly False
+        is_cpu_connected = (cpu_status == "Connected") and (detail.get("status") != "Offline") and (detail.get("is_connected") is not False)
+        is_cpu_not_connected = not is_cpu_connected
+
+        dev_prop = self._device_properties.get(dev_id) or {}
+        if not dev_prop:
+            try:
+                db_p = SessionLocal()
+                try:
+                    d_obj = db_p.query(Device).filter((Device.name == str(dev_id)) | (Device.id == target_uuid)).first()
+                    if d_obj and d_obj.property:
+                        dev_prop = d_obj.property
+                        self._device_properties[dev_id] = dev_prop
+                        self._device_properties[str(d_obj.id)] = dev_prop
+                finally:
+                    db_p.close()
+            except Exception:
+                pass
+
+        if is_cpu_not_connected or float(detail.get("recording_storage", {}).get("total_tb", 0) or 0) == 0:
+            last_nvr_row = None
+            for r in reversed(rows):
+                if r.raw_payload:
+                    p_nvr = r.raw_payload.get("nvr_surveillance") or {}
+                    if p_nvr.get("connected") or float(p_nvr.get("total_capacity_gb", 0) or 0) > 0:
+                        last_nvr_row = r
+                        break
+
+            if last_nvr_row:
+                last_p_nvr = last_nvr_row.raw_payload.get("nvr_surveillance") or {}
+                last_cap_gb = float(last_p_nvr.get("total_capacity_gb", 0) or 0)
+                last_used_gb = float(last_p_nvr.get("total_used_gb", 0) or 0)
+                last_disks = last_p_nvr.get("disks") or []
+                last_cams = last_p_nvr.get("cameras") or {}
+                last_dev_info = last_p_nvr.get("device_info") or {}
+
+                if is_cpu_not_connected:
+                    last_conn_str = "-"
+                    if last_nvr_row.recorded_at:
+                        t_conn_wib = last_nvr_row.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if last_nvr_row.recorded_at.tzinfo is None else last_nvr_row.recorded_at.astimezone(WIB)
+                        last_conn_str = t_conn_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
+
+                    detail["is_last_known"] = True
+                    detail["last_connected_at"] = last_conn_str
+
+                if last_dev_info.get("model") and detail.get("dvr_model") in ["-", "Hikvision/HiLook NVR"]:
+                    detail["dvr_model"] = last_dev_info.get("model")
+
+                if last_cap_gb > 0 and (is_cpu_not_connected or float(detail.get("recording_storage", {}).get("total_tb", 0) or 0) == 0):
+                    last_tot_tb = round(last_cap_gb / 1024.0, 2)
+                    last_usd_tb = round(last_used_gb / 1024.0, 2)
+                    last_st_pct = int(round((last_used_gb / last_cap_gb) * 100))
+                    detail["recording_storage"]["total_tb"] = last_tot_tb
+                    detail["recording_storage"]["used_tb"] = last_usd_tb
+                    detail["recording_storage"]["percent"] = last_st_pct
+                    if is_cpu_not_connected:
+                        detail["recording_storage"]["is_last_known"] = True
+
+                if last_disks and (is_cpu_not_connected or not detail.get("dvr_health", {}).get("hdd_status")):
+                    d0 = last_disks[0]
+                    d0_health = d0.get("health_info") or {}
+                    d0_status = d0.get("status_raw", "ok").upper()
+                    detail["dvr_health"]["hdd_status"] = f"HDD {d0.get('name', 'hdd1')} ({d0_status})"
+                    if d0_health.get("temperature_c"):
+                        detail["dvr_health"]["temperature"] = f"{d0_health.get('temperature_c')}°C"
+                    detail["dvr_health"]["fan_status"] = "Normal"
+                    detail["dvr_health"]["bad_sector"] = d0_health.get("bad_sectors", 0)
+                    detail["dvr_health"]["power_on_hours"] = d0_health.get("power_on_hours")
+                    detail["dvr_health"]["health_percent"] = d0_health.get("health_percent")
+                    detail["dvr_health"]["health_label"] = self._translate_log_to_en(d0_health.get("health_label") or "Healthy")
+                    if is_cpu_not_connected:
+                        detail["dvr_health"]["is_last_known"] = True
+
+                # ONLY when CPU-to-DVR is actually NOT connected or gateway is offline, replace cameras with last known offline snapshot!
+                if is_cpu_not_connected:
+                    sel_cam_set = set(str(x) for x in dev_prop.get("selected_cameras", [])) if dev_prop.get("selected_cameras") else None
+                    last_cam_list = last_cams.get("camera_list") or []
+                    if sel_cam_set:
+                        last_cam_list = [c for c in last_cam_list if str(c.get("id")) in sel_cam_set or str(c.get("channel")) in sel_cam_set]
+                    elif dev_prop.get("total_cameras"):
+                        tot_cam_cfg = int(dev_prop.get("total_cameras"))
+                        last_cam_list = [c for c in last_cam_list if int(c.get("id", 0)) <= tot_cam_cfg]
+
+                    if last_cam_list:
+                        enriched_cams = []
+                        for idx, c in enumerate(last_cam_list):
+                            cid = int(c.get("id", idx + 1))
+                            enriched_cams.append({
+                                "channel": cid,
+                                "name": c.get("name") or f"CAM {cid:02d} - Channel {cid}",
+                                "status": "Offline",
+                                "is_recording": False,
+                                "fps": 0,
+                                "resolution": c.get("resolution", "1080P"),
+                                "bitrate": "0 Kbps",
+                                "timestamp": detail.get("last_update", "-"),
+                                "is_last_known": True,
+                                "last_status": "Online (1080P)" if c.get("is_online") else "No Video",
+                            })
+                        detail["cameras"] = enriched_cams
+                        detail["camera_status"]["total"] = len(enriched_cams)
+                        detail["camera_status"]["offline"] = len(enriched_cams)
+                        detail["camera_status"]["online"] = 0
+                        detail["camera_status"]["no_video"] = 0
+                        detail["camera_status"]["percent"] = 0
+                        detail["camera_status"]["is_last_known"] = True
+
+        # Ensure cameras preview list strictly matches selected_cameras configuration
+        sel_set_cfg = set(str(x) for x in dev_prop.get("selected_cameras", [])) if dev_prop.get("selected_cameras") else None
+        if sel_set_cfg and detail.get("cameras"):
+            detail["cameras"] = [c for c in detail["cameras"] if str(c.get("channel")) in sel_set_cfg]
+        elif dev_prop.get("total_cameras") and detail.get("cameras"):
+            tot_cfg = int(dev_prop.get("total_cameras"))
+            detail["cameras"] = detail["cameras"][:tot_cfg]
+
+        cams_list = detail.get("cameras", [])
+        detail["camera_status"]["total"] = len(cams_list)
+        if not is_cpu_not_connected and cams_list:
+            detail["camera_status"]["online"] = sum(1 for c in cams_list if c.get("status") == "Online")
+            detail["camera_status"]["no_video"] = sum(1 for c in cams_list if c.get("status") == "No Video")
+            detail["camera_status"]["offline"] = sum(1 for c in cams_list if c.get("status") == "Offline")
+            detail["camera_status"]["percent"] = int(round((detail["camera_status"]["online"] / len(cams_list)) * 100)) if len(cams_list) > 0 else 100
 
         # 3. Real Event Log from Incident Alerts & MQTT System Logs (Strictly Today Only)
         real_events = []

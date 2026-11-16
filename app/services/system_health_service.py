@@ -665,15 +665,33 @@ class SystemHealthService:
                 g["status"] = "Offline"
                 if isinstance(t_item, dict):
                     t_item["status"] = "Offline"
-                    t_item["cpu"] = "-"
-                    t_item["ram"] = "-"
-                    t_item["sd_percent"] = "-"
-                    t_item["sd_health"] = "-"
-                    t_item["power_status"] = "-"
-                    t_item["power_badge"] = "-"
+                    t_item["is_offline"] = True
+                    # Preserve last known telemetry values rather than wiping to "-"
+                    if not t_item.get("last_cpu") and t_item.get("cpu") not in ["-", None]:
+                        t_item["last_cpu"] = t_item.get("cpu")
+                    if not t_item.get("last_ram") and t_item.get("ram") not in ["-", None]:
+                        t_item["last_ram"] = t_item.get("ram")
+                    if not t_item.get("last_sd_percent") and t_item.get("sd_percent") not in ["-", None]:
+                        t_item["last_sd_percent"] = t_item.get("sd_percent")
+                    if not t_item.get("last_sd_health") and t_item.get("sd_health") not in ["-", None]:
+                        t_item["last_sd_health"] = t_item.get("sd_health")
+                    if not t_item.get("last_power_status") and t_item.get("power_status") not in ["-", None]:
+                        t_item["last_power_status"] = t_item.get("power_status")
+                    if t_item.get("last_cpu"):
+                        t_item["cpu"] = t_item["last_cpu"]
+                    if t_item.get("last_ram"):
+                        t_item["ram"] = t_item["last_ram"]
+                    if t_item.get("last_sd_percent"):
+                        t_item["sd_percent"] = t_item["last_sd_percent"]
+                    if t_item.get("last_sd_health"):
+                        t_item["sd_health"] = t_item["last_sd_health"]
+                    if t_item.get("last_power_status"):
+                        t_item["power_status"] = t_item["last_power_status"]
                 if isinstance(d_item, dict):
                     d_item["status"] = "Offline"
                     d_item["service_status"] = "Stopped"
+                    d_item["is_offline"] = True
+                    d_item["is_last_known"] = True
             else:
                 g["status"] = "Online"
                 if isinstance(t_item, dict):

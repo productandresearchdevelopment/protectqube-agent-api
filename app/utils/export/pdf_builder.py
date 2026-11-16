@@ -1,4 +1,5 @@
 import io
+import re
 import calendar
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List, Tuple
@@ -952,20 +953,25 @@ def build_health_detail_pdf(
     events = detail.get("trouble_events", []) or detail.get("events", [])
     ev_count = len(events)
 
-    up_dur = detail.get("uptime_duration", "20h 34m")
-    up_pct = f"{detail.get('uptime_pct', 100.0)}%"
+    up_dur = detail.get("uptime_duration", "0h 00m")
+    down_dur = detail.get("downtime_duration", "0m")
+    up_pct = str(detail.get("uptime_pct", "100%"))
+    if not up_pct.endswith("%"):
+        up_pct = f"{up_pct}%"
+    sla_status = detail.get("sla_status", "Met")
+    sla_color = "#00A862" if sla_status == "Met" else "#E2445C"
 
     cards = [
         {"title": "Period", "val": period_str, "sub": period_hours, "color": "#0F172A"},
-        {"title": "System Uptime", "val": up_dur, "sub": up_pct, "color": "#00A862"},
-        {"title": "Target SLA", "val": "98.0%", "sub": "Achieved", "color": "#00A862"},
-        {"title": "Hardware Outages", "val": f"{ev_count} events", "sub": "Recorded", "color": "#F59E0B" if ev_count > 0 else "#00A862"},
+        {"title": "Device Uptime", "val": up_dur, "sub": f"Target {detail.get('sla_target_hours', '99.5%')}", "color": "#00A862"},
+        {"title": "Device Downtime", "val": down_dur, "sub": f"Allowed {detail.get('sla_downtime_allowed', '3h 43m')}", "color": "#E2445C" if down_dur not in ["0m", "0h 00m", "-"] else "#00A862"},
+        {"title": "Device Success Rate", "val": up_pct, "sub": f"SLA {sla_status}", "color": sla_color},
+        {"title": "Hardware Incidents", "val": f"{ev_count} events", "sub": "Recorded", "color": "#F59E0B" if ev_count > 0 else "#00A862"},
         {"title": "Average CPU", "val": f"{cpu_avg}%", "sub": f"Peak {cpu_max}%", "color": "#00A862" if cpu_avg < 70 else "#F59E0B"},
         {"title": "Average RAM", "val": f"{ram_avg}%", "sub": f"Peak {ram_max}%", "color": "#00A862" if ram_avg < 80 else "#F59E0B"},
-        {"title": "Storage Usage", "val": f"{sd_avg}%", "sub": "High Capacity", "color": "#0073EA"},
-        {"title": "Storage Health", "val": f"{sd_life}%", "sub": "Good Condition", "color": "#00A862"},
+        {"title": "Storage Usage", "val": f"{sd_avg}%", "sub": f"Peak {detail.get('sd_max', 0)}%", "color": "#0073EA"},
+        {"title": "Storage Health", "val": f"{sd_life}%", "sub": str(detail.get("sd_health_status", "Good")), "color": "#00A862" if sd_life >= 90 else "#F59E0B"},
         {"title": "Operating Temp", "val": f"{temp_avg}°C", "sub": f"Peak {temp_max}°C", "color": "#00A862" if temp_avg < 65 else "#E2445C"},
-        {"title": "System Status", "val": detail.get("status", "Normal"), "sub": "All Services Active", "color": "#00A862"},
     ]
     story.append(_build_kpi_cards(styles, cards))
     story.append(Spacer(1, 6))

@@ -44,6 +44,12 @@ class DVRReportService:
                 ).all()
                 self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
 
+                all_devs = db.query(Device).all()
+                for d in all_devs:
+                    if d.name and d.property:
+                        self._device_properties[d.name] = d.property
+                        self._device_properties[str(d.id)] = d.property
+
                 query = db.query(GatewayTelemetryHistory)
                 if hasattr(GatewayTelemetryHistory, "deleted_at"):
                     query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
@@ -121,6 +127,8 @@ class DVRReportService:
         dvr_model = dev_info.get("model") or ("Hikvision DS-7204HUHI-K2" if nvr_reachable else "NVR Offline")
 
         dev_prop = nms_payload.get("property") or self._device_properties.get(device_id) or {}
+        if nms_payload.get("property"):
+            self._device_properties[device_id] = nms_payload["property"]
         selected_cams = dev_prop.get("selected_cameras")
 
         cameras_info = nvr.get("cameras", {})
@@ -189,6 +197,21 @@ class DVRReportService:
                 cap_str = "0 GB"
                 used_pct = 0
                 avg_str = "0 GB"
+                try:
+                    from app.services.dvr_service import dvr_service
+                    dvr_g = dvr_service._live_gateways.get(device_id, {}).get("detail_item", {})
+                    if dvr_g:
+                        st_d = dvr_g.get("recording_storage", {})
+                        if st_d.get("total_tb", 0) > 0:
+                            cap_tb = st_d["total_tb"]
+                            cap_str = f"{cap_tb} TB"
+                            used_pct = st_d.get("percent", 0)
+                            used_tb = st_d.get("used_tb", 0)
+                            avg_str = f"{used_tb} TB"
+                        if dvr_g.get("dvr_model") and dvr_g["dvr_model"] not in ["-", "Hikvision/HiLook NVR"]:
+                            dvr_model = dvr_g["dvr_model"]
+                except Exception:
+                    pass
 
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
@@ -578,10 +601,67 @@ class DVRReportService:
                 cameras_info = nvr.get("cameras", {})
                 raw_cams = cameras_info.get("camera_list", []) if isinstance(cameras_info, dict) else []
 
-                dev_prop = self._device_properties.get(gid) or {}
+                dev_prop = raw_payload.get("property") or self._device_properties.get(gid) or data.get("property") or {}
+                if not dev_prop or "selected_cameras" not in dev_prop:
+                    try:
+                        from app.core.database import SessionLocal
+                        from app.models.base_models import Device
+                        db = SessionLocal()
+                        try:
+                            d_obj = db.query(Device).filter((Device.name.ilike(gid)) | (Device.name.ilike(target_id_low))).first()
+                            if d_obj and d_obj.property:
+                                dev_prop = d_obj.property
+                                self._device_properties[gid] = d_obj.property
+                        finally:
+                            db.close()
+                    except Exception:
+                        pass
+
                 selected_cams = dev_prop.get("selected_cameras")
+                total_cams_prop = dev_prop.get("total_cameras")
+
+                is_cpu_dvr_down = detail.get("cpu_dvr_status") in ("Not Connected", "No Response", "Terputus") or detail.get("status") == "Offline"
+                try:
+                    from app.services.dvr_service import dvr_service
+                    dvr_d = dvr_service.get_gateway_detail(gid)
+                    if dvr_d:
+                        if not raw_cams and dvr_d.get("cameras"):
+                            raw_cams = [
+                                {
+                                    "id": str(c.get("channel")),
+                                    "channel": str(c.get("channel")),
+                                    "name": c.get("name"),
+                                    "resolution": c.get("resolution", "1080P"),
+                                    "resolution_raw": c.get("resolution", "1080P"),
+                                    "is_online": False if is_cpu_dvr_down else True,
+                                    "enabled": True,
+                                    "recording_status": "NOT_RECORD" if is_cpu_dvr_down else "RECORD",
+                                    "recording_note": f"NVR Terputus (Terakhir konek: {dvr_d.get('last_connected_at', '-')})" if is_cpu_dvr_down else "Normal Recording",
+                                }
+                                for c in dvr_d.get("cameras", [])
+                            ]
+                        if detail.get("dvr_model") in ["-", "Hikvision/HiLook NVR"] and dvr_d.get("dvr_model"):
+                            detail["dvr_model"] = dvr_d["dvr_model"]
+                        if detail.get("storage_capacity") in ["0 GB", "0.0 GB", "-", "0 TB"] and dvr_d.get("recording_storage", {}).get("total_tb", 0) > 0:
+                            detail["storage_capacity"] = f"{dvr_d['recording_storage']['total_tb']} TB"
+                            detail["storage_used_pct"] = dvr_d["recording_storage"].get("percent", 0)
+                        detail["is_last_known"] = dvr_d.get("is_last_known", False)
+                        detail["last_connected_at"] = dvr_d.get("last_connected_at")
+                except Exception:
+                    pass
+
+                sel_set = None
                 if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
                     sel_set = {str(x) for x in selected_cams}
+                elif total_cams_prop and isinstance(total_cams_prop, int) and total_cams_prop < len(raw_cams):
+                    sel_set = {str(i + 1) for i in range(total_cams_prop)}
+                elif raw_cams:
+                    # Fallback: keep only cameras that are not unconfigured dummy slots (enabled is not False and resolution != NO VIDEO)
+                    real_cams = [c for c in raw_cams if not (c.get("enabled") is False and (c.get("resolution") == "NO VIDEO" or c.get("resolution_raw") == "NO VIDEO"))]
+                    if real_cams and len(real_cams) < len(raw_cams):
+                        sel_set = {str(c.get("id")) for c in real_cams if c.get("id") is not None}
+
+                if sel_set:
                     filtered_cams = [c for c in raw_cams if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
                     detail["camera_list"] = filtered_cams
                     if isinstance(cameras_info, dict):
@@ -596,6 +676,14 @@ class DVRReportService:
                 else:
                     detail["camera_list"] = raw_cams
                     detail["cameras_info"] = cameras_info if isinstance(cameras_info, dict) else {}
+
+                detail["kamera_total"] = len(detail.get("camera_list", []))
+                detail["kamera_channels"] = f"{detail['kamera_total']} Channel"
+                detail["kamera_online"] = sum(1 for c in detail.get("camera_list", []) if c.get("is_online"))
+                detail["kamera_offline"] = max(0, detail["kamera_total"] - detail["kamera_online"])
+                detail["kamera_no_video"] = max(0, detail["kamera_total"] - detail["kamera_online"])
+
+                configured_cam_ids = {str(c.get("id")) for c in detail.get("camera_list", []) if c.get("id") is not None}
 
                 detail["recording_info"] = nvr.get("recording", {})
                 req_dr = date_range or get_default_period_str()
@@ -625,6 +713,18 @@ class DVRReportService:
                 cam_sr = round(min(100.0, (cam_on / max(1, cam_tot)) * 100.0), 1)
                 detail["sla"] = round(min(100.0, (cpu_sr + cam_sr + rec_sr) / 3.0), 1)
                 dvr_events_d = [ev for ev in sla.get("trouble_events", []) if ev.get("metric") in ["cpu_dvr", "dvr", "recording", "camera"] or "dvr" in str(ev.get("category", "")).lower() or "cctv" in str(ev.get("category", "")).lower()]
+                if configured_cam_ids:
+                    filtered_evs = []
+                    for ev in dvr_events_d:
+                        ev_text = f"{ev.get('title', '')} {ev.get('description', '')} {ev.get('cause', '')}"
+                        cam_m = re.search(r'\b(?:kamera|camera|ch|channel)\s*#?\s*0*(\d+)\b', ev_text, re.IGNORECASE)
+                        if cam_m and cam_m.group(1) not in configured_cam_ids:
+                            continue
+                        filtered_evs.append(ev)
+                    dvr_events_d = filtered_evs
+
+                # Exclude storage full from recording trouble incidents (HDD loop overwrite 24/7 is standard and does not cause downtime)
+                dvr_events_d = [ev for ev in dvr_events_d if "HDD_FULL" not in str(ev.get("cause", "")).upper() and "STORAGE FULL" not in str(ev.get("title", "")).upper()]
 
                 from datetime import datetime, timezone, timedelta
                 from app.services.sla_calculator_service import WIB
@@ -637,10 +737,11 @@ class DVRReportService:
                         rec = raw_payload.get("nvr_surveillance", {}).get("recording", {})
                         if rec.get("is_stalled") or rec.get("minutes_since_last_record", 0) > 0:
                             latest_str = rec.get("latest_record_time") or ""
-                            m_wib = re.search(r'(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', latest_str)
+                            m_wib = re.search(r'(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', latest_str)
                             if m_wib:
                                 try:
-                                    return datetime.strptime(f"{m_wib.group(1)} {m_wib.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                                    wita_dt = datetime.strptime(f"{m_wib.group(1)} {m_wib.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone(timedelta(hours=8)))
+                                    return wita_dt.astimezone(WIB)
                                 except Exception:
                                     pass
                             m_std = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', latest_str)
@@ -697,6 +798,13 @@ class DVRReportService:
                             dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
                             dur_m = int(round(dur_sec / 60.0))
                             dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                            nvr_fail_msg = (
+                                raw_payload.get("hardware_connections", {}).get("nvr_surveillance", {}).get("message")
+                                or nvr.get("error_message")
+                                or "Port 80 ISAPI timeout / Read timed out"
+                            )
+                            eth_fail_msg = raw_payload.get("hardware_connections", {}).get("ethernet_lan", {}).get("message")
+                            full_cause = f"{nvr_fail_msg}" + (f" | {eth_fail_msg}" if eth_fail_msg and "FAIL" in str(eth_fail_msg) else "")
                             dvr_events_d.insert(0, {
                                 "no": 1,
                                 "start_time": st_str,
@@ -708,16 +816,90 @@ class DVRReportService:
                                 "date_str": today_iso,
                                 "day_downtime_minutes": float(dur_m),
                                 "title": "Gateway CPU to NVR Communication Lost",
-                                "description": "Gateway CPU to NVR Communication Lost",
-                                "cause": "Network / Serial communication between Gateway CPU and NVR Surveillance device lost.",
-                                "reason": "Network / Serial communication between Gateway CPU and NVR Surveillance device lost.",
+                                "description": f"Gateway CPU to NVR connection lost ({full_cause}).",
+                                "cause": full_cause,
+                                "reason": full_cause,
                                 "status": "Active",
                                 "telemetry_history_id": None,
                                 "_raw_dt": st_dt,
                                 "epoch": st_dt.timestamp(),
                             })
 
-                    if is_rec_down:
+                    # Process individual active camera recording alerts from telemetry raw_payload
+                    alerts_all = raw_payload.get("active_alerts", {}).get("all", []) or raw_payload.get("active_alerts", {}).get("nvr", [])
+                    seen_alert_titles = {ev.get("title") for ev in dvr_events_d}
+                    injected_camera_alerts = []
+
+                    for a in alerts_all:
+                        cat = a.get("category", "")
+                        code = a.get("code", "")
+                        msg = a.get("message", "")
+                        comp = a.get("component", "")
+
+                        # Exclude HDD full: NVR loop overwrite is active 24/7, so storage full does NOT halt recording
+                        if "HDD_FULL" in code or "STORAGE" in code:
+                            continue
+
+                        if "NVR_RECORDING_STALLED" in code or "NOT_RECORDING" in code:
+                            continue
+
+                        # Strictly exclude active alerts referencing unconfigured camera channels
+                        if configured_cam_ids:
+                            cam_m = re.search(r'\b(?:kamera|camera|ch|channel)\s*#?\s*0*(\d+)\b', f"{comp} {msg}", re.IGNORECASE)
+                            if cam_m and cam_m.group(1) not in configured_cam_ids:
+                                continue
+
+                        if "CAMERA_RECORDING_STALLED" in code or "CAMERA_OFFLINE" in code:
+                            a_dt = _resolve_active_dvr_start_dt("recording")
+                            m_a = re.search(r'(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', msg)
+                            if m_a:
+                                try:
+                                    wita_dt = datetime.strptime(f"{m_a.group(1)} {m_a.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone(timedelta(hours=8)))
+                                    a_dt = wita_dt.astimezone(WIB)
+                                except Exception:
+                                    pass
+
+                            dur_sec = max(60.0, (now_dt - a_dt).total_seconds())
+                            dur_m = int(round(dur_sec / 60.0))
+                            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+
+                            if "CAMERA_RECORDING_STALLED" in code:
+                                a_title = f"{comp} Video Recording Stalled (NOT_RECORD)"
+                            elif "CAMERA_OFFLINE" in code:
+                                a_title = f"{comp} Signal Loss / No Video (NOT_RECORD)"
+                            else:
+                                a_title = f"{comp}: {msg[:60]}"
+
+                            if a_title in seen_alert_titles:
+                                continue
+                            seen_alert_titles.add(a_title)
+
+                            ev_obj = {
+                                "no": len(dvr_events_d) + len(injected_camera_alerts) + 1,
+                                "start_time": a_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                "end_time": "Now (Ongoing)",
+                                "duration": dur_str,
+                                "duration_minutes": float(dur_m),
+                                "category": "CCTV Recording",
+                                "metric": "recording",
+                                "date_str": a_dt.strftime("%Y-%m-%d"),
+                                "day_downtime_minutes": float(dur_m),
+                                "title": a_title,
+                                "description": msg,
+                                "cause": msg,
+                                "reason": msg,
+                                "status": "Active",
+                                "telemetry_history_id": None,
+                                "_raw_dt": a_dt,
+                                "epoch": a_dt.timestamp(),
+                            }
+                            injected_camera_alerts.append(ev_obj)
+
+                    for ev_obj in injected_camera_alerts:
+                        dvr_events_d.append(ev_obj)
+
+                    # Only insert generic umbrella recording event if no specific camera-level active alert was injected and CPU-DVR is not already reported down
+                    if is_rec_down and not injected_camera_alerts and not is_cpu_dvr_down:
                         has_active_rec = any(ev.get("metric") in ["recording", "camera"] and ev.get("status") == "Active" for ev in dvr_events_d)
                         if not has_active_rec:
                             st_dt = _resolve_active_dvr_start_dt("recording")
@@ -727,10 +909,10 @@ class DVRReportService:
                             dur_sec = max(60.0, (now_dt - st_dt).total_seconds())
                             dur_m = int(round(dur_sec / 60.0))
                             dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
-                            
+
                             not_rec_cams = [c for c in offline_cams if str(c.get("recording_status", "")).upper() == "NOT_RECORD"]
                             cam_names = ", ".join(c.get("name") or f"Ch {c.get('id', '?')}" for c in offline_cams)
-                            
+
                             if len(offline_cams) == len(cam_list) and len(cam_list) > 0:
                                 ev_title = f"CCTV Video Recording Stopped (All {len(cam_list)} Channels NOT_RECORD)"
                                 ev_desc = f"Continuous video recording halted for all channels ({cam_names})."
@@ -762,73 +944,69 @@ class DVRReportService:
                                 "epoch": st_dt.timestamp(),
                             })
 
-                    # Inject individual active alerts from telemetry raw_payload
-                    alerts_all = raw_payload.get("active_alerts", {}).get("all", []) or raw_payload.get("active_alerts", {}).get("nvr", [])
-                    seen_alert_titles = {ev.get("title") for ev in dvr_events_d}
-                    for a in alerts_all:
-                        cat = a.get("category", "")
-                        code = a.get("code", "")
-                        msg = a.get("message", "")
-                        comp = a.get("component", "")
-                        
-                        if cat in ["nvr", "storage"] and "STORAGE_PARTITION" not in code and "STORAGE_HEALTH" not in code:
-                            if "NVR_RECORDING_STALLED" in code or "NOT_RECORDING" in code:
-                                # Already captured by the primary CCTV Video Recording Stopped active event
-                                continue
-
-                            a_dt = now_dt
-                            m_a = re.search(r'(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\s+WITA\s*\((\d{2}:\d{2}:\d{2})\s+WIB\)', msg)
-                            if m_a:
-                                try:
-                                    a_dt = datetime.strptime(f"{m_a.group(1)} {m_a.group(2)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
-                                except Exception:
-                                    pass
-                            elif "CAMERA_RECORDING_STALLED" in code:
-                                a_dt = _resolve_active_dvr_start_dt("recording")
-
-                            dur_sec = max(60.0, (now_dt - a_dt).total_seconds())
-                            dur_m = int(round(dur_sec / 60.0))
-                            dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
-                            
-                            if "CAMERA_RECORDING_STALLED" in code:
-                                a_title = f"{comp} Video Recording Stalled (NOT_RECORD)"
-                            elif "CAMERA_OFFLINE" in code:
-                                a_title = f"{comp} Signal Loss / No Video (NOT_RECORD)"
-                            elif "HDD_FULL" in code:
-                                a_title = f"Harddisk NVR Storage Full (0.0% Remaining)"
-                            else:
-                                a_title = f"{comp}: {msg[:60]}"
-                                
-                            if a_title in seen_alert_titles:
-                                continue
-                            seen_alert_titles.add(a_title)
-
-                            dvr_events_d.append({
-                                "no": len(dvr_events_d) + 1,
-                                "start_time": a_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                                "end_time": "Now (Ongoing)",
-                                "duration": dur_str,
-                                "duration_minutes": float(dur_m),
-                                "category": "CCTV Recording",
-                                "metric": "recording",
-                                "date_str": a_dt.strftime("%Y-%m-%d"),
-                                "day_downtime_minutes": float(dur_m),
-                                "title": a_title,
-                                "description": msg,
-                                "cause": msg,
-                                "reason": msg,
-                                "status": "Active",
-                                "telemetry_history_id": None,
-                                "_raw_dt": a_dt,
-                                "epoch": a_dt.timestamp(),
-                            })
-
                     # Strictly sort: Active events first on top, followed by newest resolved events descending
                     dvr_events_d.sort(key=lambda x: (0 if x.get("status") == "Active" else 1, -(x.get("epoch") or 0.0)))
                     for idx, ev in enumerate(dvr_events_d, 1):
                         ev["no"] = idx
 
                     detail["cpu_dvr"] = dvr_item.get("cpu_dvr", "Connected")
+
+                    # Sync active recording and cpu_dvr incidents into daily_breakdown rows across dates
+                    breakdown = sla.get("daily_breakdown", [])
+                    active_rec_evs = [ev for ev in dvr_events_d if ev.get("metric") == "recording" and ev.get("status") == "Active"]
+                    if active_rec_evs or is_rec_down:
+                        for r in breakdown:
+                            r_date_str = r.get("date")
+                            try:
+                                r_date = datetime.strptime(r_date_str, "%d %b %Y").date()
+                            except Exception:
+                                continue
+
+                            day_start = datetime(r_date.year, r_date.month, r_date.day, 0, 0, 0, tzinfo=WIB)
+                            day_end = min(now_dt, datetime(r_date.year, r_date.month, r_date.day, 23, 59, 59, tzinfo=WIB))
+                            day_obs = float(r.get("observation_min", 0))
+
+                            max_day_down = 0.0
+                            for ev in active_rec_evs:
+                                ev_raw = ev.get("_raw_dt")
+                                if ev_raw and ev_raw <= day_end and now_dt >= day_start:
+                                    overlap_start = max(day_start, ev_raw)
+                                    overlap_m = max(0.0, (day_end - overlap_start).total_seconds() / 60.0)
+                                    if overlap_m > max_day_down:
+                                        max_day_down = overlap_m
+
+                            # If it's today and all cameras are not recording, full observation is down
+                            if r_date == now_dt.date():
+                                not_rec_count = sum(1 for c in detail.get("camera_list", []) if str(c.get("recording_status", "")).upper() == "NOT_RECORD")
+                                total_cams = len(detail.get("camera_list", []))
+                                if total_cams > 0 and not_rec_count == total_cams:
+                                    max_day_down = day_obs
+
+                            if max_day_down > 0 and day_obs > 0:
+                                rec_down = min(day_obs, max(float(r.get("rec_downtime_min", 0)), max_day_down))
+                                rec_up = max(0.0, day_obs - rec_down)
+                                rec_sr = round((rec_up / day_obs * 100.0), 1) if day_obs > 0 else 0.0
+                                r["rec_downtime_min"] = round(rec_down, 1)
+                                r["rec_uptime_min"] = round(rec_up, 1)
+                                r["rec_success_rate"] = rec_sr
+                                r["rec_status_sla"] = "Achieved" if rec_sr >= r.get("target_sla", 98.0) else "Not Achieved"
+
+                                rec_c = sum(1 for c in detail.get("camera_list", []) if str(c.get("recording_status", "")).upper() == "RECORD")
+                                tot_c = len(detail.get("camera_list", []))
+                                r["rec_channels"] = f"{rec_c} / {tot_c} Cams"
+                                r["rec_condition"] = "Not Recording" if rec_c == 0 else ("Full Recording" if rec_c == tot_c else "Partial Recording")
+
+                        # Sync top-level recording summary metrics
+                        tot_rec_down = sum(float(r.get("rec_downtime_min", 0)) for r in breakdown)
+                        tot_obs = sum(float(r.get("observation_min", 0)) for r in breakdown)
+                        tot_rec_up = max(0.0, tot_obs - tot_rec_down)
+                        tot_rec_sr = round((tot_rec_up / tot_obs * 100.0), 1) if tot_obs > 0 else 100.0
+                        down_m = int(round(tot_rec_down))
+                        up_m = int(round(tot_rec_up))
+                        detail["rec_tidak_merekam"] = f"{down_m // 60}h {down_m % 60}m" if down_m >= 60 and down_m % 60 else (f"{down_m // 60}h" if down_m >= 60 else f"{down_m}m")
+                        detail["rec_tidak_merekam_pct"] = f"{round(100.0 - tot_rec_sr, 1)}%"
+                        detail["rec_uptime"] = f"{up_m // 60}h {up_m % 60}m" if up_m >= 60 and up_m % 60 else (f"{up_m // 60}h" if up_m >= 60 else f"{up_m}m")
+                        detail["rec_uptime_pct"] = f"{tot_rec_sr}%"
                 except Exception as e:
                     logger.error(f"Error syncing DVR live events: {e}")
 
