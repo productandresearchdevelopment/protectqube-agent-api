@@ -625,6 +625,7 @@ class DVRReportService:
                     from app.services.dvr_service import dvr_service
                     dvr_d = dvr_service.get_gateway_detail(gid)
                     if dvr_d:
+                        dvr_cams_map = {str(c.get("channel")): c for c in dvr_d.get("cameras", [])}
                         if not raw_cams and dvr_d.get("cameras"):
                             raw_cams = [
                                 {
@@ -633,13 +634,47 @@ class DVRReportService:
                                     "name": c.get("name"),
                                     "resolution": c.get("resolution", "1080P"),
                                     "resolution_raw": c.get("resolution", "1080P"),
-                                    "is_online": False if is_cpu_dvr_down else True,
+                                    "is_online": c.get("status") == "Online",
                                     "enabled": True,
-                                    "recording_status": "NOT_RECORD" if is_cpu_dvr_down else "RECORD",
-                                    "recording_note": f"NVR Terputus (Terakhir konek: {dvr_d.get('last_connected_at', '-')})" if is_cpu_dvr_down else "Normal Recording",
+                                    "recording_status": "RECORD" if c.get("is_recording") else "NOT_RECORD",
+                                    "recording_note": "Normal Recording" if c.get("is_recording") else "Video recording stopped / not writing to disk",
                                 }
                                 for c in dvr_d.get("cameras", [])
                             ]
+                        elif raw_cams and dvr_cams_map:
+                            for rc in raw_cams:
+                                rc_id = str(rc.get("id") or rc.get("channel"))
+                                if rc_id in dvr_cams_map:
+                                    dc = dvr_cams_map[rc_id]
+                                    dc_is_rec = dc.get("is_recording")
+                                    if dc_is_rec is False:
+                                        rc["recording_status"] = "NOT_RECORD"
+                                        rc["is_writing_to_hdd"] = False
+                                    elif dc_is_rec is True:
+                                        rc["recording_status"] = "RECORD"
+                                        rc["is_writing_to_hdd"] = True
+                                    if dc.get("status") in ("No Video", "Offline"):
+                                        rc["is_online"] = False
+                                    elif dc.get("status") == "Online":
+                                        rc["is_online"] = True
+
+                        logs = raw_payload.get("recent_system_logs", [])
+                        for line in reversed(logs):
+                            if "NVR RECORDING:" in line:
+                                rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', line, re.IGNORECASE)
+                                if rec_m:
+                                    cam_matches = re.findall(r'CAMERA\s+(\d+)\s*:\s*([A-Za-z0-9_]+)', rec_m.group(1), re.IGNORECASE)
+                                    for cid, cst in cam_matches:
+                                        for rc in raw_cams:
+                                            if str(rc.get("id")) == str(cid) or str(rc.get("channel")) == str(cid):
+                                                if "NOT" in cst.upper():
+                                                    rc["recording_status"] = "NOT_RECORD"
+                                                    rc["is_writing_to_hdd"] = False
+                                                elif "RECORD" in cst.upper():
+                                                    rc["recording_status"] = "RECORD"
+                                                    rc["is_writing_to_hdd"] = True
+                                break
+
                         if detail.get("dvr_model") in ["-", "Hikvision/HiLook NVR"] and dvr_d.get("dvr_model"):
                             detail["dvr_model"] = dvr_d["dvr_model"]
                         if detail.get("storage_capacity") in ["0 GB", "0.0 GB", "-", "0 TB"] and dvr_d.get("recording_storage", {}).get("total_tb", 0) > 0:
@@ -734,6 +769,16 @@ class DVRReportService:
                 # Dynamically resolve actual disconnect start time for active DVR/Recording incident
                 def _resolve_active_dvr_start_dt(metric_name: str) -> datetime:
                     if metric_name == "recording":
+                        # 1. Check recent_system_logs for explicit recording stall timestamp
+                        logs = raw_payload.get("recent_system_logs", [])
+                        for line in logs:
+                            if any(w in line.lower() for w in ["macet", "not_record", "rekaman terakhir"]):
+                                m_last = re.search(r'Terakhir:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', line)
+                                if m_last:
+                                    try:
+                                        return datetime.strptime(m_last.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                                    except Exception:
+                                        pass
                         rec = raw_payload.get("nvr_surveillance", {}).get("recording", {})
                         if rec.get("is_stalled") or rec.get("minutes_since_last_record", 0) > 0:
                             latest_str = rec.get("latest_record_time") or ""
@@ -786,7 +831,7 @@ class DVRReportService:
 
                     cam_list = detail.get("camera_list", [])
                     offline_cams = [c for c in cam_list if not c.get("is_online") or str(c.get("recording_status", "")).upper() == "NOT_RECORD"]
-                    is_rec_down = len(offline_cams) > 0
+                    is_rec_down = len(offline_cams) > 0 or dvr_item.get("recording_status", "").startswith("0/") or dvr_live.get("is_rec") is False
 
                     if is_cpu_dvr_down:
                         has_active_cpu = any(ev.get("metric") == "cpu_dvr" and ev.get("status") == "Active" for ev in dvr_events_d)

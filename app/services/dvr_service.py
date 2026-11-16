@@ -322,16 +322,27 @@ class DVRService:
                     matched_raw = raw_cam_list[cid_int - 1]
 
                 cam_name = (matched_raw.get("name") if matched_raw else None) or f"CAM {cid_int:02d} - Channel {cid_int}"
-                res_val = (matched_raw.get("resolution") if matched_raw else None) or ("1080P" if (is_connected and is_cam_rec) else "-")
+
+                # Determine camera stream online status independently of recording status:
+                if matched_raw and "is_online" in matched_raw:
+                    is_cam_online = bool(matched_raw.get("is_online")) and is_connected
+                else:
+                    is_cam_online = is_connected and ("NO VIDEO" not in st and "OFFLINE" not in st and "TERPUTUS" not in st)
+
+                raw_res = (matched_raw.get("resolution") if matched_raw else None)
+                if raw_res and raw_res != "NO VIDEO":
+                    res_val = raw_res
+                else:
+                    res_val = "1080P" if is_cam_online else "-"
 
                 cam_previews.append({
                     "channel": cid_int,
                     "name": cam_name,
-                    "status": "Online" if (is_connected and is_cam_rec) else ("No Video" if is_connected else "Offline"),
+                    "status": "Online" if is_cam_online else ("No Video" if is_connected else "Offline"),
                     "is_recording": is_connected and is_cam_rec,
-                    "fps": 25 if (is_connected and is_cam_rec) else 0,
+                    "fps": 25 if is_cam_online else 0,
                     "resolution": res_val,
-                    "bitrate": "2048 Kbps" if (is_connected and is_cam_rec) else "0 Kbps",
+                    "bitrate": "2048 Kbps" if (is_cam_online and is_cam_rec) else ("1024 Kbps" if is_cam_online else "0 Kbps"),
                     "timestamp": clean_update,
                 })
         elif raw_cam_list:

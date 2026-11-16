@@ -561,7 +561,12 @@ def _build_daily_recording_table(
         group_row_indices.append(g_idx)
 
         date_hdr = f"<b>{r.get('date', '-')} ({r.get('day_name', '')})</b>"
-        cams_active_badge = f"<font color='#00A862'><b>{online_cam} / {total_cam} Cams Active</b></font>"
+        if dvr_down == 0.0 or dvr_rate >= 98.0:
+            cams_active_badge = f"<font color='#00A862'><b>All {total_cam} Cams Normal Recording</b></font>"
+        elif dvr_up > 0.0:
+            cams_active_badge = f"<font color='#F59E0B'><b>Recording Interrupted ({dvr_down:,.1f}m Downtime)</b></font>"
+        else:
+            cams_active_badge = f"<font color='#E2445C'><b>All {total_cam} Cams Not Recorded</b></font>"
 
         rows.append([
             Paragraph(date_hdr, styles["TableCellBold"]),
@@ -576,13 +581,18 @@ def _build_daily_recording_table(
         for c_idx, c in enumerate(base_cams, start=1):
             cam_name = c.get("name") or f"Camera 0{c_idx}"
             res = c.get("resolution") or "1080P"
-            is_rec = c.get("is_online", True) and (c_idx <= online_cam)
+            is_cam_online = c.get("is_online", True) and (c_idx <= online_cam)
 
-            if is_rec:
+            if is_cam_online:
                 c_up = dvr_up
                 c_down = dvr_down
                 c_rate = dvr_rate
-                st_html = "<font color='#00A862'><b>RECORD</b></font>"
+                if c_down == 0.0 or c_rate >= 98.0:
+                    st_html = "<font color='#00A862'><b>RECORD (NORMAL)</b></font>"
+                elif c_up > 0.0:
+                    st_html = f"<font color='#F59E0B'><b>PARTIAL ({c_rate:.1f}%)</b></font>"
+                else:
+                    st_html = "<font color='#E2445C'><b>NOT RECORD (OUTAGE)</b></font>"
             else:
                 c_up = 0.0
                 c_down = day_obs
