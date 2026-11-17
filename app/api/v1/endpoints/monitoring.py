@@ -220,6 +220,41 @@ def get_cellular_gateway_detail(gateway_id: str):
     }
 
 
+@router.get("/cellular/gateway/{gateway_id}/system-logs")
+@router.get("/gateway/{gateway_id}/system-logs")
+def get_gateway_system_logs(
+    gateway_id: str,
+    date: Optional[str] = Query(None, description="Tanggal log (format: YYYY-MM-DD, default hari ini)"),
+    search: Optional[str] = Query(None, description="Pencarian kata kunci dalam log"),
+    level: Optional[str] = Query(None, description="Filter log level (INFO, WARN, ERROR)"),
+    download: bool = Query(False, description="Jika True, langsung unduh sebagai file .log / .txt"),
+):
+    """
+    Mengambil data riil log sistem per menit dari telemetri MQTT untuk gateway tertentu pada tanggal yang dipilih.
+    Mendukung filter tanggal harian, pencarian kata kunci, dan unduhan file mentah.
+    """
+    result = cellular_service.get_gateway_system_logs(
+        gateway_id=gateway_id,
+        date_str=date,
+        search=search,
+        level=level,
+    )
+    if download:
+        safe_dev = re.sub(r"[^\w\s-]", "", result.get("gateway_id") or gateway_id).strip().replace(" ", "_")
+        target_date = result.get("date") or "today"
+        filename = f"SystemLog_{safe_dev}_{target_date}.log"
+        content = result.get("raw_text") or "No system logs available for this date."
+        return Response(
+            content=content,
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    return {
+        "status": True,
+        "data": result,
+    }
+
+
 @router.get("/dvr-dashboard", response_model=DVRDashboardResponse)
 def get_dvr_dashboard(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),

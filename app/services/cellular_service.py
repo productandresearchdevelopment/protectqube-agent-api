@@ -1959,5 +1959,139 @@ class CellularService:
             },
         }
 
+    def get_gateway_system_logs(
+        self,
+        gateway_id: str,
+        date_str: Optional[str] = None,
+        search: Optional[str] = None,
+        level: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieves minute-by-minute system logs for a specific gateway on a chosen date (default: today).
+        Aggregates logs from PostgreSQL gateway_telemetry_history and real-time in-memory cache.
+        """
+        from datetime import datetime, date, timedelta, timezone
+        from sqlalchemy import cast, String
+        from app.core.database import SessionLocal
+        from app.models.gateway_models import Device, GatewayTelemetryHistory
+
+        if not date_str:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            target_date = datetime.now().date()
+            date_str = target_date.strftime("%Y-%m-%d")
+
+        # Telemetry in DB recorded_at is UTC; WIB is UTC+7
+        # WIB 00:00:00 to 23:59:59 = UTC (date - 7h) to UTC (date + 17h)
+        start_utc = datetime(target_date.year, target_date.month, target_date.day) - timedelta(hours=7)
+        end_utc = start_utc + timedelta(days=1)
+
+        db = SessionLocal()
+        dev_name = gateway_id
+        dev_loc = f"Gateway {gateway_id}"
+        dev_uuid = None
+        logs: List[str] = []
+        seen = set()
+
+        try:
+            dev = db.query(Device).filter(
+                (Device.name.ilike(gateway_id)) | (cast(Device.id, String) == gateway_id)
+            ).first()
+
+            if dev:
+                dev_name = dev.name
+                dev_loc = dev.location or f"Gateway {dev.name}"
+                dev_uuid = str(dev.id)
+
+                records = (
+                    db.query(GatewayTelemetryHistory)
+                    .filter(
+                        GatewayTelemetryHistory.device_id == dev.id,
+                        GatewayTelemetryHistory.recorded_at >= start_utc,
+                        GatewayTelemetryHistory.recorded_at <= end_utc
+                    )
+                    .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                    .all()
+                )
+
+                for r in records:
+                    if r.raw_payload and isinstance(r.raw_payload.get("recent_system_logs"), list):
+                        for l in r.raw_payload["recent_system_logs"]:
+                            if l not in seen:
+                                seen.add(l)
+                                logs.append(l)
+
+            # Check live in-memory cache if target date is today
+            if target_date == datetime.now().date():
+                target_id_low = gateway_id.lower().strip()
+                for d_id, d_data in self._live_gateways.items():
+                    d_uuid = str(d_data.get("device_uuid") or d_data.get("detail", {}).get("device_uuid") or "").lower()
+                    if d_id.lower() == target_id_low or (d_uuid and d_uuid == target_id_low):
+                        raw = d_data.get("raw", {})
+                        live_logs = raw.get("recent_system_logs", [])
+                        for l in live_logs:
+                            if l not in seen:
+                                seen.add(l)
+                                logs.append(l)
+                        if not dev_loc or dev_loc.startswith("Gateway "):
+                            dev_loc = d_data.get("item", {}).get("location") or dev_loc
+                        break
+        finally:
+            db.close()
+
+        # Sort chronologically by timestamp
+        import re
+        def extract_ts(line: str) -> str:
+            m = re.search(r"\[(\d{4}-\d{2}-\d{2}\s+[\d:]+)\]", line)
+            if m:
+                return m.group(1)
+            m_time = re.search(r"\[([\d:]+)\]", line)
+            if m_time:
+                return f"{date_str} {m_time.group(1)}"
+            return ""
+
+        logs.sort(key=extract_ts)
+
+        # Apply keyword search and level filtering
+        filtered_items = []
+        for line in logs:
+            # Extract timestamp and level
+            ts_m = re.search(r"\[(\d{4}-\d{2}-\d{2}\s+[\d:]+)\]", line)
+            ts = ts_m.group(1) if ts_m else extract_ts(line)
+
+            lvl_m = re.search(r"\[(INFO|WARN|WARNING|ERROR|CRITICAL|DEBUG)\s*\]", line)
+            lvl = lvl_m.group(1) if lvl_m else ("WARN" if "[ALERT]" in line or "[WATCHDOG" in line else "INFO")
+            if lvl == "WARNING":
+                lvl = "WARN"
+
+            if level and level.upper() not in ["ALL", "SEMUA"]:
+                if lvl.upper() != level.upper():
+                    continue
+
+            if search:
+                s_low = search.lower().strip()
+                if s_low not in line.lower():
+                    continue
+
+            filtered_items.append({
+                "timestamp": ts,
+                "level": lvl,
+                "message": line,
+                "is_alert": "[ALERT]" in line or "[WATCHDOG" in line or lvl in ["WARN", "ERROR"],
+            })
+
+        return {
+            "gateway_id": dev_name,
+            "device_uuid": dev_uuid,
+            "location": dev_loc,
+            "date": date_str,
+            "total_logs": len(filtered_items),
+            "logs": filtered_items,
+            "raw_text": "\n".join(item["message"] for item in filtered_items),
+        }
+
 
 cellular_service = CellularService()
