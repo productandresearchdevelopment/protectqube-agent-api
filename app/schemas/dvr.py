@@ -66,15 +66,19 @@ class DVRGatewayItem(BaseModel):
     client_name: Optional[str] = "-"
     location: str
     type: str
+    has_dvr: Optional[bool] = True
     dvr_model: str
     status: str = "Online"
+    is_connected: Optional[bool] = False
+    is_offline: Optional[bool] = False
+    ip_address: Optional[str] = None
     cpu_dvr: str
     total_kamera: int
-    kamera_online: Union[int, float, str]
-    kamera_no_video: Union[int, float, str]
-    kamera_offline: Union[int, float, str]
+    kamera_online: Optional[Union[int, float, str]] = 0
+    kamera_no_video: Optional[Union[int, float, str]] = 0
+    kamera_offline: Optional[Union[int, float, str]] = 0
     recording_status: str
-    storage_usage_percent: Union[int, float, str]
+    storage_usage_percent: Optional[Union[int, float, str]] = None
     dvr_health: str
     last_update: str
 
@@ -93,6 +97,7 @@ class DVRDashboardData(BaseModel):
     charts: DVRCharts
     gateways: List[DVRGatewayItem]
     pagination: PaginationInfo
+    client_options: Optional[List[str]] = None
 
 
 class DVRDashboardResponse(BaseModel):

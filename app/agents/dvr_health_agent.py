@@ -16,7 +16,7 @@ class DVRHealthAgent:
     - Deteksi CCTV tidak record (berdasarkan status channel)
     """
 
-    def __init__(self, host: str = "192.168.1.100", http_port: int = 80, rtsp_port: int = 554, timeout: int = 3):
+    def __init__(self, host: str = "192.168.1.100", http_port: int = 80, rtsp_port: int = 554, timeout: float = 0.8):
         self.host = host
         self.http_port = http_port
         self.rtsp_port = rtsp_port
@@ -24,7 +24,8 @@ class DVRHealthAgent:
 
     def _ping(self) -> bool:
         param = "-n" if platform.system().lower() == "windows" else "-c"
-        command = ["ping", param, "1", "-w", str(self.timeout * 1000 if platform.system().lower() == "windows" else self.timeout), self.host]
+        timeout_ms = int(self.timeout * 1000)
+        command = ["ping", param, "1", "-w", str(timeout_ms if platform.system().lower() == "windows" else int(self.timeout)), self.host]
         try:
             return subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
         except Exception:
@@ -65,11 +66,16 @@ class DVRHealthAgent:
         ping_ok = self._ping()
         result["ping_ok"] = ping_ok
 
-        http_ok = self._check_port(self.http_port)
-        result["http_port_open"] = http_ok
+        # If host cannot be pinged, skip port probes to avoid blocking event loop
+        if ping_ok:
+            http_ok = self._check_port(self.http_port)
+            result["http_port_open"] = http_ok
 
-        rtsp_ok = self._check_port(self.rtsp_port)
-        result["rtsp_port_open"] = rtsp_ok
+            rtsp_ok = self._check_port(self.rtsp_port)
+            result["rtsp_port_open"] = rtsp_ok
+        else:
+            http_ok = False
+            rtsp_ok = False
 
         if not ping_ok and not http_ok and not rtsp_ok:
             result["status"] = "OFFLINE"

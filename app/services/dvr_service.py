@@ -30,74 +30,19 @@ class DVRService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
-        loaded_from_db = False
-        try:
-            from app.core.database import SessionLocal
-            from app.models.base_models import GatewayTelemetryHistory
-            from sqlalchemy import distinct
-            db = SessionLocal()
-            try:
-                from app.models.base_models import Device
-                inactive_rows = db.query(Device.name).filter(
-                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
-                ).all()
-                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
-
-                query = db.query(GatewayTelemetryHistory)
-                if hasattr(GatewayTelemetryHistory, "deleted_at"):
-                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
-                latest_records = (
-                    query.distinct(GatewayTelemetryHistory.device_id)
-                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
-                    .all()
-                )
-                for latest in latest_records:
-                    if latest and latest.raw_payload:
-                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
-                            continue
-                        payload = dict(latest.raw_payload)
-                        if latest.device:
-                            payload["device_id"] = latest.device.name
-                            payload["device_uuid"] = str(latest.device.id)
-                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
-                            payload["property"] = latest.device.property or {}
-                            if latest.device.location:
-                                payload["location"] = latest.device.location
-                                payload["location_name"] = latest.device.location
-                                self._device_locations[latest.device.name] = latest.device.location
-                                self._device_locations[str(latest.device.id)] = latest.device.location
-                            self._device_properties[latest.device.name] = latest.device.property or {}
-                            self._device_properties[str(latest.device.id)] = latest.device.property or {}
-                        if latest.recorded_at:
-                            from datetime import timezone, timedelta
-                            WIB = timezone(timedelta(hours=7))
-                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
-                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        self.update_from_telemetry(payload, save_cache=False)
-                if self._live_gateways:
-                    loaded_from_db = True
-                    logger.info(f"DVRService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-            finally:
-                db.close()
-        except Exception as dbe:
-            logger.debug(f"Could not hydrate gateways from database: {dbe}")
-
-        if not loaded_from_db:
-            cache_file = self._cache_path()
-            if os.path.exists(cache_file):
-                try:
-                    with open(cache_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, list):
-                        for item in data:
-                            if isinstance(item, dict):
-                                self.update_from_telemetry(item, save_cache=False)
-                    elif isinstance(data, dict):
-                        self.update_from_telemetry(data, save_cache=False)
-                    logger.info(f"DVRService: Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
-                except Exception as e:
-                    logger.warning(f"Could not load telemetry cache for DVR service: {e}")
+        """Loads cached real telemetry snapshots using centralized loader (PostgreSQL primary / disk fallback)."""
+        from app.services.telemetry_loader import get_initial_telemetry_payloads, get_cached_inactive_gateways
+        self._inactive_gateways = get_cached_inactive_gateways()
+        payloads = get_initial_telemetry_payloads()
+        for p in payloads:
+            dev_id = p.get("device_id")
+            if dev_id:
+                if p.get("location"):
+                    self._device_locations[dev_id] = p["location"]
+                if p.get("property"):
+                    self._device_properties[dev_id] = p["property"]
+            self.update_from_telemetry(p, save_cache=False)
+        logger.info(f"DVRService: Hydrated {len(self._live_gateways)} gateway(s)")
 
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL (ignoring soft-deleted records)."""
@@ -204,68 +149,101 @@ class DVRService:
         selected_cams = dev_prop.get("selected_cameras")
         raw_cam_list = list(cameras_info.get("camera_list", []))
 
-        if not is_connected:
-            if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
-                total_kamera = len(set(str(x) for x in selected_cams))
+        # Check if device is configured without DVR
+        has_dvr = dev_prop.get("has_dvr")
+        if has_dvr is None:
+            if dev_prop.get("total_cameras") == 0 and (selected_cams is None or len(selected_cams) == 0):
+                has_dvr = False
             else:
-                total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
+                has_dvr = True
+
+        # Resolve configured camera channels (selected_cameras, total_cameras, or exclude uninstalled dummy slots)
+        sel_set = None
+        if not has_dvr:
+            total_kamera = 0
             kamera_online = 0
             kamera_offline_raw = 0
-        elif selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
-            sel_set = {str(x) for x in selected_cams}
-            total_kamera = len(sel_set)
-            if log_cams:
-                log_cams = {cid: st for cid, st in log_cams.items() if str(cid) in sel_set}
-            if raw_cam_list:
-                raw_cam_list = [c for c in raw_cam_list if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
-                kamera_online = sum(1 for c in raw_cam_list if c.get("is_online"))
-            elif log_cams:
-                kamera_online = sum(1 for st in log_cams.values() if "RECORD" in st or "OK" in st)
-            else:
-                kamera_online = min(total_kamera, cameras_info.get("online_count", 0))
-            kamera_offline_raw = max(0, total_kamera - kamera_online)
-        else:
-            total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
-            # 1. Kamera Fisik Terhubung (Online / ON CAM vs No Video)
-            if "online_count" in cameras_info and cameras_info["online_count"] is not None:
-                kamera_online = min(total_kamera, cameras_info["online_count"])
-            else:
-                no_video_c = sum(1 for line in lines_list[-15:] if "NO VIDEO" in line or "terputus" in line)
-                kamera_online = max(0, total_kamera - no_video_c)
-            kamera_offline_raw = max(0, total_kamera - kamera_online)
-
-        # 2. Kamera Aktif Merekam Video (Active Recording dari NVR RECORDING: (...))
-        if not is_connected:
             kamera_rec_count = 0
             is_rec = False
-        elif log_cams:
-            kamera_rec_count = sum(1 for st in log_cams.values() if "RECORD" in st and "NOT" not in st)
-            is_rec = (kamera_rec_count > 0)
-        else:
-            kamera_rec_count = recording_info.get("cameras_recording_count", 0 if not is_rec else kamera_online)
-            is_rec = (kamera_rec_count > 0)
+            cpu_dvr_status = "Not Installed"
+            dvr_model = "Not Installed"
+            rec_status = "N/A"
+            health = "N/A"
+            cap_gb = 0.0
+            used_gb = 0.0
+            free_gb = 0.0
+            storage_pct = None
+        elif selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
+            sel_set = {str(x) for x in selected_cams}
+        elif dev_prop.get("total_cameras") and isinstance(dev_prop.get("total_cameras"), (int, float)) and int(dev_prop.get("total_cameras")) < len(raw_cam_list):
+            sel_set = {str(i + 1) for i in range(int(dev_prop.get("total_cameras")))}
+        elif raw_cam_list:
+            real_cams = [c for c in raw_cam_list if not (c.get("enabled") is False and (c.get("resolution") == "NO VIDEO" or c.get("resolution_raw") == "NO VIDEO"))]
+            if real_cams and len(real_cams) < len(raw_cam_list):
+                sel_set = {str(c.get("id")) for c in real_cams if c.get("id") is not None}
 
-        cap_gb = float(nvr.get("total_capacity_gb", 0.0))
-        used_gb = float(nvr.get("total_used_gb", 0.0))
-        free_gb = float(nvr.get("total_free_gb", 0.0))
-        storage_pct = int(round((used_gb / cap_gb) * 100)) if cap_gb > 0 else 0
-
-        if is_connected:
-            cpu_dvr_status = "Connected"
-            rec_status = f"{kamera_rec_count}/{total_kamera} Recording"
-
-            # Perhitungan DVR Health:
-            # - Good: CPU terhubung dan rekaman kamera aktif berjalan normal (kamera_rec_count > 0)
-            # - Warning: CPU terhubung tetapi rekaman macet/gagal (0 recording, HDD read-only / error)
-            # - Critical: Komunikasi CPU ke NVR putus (No Response)
-            if kamera_rec_count > 0:
-                health = "Good"
+        if has_dvr:
+            if not is_connected:
+                if sel_set:
+                    total_kamera = len(sel_set)
+                else:
+                    total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
+                kamera_online = 0
+                kamera_offline_raw = 0
+            elif sel_set:
+                total_kamera = len(sel_set)
+                if log_cams:
+                    log_cams = {cid: st for cid, st in log_cams.items() if str(cid) in sel_set}
+                if raw_cam_list:
+                    raw_cam_list = [c for c in raw_cam_list if str(c.get("id")) in sel_set or str(c.get("channel")) in sel_set]
+                    kamera_online = sum(1 for c in raw_cam_list if c.get("is_online"))
+                elif log_cams:
+                    kamera_online = sum(1 for st in log_cams.values() if "RECORD" in st or "OK" in st)
+                else:
+                    kamera_online = min(total_kamera, cameras_info.get("online_count", 0))
+                kamera_offline_raw = max(0, total_kamera - kamera_online)
             else:
-                health = "Warning"
-        else:
-            cpu_dvr_status = "Not Connected"
-            rec_status = f"0/{total_kamera} Recording"
-            health = "Critical"
+                total_kamera = (dev_prop.get("total_cameras") if dev_prop.get("total_cameras") is not None else (cameras_info.get("total_cameras", 0) or len(log_cams) or 4))
+                # 1. Kamera Fisik Terhubung (Online / ON CAM vs No Video)
+                if "online_count" in cameras_info and cameras_info["online_count"] is not None:
+                    kamera_online = min(total_kamera, cameras_info["online_count"])
+                else:
+                    no_video_c = sum(1 for line in lines_list[-15:] if "NO VIDEO" in line or "terputus" in line)
+                    kamera_online = max(0, total_kamera - no_video_c)
+                kamera_offline_raw = max(0, total_kamera - kamera_online)
+
+            # 2. Kamera Aktif Merekam Video (Active Recording dari NVR RECORDING: (...))
+            if not is_connected:
+                kamera_rec_count = 0
+                is_rec = False
+            elif log_cams:
+                kamera_rec_count = sum(1 for st in log_cams.values() if "RECORD" in st and "NOT" not in st)
+                is_rec = (kamera_rec_count > 0)
+            else:
+                kamera_rec_count = recording_info.get("cameras_recording_count", 0 if not is_rec else kamera_online)
+                is_rec = (kamera_rec_count > 0)
+
+            cap_gb = float(nvr.get("total_capacity_gb", 0.0))
+            used_gb = float(nvr.get("total_used_gb", 0.0))
+            free_gb = float(nvr.get("total_free_gb", 0.0))
+            storage_pct = int(round((used_gb / cap_gb) * 100)) if cap_gb > 0 else 0
+
+            if is_connected:
+                cpu_dvr_status = "Connected"
+                rec_status = f"{kamera_rec_count}/{total_kamera} Recording"
+
+                # Perhitungan DVR Health:
+                # - Good: CPU terhubung dan rekaman kamera aktif berjalan normal (kamera_rec_count > 0)
+                # - Warning: CPU terhubung tetapi rekaman macet/gagal (0 recording, HDD read-only / error)
+                # - Critical: Komunikasi CPU ke NVR putus (No Response)
+                if kamera_rec_count > 0:
+                    health = "Good"
+                else:
+                    health = "Warning"
+            else:
+                cpu_dvr_status = "Not Connected"
+                rec_status = f"0/{total_kamera} Recording"
+                health = "Critical"
 
         ts_str = nms_payload.get("recorded_at") or nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:19]
@@ -292,24 +270,27 @@ class DVRService:
             "client_name": customer_val,
             "location": loc_name,
             "type": box_type,
-            "dvr_model": dvr_model,
+            "has_dvr": has_dvr,
+            "dvr_model": dvr_model if has_dvr else "Not Installed",
             "status": "Online",
-            "is_connected": is_connected,
+            "is_connected": is_connected if has_dvr else False,
             "is_offline": False,
             "ip_address": ip_addr,
-            "cpu_dvr": cpu_dvr_status,
-            "total_kamera": total_kamera,
-            "kamera_online": kamera_online,
-            "kamera_no_video": kamera_offline_raw,
-            "kamera_offline": 0 if is_connected else total_kamera,
-            "recording_status": rec_status,
-            "storage_usage_percent": storage_pct,
-            "dvr_health": health,
+            "cpu_dvr": cpu_dvr_status if has_dvr else "Not Installed",
+            "total_kamera": total_kamera if has_dvr else 0,
+            "kamera_online": kamera_online if has_dvr else 0,
+            "kamera_no_video": kamera_offline_raw if has_dvr else 0,
+            "kamera_offline": 0 if (not has_dvr or is_connected) else total_kamera,
+            "recording_status": rec_status if has_dvr else "N/A",
+            "storage_usage_percent": storage_pct if has_dvr else None,
+            "dvr_health": health if has_dvr else "N/A",
             "last_update": clean_update,
         }
 
         cam_previews = []
-        if log_cams:
+        if not has_dvr:
+            cam_previews = []
+        elif log_cams:
             for cid_int in sorted(log_cams.keys()):
                 st = log_cams[cid_int]
                 is_cam_rec = ("RECORD" in st and "NOT" not in st)
@@ -383,60 +364,118 @@ class DVRService:
         total_tb = round(cap_gb / 1024.0, 2)
         used_tb = round(used_gb / 1024.0, 2)
 
-        detail_obj = {
-            "id": device_id,
-            "device_uuid": device_uuid,
-            "customer": customer_val,
-            "client_name": customer_val,
-            "location": loc_name,
-            "type": gw_item["type"],
-            "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
-            "dvr_model": dvr_model,
-            "ip_address": ip_addr,
-            "last_update": clean_update,
-            "status": "Online",
-            "is_connected": is_connected,
-            "is_offline": False,
-            "service_status": "Running",
-            "cpu_dvr": {
-                "status": cpu_dvr_status,
-                "message": f"ISAPI/SDK protocol connected stably to {nvr_endpoint}" if is_connected else f"NVR communication failed: {self._translate_log_to_en(nvr.get('error_message', 'Host unreachable / Timeout'))}",
-                "port": f"{port_num} (HTTP ISAPI)",
-                "response_time": "< 15 ms" if is_connected else "Timeout",
-                "packet_loss": "0%" if is_connected else "100%",
-                "last_check": clean_update,
-            },
-            "camera_status": {
-                "total": total_kamera,
-                "online": kamera_online,
-                "no_video": kamera_offline_raw,
-                "offline": 0 if is_connected else total_kamera,
-                "percent": int(round((kamera_online / total_kamera) * 100)) if total_kamera > 0 else 0,
-                "sparkline": [kamera_online, kamera_online, kamera_online, kamera_online, kamera_online],
-            },
-            "recording_storage": {
-                "status": rec_status,
-                "used_tb": used_tb,
-                "total_tb": total_tb,
-                "percent": storage_pct,
-                "retention_days": 30 if storage_pct < 85 else 14,
-                "sparkline": [max(5, storage_pct - 3), max(5, storage_pct - 2), storage_pct - 1, storage_pct],
-            },
-            "dvr_health": {
-                "status": health,
-                "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} ({disk_smart_status})" if disks else "No Disk Detected",
-                "temperature": f"{disk_temp}°C",
-                "fan_status": "Normal" if is_connected else "N/A",
-                "bad_sector": disk_health_info.get("bad_sectors", 0),
-                "power_on_hours": disk_health_info.get("power_on_hours"),
-                "health_percent": disk_health_info.get("health_percent"),
-                "health_label": self._translate_log_to_en(disk_health_info.get("health_label")) if disk_health_info.get("health_label") else "Good",
-            },
-            "cameras": cam_previews,
-            "firmware": dev_info.get("firmware") or "V4.20.000",
-            "serial_number": dev_info.get("serial") or "-",
-            "device_type": dev_info.get("device_type") or "Surveillance NVR / IPC Hub",
-        }
+        if not has_dvr:
+            detail_obj = {
+                "id": device_id,
+                "device_uuid": device_uuid,
+                "customer": customer_val,
+                "client_name": customer_val,
+                "location": loc_name,
+                "type": gw_item["type"],
+                "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
+                "dvr_model": "Not Installed",
+                "ip_address": ip_addr,
+                "last_update": clean_update,
+                "status": "Online",
+                "has_dvr": False,
+                "is_connected": False,
+                "is_offline": False,
+                "service_status": "Running",
+                "cpu_dvr": {
+                    "status": "Not Installed",
+                    "message": "No DVR/NVR surveillance unit installed on this gateway.",
+                    "port": "-",
+                    "response_time": "N/A",
+                    "packet_loss": "N/A",
+                    "last_check": clean_update,
+                },
+                "camera_status": {
+                    "total": 0,
+                    "online": 0,
+                    "no_video": 0,
+                    "offline": 0,
+                    "percent": 0,
+                    "sparkline": [0, 0, 0, 0, 0],
+                },
+                "recording_storage": {
+                    "status": "N/A",
+                    "used_tb": 0,
+                    "total_tb": 0,
+                    "percent": 0,
+                    "retention_days": 0,
+                    "sparkline": [0, 0, 0, 0],
+                },
+                "dvr_health": {
+                    "status": "N/A",
+                    "hdd_status": "No Storage Installed",
+                    "temperature": "-",
+                    "fan_status": "N/A",
+                    "bad_sector": 0,
+                    "power_on_hours": None,
+                    "health_percent": None,
+                    "health_label": "N/A",
+                },
+                "cameras": [],
+                "firmware": "-",
+                "serial_number": "-",
+                "device_type": "Standalone IoT Gateway",
+            }
+        else:
+            detail_obj = {
+                "id": device_id,
+                "device_uuid": device_uuid,
+                "customer": customer_val,
+                "client_name": customer_val,
+                "location": loc_name,
+                "type": gw_item["type"],
+                "model": f"{hw.get('type', 'Gateway')} {hw.get('model', 'DSGW-210')}",
+                "dvr_model": dvr_model,
+                "ip_address": ip_addr,
+                "last_update": clean_update,
+                "status": "Online",
+                "has_dvr": True,
+                "is_connected": is_connected,
+                "is_offline": False,
+                "service_status": "Running",
+                "cpu_dvr": {
+                    "status": cpu_dvr_status,
+                    "message": f"ISAPI/SDK protocol connected stably to {nvr_endpoint}" if is_connected else f"NVR communication failed: {self._translate_log_to_en(nvr.get('error_message', 'Host unreachable / Timeout'))}",
+                    "port": f"{port_num} (HTTP ISAPI)",
+                    "response_time": "< 15 ms" if is_connected else "Timeout",
+                    "packet_loss": "0%" if is_connected else "100%",
+                    "last_check": clean_update,
+                },
+                "camera_status": {
+                    "total": total_kamera,
+                    "online": kamera_online,
+                    "no_video": kamera_offline_raw,
+                    "offline": 0 if is_connected else total_kamera,
+                    "percent": int(round((kamera_online / total_kamera) * 100)) if total_kamera > 0 else 0,
+                    "sparkline": [kamera_online, kamera_online, kamera_online, kamera_online, kamera_online],
+                },
+                "recording_storage": {
+                    "status": rec_status,
+                    "used_tb": used_tb,
+                    "total_tb": total_tb,
+                    "percent": storage_pct,
+                    "retention_days": (30 if storage_pct < 85 else 14) if storage_pct is not None else 0,
+                    "sparkline": [max(5, storage_pct - 3), max(5, storage_pct - 2), storage_pct - 1, storage_pct] if storage_pct is not None else [0, 0, 0, 0],
+                },
+                "dvr_health": {
+                    "status": health,
+                    "hdd_status": f"HDD {primary_disk.get('name', 'hdd1')} ({disk_smart_status})" if disks else "No Disk Detected",
+                    "temperature": f"{disk_temp}°C",
+                    "fan_status": "Normal" if is_connected else "N/A",
+                    "bad_sector": disk_health_info.get("bad_sectors", 0),
+                    "power_on_hours": disk_health_info.get("power_on_hours"),
+                    "health_percent": disk_health_info.get("health_percent"),
+                    "health_label": self._translate_log_to_en(disk_health_info.get("health_label")) if disk_health_info.get("health_label") else "Good",
+                },
+                "cameras": cam_previews,
+                "firmware": dev_info.get("firmware") or "V4.20.000",
+                "serial_number": dev_info.get("serial") or "-",
+                "device_type": dev_info.get("device_type") or "Surveillance NVR / IPC Hub",
+            }
 
         last_seen_epoch = self._parse_payload_epoch(nms_payload)
         self._live_gateways[device_id] = {
@@ -490,24 +529,26 @@ class DVRService:
                 g["status"] = "Offline"
                 table_item["status"] = "Offline"
                 table_item["is_offline"] = True
-                table_item["cpu_dvr"] = "Not Connected"
-                table_item["dvr_health"] = "Critical"
-                # Preserve actual telemetry values as Last Known Good State:
-                if not isinstance(table_item.get("kamera_online"), (int, float)):
-                    table_item["kamera_online"] = g.get("last_kamera_online", 0)
-                if not isinstance(table_item.get("storage_usage_percent"), (int, float)):
-                    table_item["storage_usage_percent"] = g.get("last_storage_pct", 0)
-                if not table_item.get("recording_status") or table_item.get("recording_status") == "Not Recording":
-                    table_item["recording_status"] = g.get("last_recording_status", "0/4 Recording")
-                g["is_connected"] = False
-                table_item["is_connected"] = False
-                g["health"] = "Critical"
+                if table_item.get("has_dvr") is not False:
+                    table_item["cpu_dvr"] = "Not Connected"
+                    table_item["dvr_health"] = "Critical"
+                    # Preserve actual telemetry values as Last Known Good State:
+                    if not isinstance(table_item.get("kamera_online"), (int, float)):
+                        table_item["kamera_online"] = g.get("last_kamera_online", 0)
+                    if not isinstance(table_item.get("storage_usage_percent"), (int, float)):
+                        table_item["storage_usage_percent"] = g.get("last_storage_pct", 0)
+                    if not table_item.get("recording_status") or table_item.get("recording_status") == "Not Recording":
+                        table_item["recording_status"] = g.get("last_recording_status", "0/4 Recording")
+                    g["is_connected"] = False
+                    table_item["is_connected"] = False
+                    g["health"] = "Critical"
                 detail_item["status"] = "Offline"
                 detail_item["service_status"] = "Stopped"
                 detail_item["is_offline"] = True
-                detail_item["is_connected"] = False
-                if "cpu_dvr" in detail_item:
-                    detail_item["cpu_dvr"]["status"] = "Not Connected"
+                if table_item.get("has_dvr") is not False:
+                    detail_item["is_connected"] = False
+                    if "cpu_dvr" in detail_item:
+                        detail_item["cpu_dvr"]["status"] = "Not Connected"
             else:
                 g["status"] = "Online"
                 table_item["status"] = "Online"
@@ -585,10 +626,10 @@ class DVRService:
         )
         offline_cams = max(0, total_cams - online_cams - no_video_cams)
 
-        total_storage_tb = round(sum(g["cap_gb"] for g in self._live_gateways.values()) / 1024.0, 1)
-        used_storage_tb = round(sum(g["used_gb"] for g in self._live_gateways.values()) / 1024.0, 1)
-        warn_storage_tb = round(sum(g["used_gb"] for g in self._live_gateways.values() if g["storage_pct"] > 80) / 1024.0, 1)
-        crit_storage_tb = round(sum(g["used_gb"] for g in self._live_gateways.values() if g["storage_pct"] > 90) / 1024.0, 1)
+        total_storage_tb = round(sum(g.get("cap_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("cap_gb"), (int, float))) / 1024.0, 1)
+        used_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("used_gb"), (int, float))) / 1024.0, 1)
+        warn_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 80) / 1024.0, 1)
+        crit_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 90) / 1024.0, 1)
 
         return {
             "total_gateways": total_gw,
@@ -637,7 +678,7 @@ class DVRService:
         rec_cams = online_cams
         not_rec_cams = max(0, total_cams - rec_cams)
 
-        storage_percentages = [g["storage_pct"] for g in self._live_gateways.values() if g["cap_gb"] > 0]
+        storage_percentages = [g["storage_pct"] for g in self._live_gateways.values() if isinstance(g.get("storage_pct"), (int, float)) and g.get("cap_gb", 0) > 0]
         avg_storage = int(round(sum(storage_percentages) / len(storage_percentages))) if storage_percentages else 0
         max_storage = max(storage_percentages) if storage_percentages else 0
         min_storage = min(storage_percentages) if storage_percentages else 0
@@ -726,9 +767,9 @@ class DVRService:
         sort_by: Optional[str],
         sort_order: Optional[str],
     ) -> List[Dict[str, Any]]:
-        if not sort_by:
+        if not sort_by or not isinstance(sort_by, str):
             return items
-        is_desc = (sort_order or "asc").lower() == "desc"
+        is_desc = (str(sort_order).lower() == "desc") if sort_order else False
         key = sort_by.strip().lower()
 
         if key == "status":
@@ -823,6 +864,7 @@ class DVRService:
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
         status: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
@@ -846,7 +888,7 @@ class DVRService:
 
         filtered = items
 
-        if search:
+        if search and isinstance(search, str):
             q = search.lower().strip()
             filtered = [
                 g for g in filtered
@@ -856,13 +898,24 @@ class DVRService:
                     or q in str(g.get("dvr_model", "")).lower()
                     or q in str(g.get("type", "")).lower()
                     or q in str(g.get("ip_address", "")).lower()
+                    or q in str(g.get("customer", "")).lower()
+                    or q in str(g.get("client_name", "")).lower()
                 )
             ]
 
-        if gateway_type and gateway_type not in ["Semua Tipe", "All"]:
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            filtered = [
+                g for g in filtered
+                if c_low == str(g.get("customer", "")).lower()
+                or c_low == str(g.get("client_name", "")).lower()
+                or c_low in str(g.get("customer", "")).lower()
+            ]
+
+        if gateway_type and isinstance(gateway_type, str) and gateway_type not in ["Semua Tipe", "All"]:
             filtered = [g for g in filtered if gateway_type.lower() in g["type"].lower()]
 
-        if status and status not in ["Semua Status", "All", "All Statuses"]:
+        if status and isinstance(status, str) and status not in ["Semua Status", "All", "All Statuses"]:
             s = status.lower().strip()
             if s in ["online"]:
                 filtered = [
@@ -892,6 +945,9 @@ class DVRService:
 
         filtered = self._apply_sorting(filtered, sort_by, sort_order)
 
+        page = page if isinstance(page, int) and page >= 1 else 1
+        page_size = page_size if isinstance(page_size, int) and page_size >= 1 else 5
+
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
         page = max(1, min(page, total_pages))
@@ -917,6 +973,7 @@ class DVRService:
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
         status: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
@@ -929,17 +986,24 @@ class DVRService:
             search=search,
             gateway_type=gateway_type,
             status=status,
+            client=client,
             page=page,
             page_size=page_size,
             sort_by=sort_by,
             sort_order=sort_order,
         )
+        client_options = sorted(list({
+            str(g["table_item"].get("customer")).strip()
+            for g in self._live_gateways.values()
+            if g.get("table_item", {}).get("customer") and g["table_item"]["customer"] != "-"
+        }))
 
         return {
             "summary": summary,
             "charts": charts,
             "gateways": gw_result["items"],
             "pagination": gw_result["pagination"],
+            "client_options": client_options,
         }
 
     @staticmethod
@@ -1127,6 +1191,49 @@ class DVRService:
             except Exception:
                 pass
 
+        # If device has no DVR installed, return clean non-DVR details immediately (skip NVR history and trouble events)
+        has_dvr_flag = dev_prop.get("has_dvr")
+        if has_dvr_flag is False or (has_dvr_flag is None and dev_prop.get("total_cameras") == 0 and not dev_prop.get("selected_cameras")) or detail.get("has_dvr") is False:
+            detail["has_dvr"] = False
+            detail["dvr_model"] = "Not Installed"
+            detail["cpu_dvr"] = {
+                "status": "Not Installed",
+                "message": "No DVR/NVR surveillance unit installed on this gateway.",
+                "port": "-",
+                "response_time": "N/A",
+                "packet_loss": "N/A",
+                "last_check": detail.get("last_update", "-"),
+            }
+            detail["camera_status"] = {
+                "total": 0,
+                "online": 0,
+                "no_video": 0,
+                "offline": 0,
+                "percent": 0,
+                "sparkline": [0, 0],
+            }
+            detail["recording_storage"] = {
+                "status": "N/A",
+                "used_tb": 0,
+                "total_tb": 0,
+                "percent": 0,
+                "retention_days": 0,
+                "sparkline": [0, 0],
+            }
+            detail["dvr_health"] = {
+                "status": "N/A",
+                "hdd_status": "No Storage Installed",
+                "temperature": "-",
+                "fan_status": "N/A",
+                "bad_sector": 0,
+                "power_on_hours": None,
+                "health_percent": None,
+                "health_label": "N/A",
+            }
+            detail["cameras"] = []
+            detail["events"] = []
+            return detail
+
         if is_cpu_not_connected or float(detail.get("recording_storage", {}).get("total_tb", 0) or 0) == 0:
             last_nvr_row = None
             for r in reversed(rows):
@@ -1217,6 +1324,15 @@ class DVRService:
 
         # Ensure cameras preview list strictly matches selected_cameras configuration
         sel_set_cfg = set(str(x) for x in dev_prop.get("selected_cameras", [])) if dev_prop.get("selected_cameras") else None
+        if not sel_set_cfg and dev_prop.get("total_cameras") and detail.get("cameras"):
+            tot_cfg = int(dev_prop.get("total_cameras"))
+            sel_set_cfg = {str(i + 1) for i in range(tot_cfg)}
+        elif not sel_set_cfg and detail.get("cameras"):
+            raw_c_list = detail.get("cameras")
+            real_cams = [c for c in raw_c_list if not (c.get("resolution") == "NO VIDEO" and (c.get("status") == "No Video" or c.get("fps") == 0) and not c.get("is_recording") and "Camera 0" in c.get("name", ""))]
+            if real_cams and len(real_cams) < len(raw_c_list):
+                sel_set_cfg = {str(c.get("channel")) for c in real_cams if c.get("channel") is not None}
+
         if sel_set_cfg and detail.get("cameras"):
             detail["cameras"] = [c for c in detail["cameras"] if str(c.get("channel")) in sel_set_cfg]
         elif dev_prop.get("total_cameras") and detail.get("cameras"):

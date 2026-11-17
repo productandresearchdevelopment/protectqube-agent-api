@@ -28,69 +28,13 @@ class CellularReportService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
-        loaded_from_db = False
-        try:
-            from app.core.database import SessionLocal
-            from app.models.base_models import GatewayTelemetryHistory
-            from sqlalchemy import distinct
-            db = SessionLocal()
-            try:
-                from app.models.base_models import Device
-                inactive_rows = db.query(Device.name).filter(
-                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
-                ).all()
-                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
-
-                query = db.query(GatewayTelemetryHistory)
-                if hasattr(GatewayTelemetryHistory, "deleted_at"):
-                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
-                latest_records = (
-                    query.distinct(GatewayTelemetryHistory.device_id)
-                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
-                    .all()
-                )
-                for latest in latest_records:
-                    if latest and latest.raw_payload:
-                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
-                            continue
-                        payload = dict(latest.raw_payload)
-                        if latest.device:
-                            payload["device_id"] = latest.device.name
-                            payload["device_uuid"] = str(latest.device.id)
-                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
-                        if latest.recorded_at:
-                            from datetime import timezone, timedelta
-                            WIB = timezone(timedelta(hours=7))
-                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
-                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        if latest.location:
-                            payload["location"] = latest.location
-                            payload["location_name"] = latest.location
-                        self.update_from_telemetry(payload, compute_sla=False)
-                if self._live_gateways:
-                    loaded_from_db = True
-                    logger.info(f"CellularReportService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-            finally:
-                db.close()
-        except Exception as dbe:
-            logger.debug(f"Could not hydrate gateways from database: {dbe}")
-
-        if not loaded_from_db:
-            cache_file = self._cache_path()
-            if os.path.exists(cache_file):
-                try:
-                    with open(cache_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, list):
-                        for item in data:
-                            if isinstance(item, dict):
-                                self.update_from_telemetry(item, compute_sla=False)
-                    elif isinstance(data, dict):
-                        self.update_from_telemetry(data, compute_sla=False)
-                    logger.info(f"CellularReportService: Loaded {len(self._live_gateways)} live gateway(s)")
-                except Exception as e:
-                    logger.warning(f"Could not load telemetry cache for cellular report: {e}")
+        """Loads cached real telemetry snapshots using centralized loader (PostgreSQL primary / disk fallback)."""
+        from app.services.telemetry_loader import get_initial_telemetry_payloads, get_cached_inactive_gateways
+        self._inactive_gateways = get_cached_inactive_gateways()
+        payloads = get_initial_telemetry_payloads()
+        for p in payloads:
+            self.update_from_telemetry(p, compute_sla=False)
+        logger.info(f"CellularReportService: Hydrated {len(self._live_gateways)} gateway(s)")
 
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL."""

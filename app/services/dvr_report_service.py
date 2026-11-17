@@ -30,78 +30,16 @@ class DVRReportService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
-        loaded_from_db = False
-        try:
-            from app.core.database import SessionLocal
-            from app.models.base_models import GatewayTelemetryHistory
-            from sqlalchemy import distinct
-            db = SessionLocal()
-            try:
-                from app.models.base_models import Device
-                inactive_rows = db.query(Device.name).filter(
-                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
-                ).all()
-                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
-
-                all_devs = db.query(Device).all()
-                for d in all_devs:
-                    if d.name and d.property:
-                        self._device_properties[d.name] = d.property
-                        self._device_properties[str(d.id)] = d.property
-
-                query = db.query(GatewayTelemetryHistory)
-                if hasattr(GatewayTelemetryHistory, "deleted_at"):
-                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
-                latest_records = (
-                    query.distinct(GatewayTelemetryHistory.device_id)
-                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
-                    .all()
-                )
-                for latest in latest_records:
-                    if latest and latest.raw_payload:
-                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
-                            continue
-                        payload = dict(latest.raw_payload)
-                        if latest.device:
-                            payload["device_id"] = latest.device.name
-                            payload["device_uuid"] = str(latest.device.id)
-                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
-                            payload["property"] = latest.device.property or {}
-                            self._device_properties[latest.device.name] = latest.device.property or {}
-                            self._device_properties[str(latest.device.id)] = latest.device.property or {}
-                        if latest.recorded_at:
-                            from datetime import timezone, timedelta
-                            WIB = timezone(timedelta(hours=7))
-                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
-                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        if latest.location:
-                            payload["location"] = latest.location
-                            payload["location_name"] = latest.location
-                        self.update_from_telemetry(payload, compute_sla=False)
-                if self._live_gateways:
-                    loaded_from_db = True
-                    logger.info(f"DVRReportService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-            finally:
-                db.close()
-        except Exception as dbe:
-            logger.debug(f"Could not hydrate gateways from database: {dbe}")
-
-        if not loaded_from_db:
-            cache_file = self._cache_path()
-            if os.path.exists(cache_file):
-                try:
-                    with open(cache_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, list):
-                        for item in data:
-                            if isinstance(item, dict):
-                                self.update_from_telemetry(item, compute_sla=False)
-                    elif isinstance(data, dict):
-                        self.update_from_telemetry(data, compute_sla=False)
-                    logger.info(f"DVRReportService: Loaded {len(self._live_gateways)} live gateway(s)")
-                except Exception as e:
-                    logger.warning(f"Could not load telemetry cache for DVR report: {e}")
+        """Loads cached real telemetry snapshots using centralized loader (PostgreSQL primary / disk fallback)."""
+        from app.services.telemetry_loader import get_initial_telemetry_payloads, get_cached_inactive_gateways
+        self._inactive_gateways = get_cached_inactive_gateways()
+        payloads = get_initial_telemetry_payloads()
+        for p in payloads:
+            dev_id = p.get("device_id")
+            if dev_id and p.get("property"):
+                self._device_properties[dev_id] = p["property"]
+            self.update_from_telemetry(p, compute_sla=False)
+        logger.info(f"DVRReportService: Hydrated {len(self._live_gateways)} gateway(s)")
 
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL."""
@@ -131,8 +69,26 @@ class DVRReportService:
             self._device_properties[device_id] = nms_payload["property"]
         selected_cams = dev_prop.get("selected_cameras")
 
+        # Check if device is configured without DVR
+        has_dvr = dev_prop.get("has_dvr")
+        if has_dvr is None:
+            if dev_prop.get("total_cameras") == 0 and (selected_cams is None or len(selected_cams) == 0):
+                has_dvr = False
+            else:
+                has_dvr = True
+
         cameras_info = nvr.get("cameras", {})
-        if not nvr_reachable:
+        if not has_dvr:
+            total_cam = 0
+            online_cam = 0
+            offline_cam = 0
+            no_vid_cam = 0
+            dvr_model = "Not Installed"
+            is_recording = False
+            cap_str = "N/A"
+            avg_str = "N/A"
+            used_pct = None
+        elif not nvr_reachable:
             if selected_cams and isinstance(selected_cams, list) and len(selected_cams) > 0:
                 total_cam = len(set(str(x) for x in selected_cams))
             else:
@@ -228,7 +184,24 @@ class DVRReportService:
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
 
-        if compute_sla:
+        if not has_dvr:
+            up_str = "N/A"
+            off_str = "N/A"
+            sr = None
+            resp_ms = 0
+            rec_up_str = "N/A"
+            rec_off_str = "N/A"
+            rec_sr = None
+            cam_sr = None
+            combined_sla = None
+            dvr_events = []
+            events_count = 0
+            period_hours_str = "N/A"
+            timeline_tracks = []
+            cpu_trend = []
+            daily_breakdown = []
+            daily_summary = None
+        elif compute_sla:
             sla = sla_calculator_service.calculate_device_sla(device_id, live_payload=nms_payload)
             up_str = sla.get("cpu_dvr_uptime_str") or sla["gateway_uptime_str"]
             off_str = sla.get("cpu_dvr_offline_str") or sla["gateway_offline_str"]
@@ -274,6 +247,7 @@ class DVRReportService:
         report_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
+            "has_dvr": has_dvr,
             "location": loc_name,
             "type": box_type,
             "customer": nms_payload.get("customer") or sla_cust or "-",
@@ -324,21 +298,21 @@ class DVRReportService:
             "period_hours": period_hours_str,
 
             "cpu_dvr_uptime": up_str,
-            "cpu_dvr_uptime_pct": f"{sr}%",
+            "cpu_dvr_uptime_pct": f"{sr}%" if sr is not None else "N/A",
             "cpu_dvr_offline": off_str,
-            "cpu_dvr_offline_pct": f"{round(100.0 - sr, 1)}%",
-            "success_rate": f"{sr}%",
+            "cpu_dvr_offline_pct": f"{round(100.0 - sr, 1)}%" if sr is not None else "N/A",
+            "success_rate": f"{sr}%" if sr is not None else "N/A",
             "success_rate_checks": f"({len(cpu_trend)} / {len(cpu_trend)} check)",
             "avg_response_time": f"{resp_ms} ms",
             "rec_uptime": rec_up_str,
-            "rec_uptime_pct": f"{rec_sr}%",
+            "rec_uptime_pct": f"{rec_sr}%" if rec_sr is not None else "N/A",
             "rec_tidak_merekam": rec_off_str,
-            "rec_tidak_merekam_pct": f"{round(100.0 - rec_sr, 1)}%",
+            "rec_tidak_merekam_pct": f"{round(100.0 - rec_sr, 1)}%" if rec_sr is not None else "N/A",
             "rec_error": "0m",
             "camera_uptime": "744h 00m",
-            "camera_uptime_pct": f"{cam_sr}%",
+            "camera_uptime_pct": f"{cam_sr}%" if cam_sr is not None else "N/A",
             "camera_offline": "0h 00m",
-            "camera_offline_pct": f"{round(100.0 - cam_sr, 1)}%",
+            "camera_offline_pct": f"{round(100.0 - cam_sr, 1)}%" if cam_sr is not None else "N/A",
             "rec_error_pct": "0.0%",
             "storage_used_pct": used_pct,
             "kamera_total": total_cam,
@@ -1019,13 +993,6 @@ class DVRReportService:
                                     overlap_m = max(0.0, (day_end - overlap_start).total_seconds() / 60.0)
                                     if overlap_m > max_day_down:
                                         max_day_down = overlap_m
-
-                            # If it's today and all cameras are not recording, full observation is down
-                            if r_date == now_dt.date():
-                                not_rec_count = sum(1 for c in detail.get("camera_list", []) if str(c.get("recording_status", "")).upper() == "NOT_RECORD")
-                                total_cams = len(detail.get("camera_list", []))
-                                if total_cams > 0 and not_rec_count == total_cams:
-                                    max_day_down = day_obs
 
                             if max_day_down > 0 and day_obs > 0:
                                 rec_down = min(day_obs, max(float(r.get("rec_downtime_min", 0)), max_day_down))

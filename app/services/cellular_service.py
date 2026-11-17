@@ -23,69 +23,13 @@ class CellularService:
         return os.path.join(base_dir, "telemetry_cache.json")
 
     def _load_persisted_telemetry(self):
-        """Loads cached real telemetry snapshots from PostgreSQL database (primary) or disk cache (fallback)"""
-        loaded_from_db = False
-        try:
-            from app.core.database import SessionLocal
-            from app.models.base_models import GatewayTelemetryHistory
-            from sqlalchemy import distinct
-            db = SessionLocal()
-            try:
-                from app.models.base_models import Device
-                inactive_rows = db.query(Device.name).filter(
-                    (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
-                ).all()
-                self._inactive_gateways = {r[0] for r in inactive_rows if r[0]}
-
-                query = db.query(GatewayTelemetryHistory)
-                if hasattr(GatewayTelemetryHistory, "deleted_at"):
-                    query = query.filter(GatewayTelemetryHistory.deleted_at.is_(None))
-                latest_records = (
-                    query.distinct(GatewayTelemetryHistory.device_id)
-                    .order_by(GatewayTelemetryHistory.device_id, GatewayTelemetryHistory.recorded_at.desc())
-                    .all()
-                )
-                for latest in latest_records:
-                    if latest and latest.raw_payload:
-                        if latest.device and (not latest.device.is_active or latest.device.deleted_at is not None):
-                            continue
-                        payload = dict(latest.raw_payload)
-                        if latest.device:
-                            payload["device_id"] = latest.device.name
-                            payload["device_uuid"] = str(latest.device.id)
-                            payload["customer"] = latest.device.client.name if (latest.device.client and latest.device.client.name) else "-"
-                            if latest.device.location:
-                                payload["location"] = latest.device.location
-                                payload["location_name"] = latest.device.location
-                        if latest.recorded_at:
-                            from datetime import timezone, timedelta
-                            WIB = timezone(timedelta(hours=7))
-                            t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
-                            payload["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")
-                        self.update_from_telemetry(payload, save_cache=False)
-                if self._live_gateways:
-                    loaded_from_db = True
-                    logger.info(f"CellularService: Hydrated {len(self._live_gateways)} gateway(s) from PostgreSQL database")
-            finally:
-                db.close()
-        except Exception as dbe:
-            logger.debug(f"Could not hydrate gateways from database: {dbe}")
-
-        if not loaded_from_db:
-            cache_file = self._cache_path()
-            if os.path.exists(cache_file):
-                try:
-                    with open(cache_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, list):
-                        for item in data:
-                            if isinstance(item, dict):
-                                self.update_from_telemetry(item, save_cache=False)
-                    elif isinstance(data, dict):
-                        self.update_from_telemetry(data, save_cache=False)
-                    logger.info(f"Loaded {len(self._live_gateways)} live gateway(s) from {cache_file}")
-                except Exception as e:
-                    logger.warning(f"Could not load telemetry cache: {e}")
+        """Loads cached real telemetry snapshots using centralized loader (PostgreSQL primary / disk fallback)."""
+        from app.services.telemetry_loader import get_initial_telemetry_payloads, get_cached_inactive_gateways
+        self._inactive_gateways = get_cached_inactive_gateways()
+        payloads = get_initial_telemetry_payloads()
+        for p in payloads:
+            self.update_from_telemetry(p, save_cache=False)
+        logger.info(f"CellularService: Hydrated {len(self._live_gateways)} gateway(s)")
         self._sync_freshness()
 
     def reload_telemetry_cache(self):
@@ -380,20 +324,10 @@ class CellularService:
             "last_seen_epoch": last_seen_epoch,
         }
 
-        if save_cache:
-            now_write = time.time()
-            last_write = getattr(self, "_last_cache_write", 0.0)
-            if (now_write - last_write) >= 60.0:
-                self._last_cache_write = now_write
-                try:
-                    cache_file = self._cache_path()
-                    tmp_file = cache_file + ".tmp"
-                    raw_list = [g["raw"] for g in self._live_gateways.values() if "raw" in g]
-                    with open(tmp_file, "w", encoding="utf-8") as f:
-                        json.dump(raw_list, f)
-                    os.replace(tmp_file, cache_file)
-                except Exception as ce:
-                    logger.debug(f"Failed to write cache file: {ce}")
+        # Disk cache writing is disabled during live telemetry ingestion to avoid
+        # triggering infinite reload loops in uvicorn --reload and unnecessary disk I/O.
+        # Historical and latest telemetry snapshots are already persisted in PostgreSQL (GatewayTelemetryHistory).
+        pass
 
     ONLINE_TIMEOUT_SECONDS = 3600  # 1 Jam (3600 detik). Jika data telemetri berhenti > 1 jam, status menjadi Offline
 
@@ -853,11 +787,23 @@ class CellularService:
                 if query in g["id"].lower() or query in g["location"].lower()
             ]
 
-        if gateway_type and gateway_type != "Semua Tipe":
-            filtered = [
-                g for g in filtered
-                if g["type"].lower() == gateway_type.strip().lower()
-            ]
+        if gateway_type and gateway_type not in ("Semua Tipe", "All Types", "All", ""):
+            t_low = gateway_type.strip().lower()
+            if "hitam" in t_low or "black" in t_low:
+                filtered = [
+                    g for g in filtered
+                    if "hitam" in str(g.get("type", "")).lower() or "black" in str(g.get("type", "")).lower()
+                ]
+            elif "putih" in t_low or "white" in t_low:
+                filtered = [
+                    g for g in filtered
+                    if "putih" in str(g.get("type", "")).lower() or "white" in str(g.get("type", "")).lower()
+                ]
+            else:
+                filtered = [
+                    g for g in filtered
+                    if str(g.get("type", "")).lower() == t_low
+                ]
 
         if status and status not in ("All Statuses", "Semua Status", "All"):
             st_query = status.strip().lower()

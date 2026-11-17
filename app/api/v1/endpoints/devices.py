@@ -17,10 +17,45 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/devices", tags=["Devices"], dependencies=[Depends(require_permission("/configuration"))])
 
 
-def get_device_detected_cameras(db: Session, dev_id: uuid.UUID) -> List[Dict[str, Any]]:
+def get_device_detected_cameras(db: Session, dev_id: uuid.UUID, dev_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Extracts real camera channels detected from incoming MQTT telemetry snapshots.
+    Fast path: checks live in-memory telemetry first (O(1) < 1ms), falls back to DB.
     """
+    try:
+        from app.api.v1.endpoints.monitoring import dvr_service
+        if dvr_service and hasattr(dvr_service, "_live_gateways"):
+            matched_g = None
+            if dev_name and dev_name in dvr_service._live_gateways:
+                matched_g = dvr_service._live_gateways[dev_name]
+            elif str(dev_id) in dvr_service._live_gateways:
+                matched_g = dvr_service._live_gateways[str(dev_id)]
+            else:
+                for k, v in dvr_service._live_gateways.items():
+                    if str(v.get("device_uuid", "")).lower() == str(dev_id).lower():
+                        matched_g = v
+                        break
+            if matched_g:
+                cams = (
+                    matched_g.get("raw_payload", {}).get("nvr_surveillance", {}).get("cameras", {}).get("camera_list")
+                    or matched_g.get("detail_item", {}).get("cameras")
+                )
+                if cams and isinstance(cams, list):
+                    results = []
+                    for idx, c in enumerate(cams):
+                        c_id = str(c.get("id") or c.get("channel") or (idx + 1))
+                        results.append({
+                            "id": c_id,
+                            "channel": int(c_id) if c_id.isdigit() else (idx + 1),
+                            "name": c.get("name") or f"CAM {c_id}",
+                            "is_online": bool(c.get("is_online", c.get("status") == "Online")),
+                            "resolution": c.get("resolution") or ("1080P" if c.get("is_online", c.get("status") == "Online") else "NO VIDEO"),
+                            "recording_status": c.get("recording_status") or ("RECORD" if c.get("is_recording") else "NOT_RECORD"),
+                        })
+                    return results
+    except Exception as e:
+        logger.debug(f"Fast in-memory detected cameras lookup skipped: {e}")
+
     try:
         latest = (
             db.query(GatewayTelemetryHistory)
@@ -184,9 +219,11 @@ def get_device(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
 
     prop = dev.property or {}
-    detected = get_device_detected_cameras(db, dev.id)
+    detected = get_device_detected_cameras(db, dev.id, str(dev.name))
     sel_cams = prop.get("selected_cameras")
     tot_cams = len(sel_cams) if (sel_cams is not None and isinstance(sel_cams, list)) else prop.get("total_cameras")
+    raw_has_dvr = prop.get("has_dvr")
+    has_dvr = raw_has_dvr if raw_has_dvr is not None else (False if (tot_cams == 0 and prop.get("total_cameras") == 0) else True)
 
     return {
         "status": True,
@@ -202,6 +239,7 @@ def get_device(
             "is_active": dev.is_active,
             "client_id": str(dev.client_id) if dev.client_id else None,
             "client_name": dev.client.name if dev.client else None,
+            "has_dvr": has_dvr,
             "property": prop,
             "total_cameras": tot_cams,
             "selected_cameras": sel_cams,
@@ -277,16 +315,23 @@ def update_device(
         else:
             dev.operational_end = None
 
-    # 4. Update property JSONB, selected_cameras & total_cameras shortcut
+    # 4. Update property JSONB, has_dvr, selected_cameras & total_cameras shortcut
     current_prop = dict(dev.property or {})
     if payload.property is not None:
         current_prop.update(payload.property)
 
-    if payload.selected_cameras is not None:
-        current_prop["selected_cameras"] = [str(x) for x in payload.selected_cameras]
-        current_prop["total_cameras"] = len(payload.selected_cameras)
-    elif payload.total_cameras is not None:
-        current_prop["total_cameras"] = payload.total_cameras
+    if payload.has_dvr is not None:
+        current_prop["has_dvr"] = payload.has_dvr
+        if not payload.has_dvr:
+            current_prop["total_cameras"] = 0
+            current_prop["selected_cameras"] = []
+
+    if payload.has_dvr is not False:
+        if payload.selected_cameras is not None:
+            current_prop["selected_cameras"] = [str(x) for x in payload.selected_cameras]
+            current_prop["total_cameras"] = len(payload.selected_cameras)
+        elif payload.total_cameras is not None:
+            current_prop["total_cameras"] = payload.total_cameras
 
     dev.property = current_prop
     dev.updated_at = datetime.utcnow()
@@ -295,28 +340,8 @@ def update_device(
     db.commit()
     db.refresh(dev)
 
-    # Trigger hot-update in services so DVR and SLA reports immediately reflect the new camera setup
+    # Fast O(1) in-memory hot-update for the specific device across all live monitoring & report services
     try:
-        from app.services.sla_report_service import sla_report_service
-        from app.services.system_health_service import system_health_service
-        from app.services.dvr_service import DVRService
-        from app.services.dvr_report_service import DVRReportService
-
-        if dev.name in sla_report_service._live_gateways:
-            g = sla_report_service._live_gateways[dev.name]
-            g["location"] = dev.location or g["location"]
-            g["customer"] = dev.client.name if dev.client else "-"
-            if dev.property:
-                g["property"] = dev.property
-
-        if dev.name in system_health_service._live_gateways:
-            g = system_health_service._live_gateways[dev.name]
-            g["table_item"]["location"] = dev.location or g["table_item"]["location"]
-            g["table_item"]["customer"] = dev.client.name if dev.client else "-"
-            g["detail_item"]["location"] = dev.location or g["detail_item"]["location"]
-            g["detail_item"]["customer"] = dev.client.name if dev.client else "-"
-
-        # Reload all live monitoring & report services caches
         from app.api.v1.endpoints.monitoring import (
             dvr_service,
             dvr_report_service,
@@ -326,20 +351,103 @@ def update_device(
             cellular_report_service,
             sla_report_service,
         )
-        for srv in [
-            dvr_service,
-            dvr_report_service,
-            system_health_service,
-            health_report_service,
-            cellular_service,
-            cellular_report_service,
-            sla_report_service,
-        ]:
-            if srv and hasattr(srv, "reload_telemetry_cache"):
-                try:
-                    srv.reload_telemetry_cache()
-                except Exception:
-                    pass
+
+        dev_name = str(dev.name)
+        dev_uuid_str = str(dev.id)
+        client_name = dev.client.name if dev.client else "-"
+        dev_loc = dev.location or ""
+        dev_prop = dev.property or {}
+
+        # 1. Update DVR Fleet Service
+        if dvr_service:
+            if hasattr(dvr_service, "_device_properties"):
+                dvr_service._device_properties[dev_name] = dev_prop
+                dvr_service._device_properties[dev_uuid_str] = dev_prop
+            if hasattr(dvr_service, "_device_locations"):
+                dvr_service._device_locations[dev_name] = dev_loc
+                dvr_service._device_locations[dev_uuid_str] = dev_loc
+            if dev_name in dvr_service._live_gateways:
+                g = dvr_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                dvr_service.update_from_telemetry(raw_p, save_cache=False)
+
+        # 2. Update DVR Report Service
+        if dvr_report_service:
+            if hasattr(dvr_report_service, "_device_properties"):
+                dvr_report_service._device_properties[dev_name] = dev_prop
+                dvr_report_service._device_properties[dev_uuid_str] = dev_prop
+            if dev_name in dvr_report_service._live_gateways:
+                g = dvr_report_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                dvr_report_service.update_from_telemetry(raw_p)
+
+        # 3. Update System Health Service
+        if system_health_service:
+            if hasattr(system_health_service, "_device_properties"):
+                system_health_service._device_properties[dev_name] = dev_prop
+                system_health_service._device_properties[dev_uuid_str] = dev_prop
+            if hasattr(system_health_service, "_device_locations"):
+                system_health_service._device_locations[dev_name] = dev_loc
+                system_health_service._device_locations[dev_uuid_str] = dev_loc
+            if dev_name in system_health_service._live_gateways:
+                g = system_health_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                system_health_service.update_from_telemetry(raw_p, save_cache=False)
+
+        # 4. Update Health Report Service
+        if health_report_service and hasattr(health_report_service, "_live_gateways"):
+            if dev_name in health_report_service._live_gateways:
+                g = health_report_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                health_report_service.update_from_telemetry(raw_p)
+
+        # 5. Update Cellular Service
+        if cellular_service:
+            if hasattr(cellular_service, "_device_locations"):
+                cellular_service._device_locations[dev_name] = dev_loc
+                cellular_service._device_locations[dev_uuid_str] = dev_loc
+            if dev_name in cellular_service._live_gateways:
+                g = cellular_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                cellular_service.update_from_telemetry(raw_p, save_cache=False)
+
+        # 6. Update Cellular Report Service
+        if cellular_report_service and hasattr(cellular_report_service, "_live_gateways"):
+            if dev_name in cellular_report_service._live_gateways:
+                g = cellular_report_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                cellular_report_service.update_from_telemetry(raw_p)
+
+        # 7. Update SLA Report Service
+        if sla_report_service:
+            if hasattr(sla_report_service, "_device_locations"):
+                sla_report_service._device_locations[dev_name] = dev_loc
+                sla_report_service._device_locations[dev_uuid_str] = dev_loc
+            if dev_name in sla_report_service._live_gateways:
+                g = sla_report_service._live_gateways[dev_name]
+                raw_p = dict(g.get("raw_payload") or {})
+                raw_p["property"] = dev_prop
+                raw_p["location"] = dev_loc
+                raw_p["customer"] = client_name
+                sla_report_service.update_from_telemetry(raw_p)
     except Exception as e:
         logger.debug(f"Could not hot-update in-memory cache: {e}")
 

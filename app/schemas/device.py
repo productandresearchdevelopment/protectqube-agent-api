@@ -12,6 +12,7 @@ class DeviceUpdate(BaseModel):
     operational_start: Optional[str] = Field(None, description="HH:MM:SS format")
     operational_end: Optional[str] = Field(None, description="HH:MM:SS format")
     is_active: Optional[bool] = None
+    has_dvr: Optional[bool] = Field(None, description="Whether device is equipped with a DVR/NVR surveillance unit")
     property: Optional[Dict[str, Any]] = Field(None, description="Additional properties JSONB")
     total_cameras: Optional[int] = Field(None, description="Shortcut to set property.total_cameras")
     selected_cameras: Optional[List[str]] = Field(None, description="List of camera channel IDs selected for monitoring")
@@ -38,6 +39,7 @@ class DeviceResponse(BaseModel):
     is_active: bool = True
     client_id: Optional[str] = None
     client_name: Optional[str] = None
+    has_dvr: Optional[bool] = None
     property: Dict[str, Any] = {}
     total_cameras: Optional[int] = None
     selected_cameras: Optional[List[str]] = None

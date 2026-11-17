@@ -1188,13 +1188,30 @@ class SLACalculatorService:
                     ev_no += 1
                     cur_s = next_day_start
 
-        # Fallback: if database alerts table is empty for this gateway, extract real incident alerts from telemetry logs
-        if not trouble_events and live_payload:
+        # Augment / extract real incident alerts from telemetry logs and active recording status
+        if live_payload:
             logs = live_payload.get("recent_system_logs", [])
             if isinstance(logs, str):
                 logs = logs.strip().split("\n")
-            fb_no = 1
-            seen_events = set()
+            fb_no = len(trouble_events) + 1
+            seen_events = {(ev.get("start_time"), ev.get("metric")) for ev in trouble_events}
+
+            # Determine configured camera channels to filter out spurious logs for uninstalled camera ports (e.g. Ch 3, 4)
+            conf_cam_ids = set()
+            raw_c_list = live_payload.get("nvr_surveillance", {}).get("cameras", {}).get("camera_list", [])
+            prop_c = (live_payload.get("property") or {}).get("selected_cameras")
+            tot_c_cfg = (live_payload.get("property") or {}).get("total_cameras")
+            if prop_c and isinstance(prop_c, list) and len(prop_c) > 0:
+                conf_cam_ids = {str(x) for x in prop_c}
+            elif tot_c_cfg:
+                conf_cam_ids = {str(i + 1) for i in range(int(tot_c_cfg))}
+            elif raw_c_list:
+                real_c = [c for c in raw_c_list if not (c.get("enabled") is False and (c.get("resolution") == "NO VIDEO" or c.get("resolution_raw") == "NO VIDEO"))]
+                if real_c and len(real_c) < len(raw_c_list):
+                    conf_cam_ids = {str(c.get("id")) for c in real_c if c.get("id") is not None}
+
+            earliest_not_rec_dt = None
+
             for line in logs:
                 line_str = str(line)
                 m = re.search(r'\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]', line_str)
@@ -1222,19 +1239,25 @@ class SLACalculatorService:
                     category = "CCTV Recording"
                     rec_m = re.search(r'NVR\s+RECORDING:\s*\((.*?)\)', line_str, re.IGNORECASE)
                     if rec_m:
-                        not_rec_cams = [part.split(":")[0].strip() for part in rec_m.group(1).split(",") if "NOT_RECORD" in part.upper()]
-                        if len(not_rec_cams) >= 4:
-                            desc = "CCTV Video Recording Stopped (All Channels NOT_RECORD)"
-                        elif not_rec_cams:
-                            desc = f"Camera Not Recording: {', '.join(not_rec_cams)} (NOT_RECORD)"
+                        all_not_rec = [part.split(":")[0].strip() for part in rec_m.group(1).split(",") if "NOT_RECORD" in part.upper()]
+                        # Filter to only configured cameras
+                        if conf_cam_ids:
+                            not_rec_cams = [c for c in all_not_rec if re.search(r'\b(?:CAMERA|KAMERA)\s*(\d+)', c, re.I) and re.search(r'\b(?:CAMERA|KAMERA)\s*(\d+)', c, re.I).group(1) in conf_cam_ids]
                         else:
-                            desc = "CCTV Camera Video Recording Inactive (NOT_RECORD)"
+                            not_rec_cams = all_not_rec
+
+                        if not_rec_cams:
+                            desc = f"CCTV Video Recording Stopped ({len(not_rec_cams)} Channels NOT_RECORD)"
+                        else:
+                            continue
                     else:
                         desc = "CCTV Camera Video Recording Inactive (NOT_RECORD)"
                 elif "Kamera #" in line_str and ("terputus" in line_str or "NO VIDEO" in line_str or "mati" in line_str):
+                    cam_m = re.search(r'Kamera\s*#(\d+)', line_str)
+                    if cam_m and conf_cam_ids and cam_m.group(1) not in conf_cam_ids:
+                        continue
                     metric = "recording"
                     category = "CCTV Recording"
-                    cam_m = re.search(r'Kamera\s*#(\d+)', line_str)
                     cam_id = f"Camera #{cam_m.group(1)}" if cam_m else "Camera"
                     desc = f"{cam_id} Not Recording / No Video"
                 elif "TIDAK MASUK ke Harddisk" in line_str or "READ-ONLY" in line_str or "Bad Sector" in line_str:
@@ -1250,8 +1273,14 @@ class SLACalculatorService:
                     category = "CPU - Modem"
                     desc = "Power Voltage Drop / Brownout"
 
+                if metric == "recording" and not earliest_not_rec_dt:
+                    try:
+                        earliest_not_rec_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=WIB)
+                    except Exception:
+                        pass
+
                 if metric and desc:
-                    dedup_key = (ts_str, metric, desc)
+                    dedup_key = (ts_str, metric)
                     if dedup_key in seen_events:
                         continue
                     seen_events.add(dedup_key)
@@ -1283,6 +1312,38 @@ class SLACalculatorService:
                         fb_no += 1
                     except Exception:
                         pass
+
+            # Check for Ongoing Active Recording Outage if currently online but not recording
+            m_ok, net_ok, dvr_ok, is_rec_active = self.evaluate_record_status(live_payload)
+            if dvr_ok and not is_rec_active:
+                has_active_rec = any(ev.get("metric") == "recording" and ev.get("status") == "Active" for ev in trouble_events)
+                if not has_active_rec:
+                    now_wib = datetime.now(timezone.utc).astimezone(WIB)
+                    rec_stop_s = earliest_not_rec_dt or (now_wib - timedelta(minutes=30))
+                    dur_sec = max(60.0, (now_wib - rec_stop_s).total_seconds())
+                    dur_m = max(1, int(round(dur_sec / 60.0)))
+                    dur_str = f"{dur_m // 60}h {dur_m % 60}m" if dur_m >= 60 and dur_m % 60 else (f"{dur_m // 60}h" if dur_m >= 60 else f"{dur_m}m")
+                    tot_configured = len(conf_cam_ids) if conf_cam_ids else 2
+                    rec_title = f"CCTV Video Recording Stopped (0/{tot_configured} Channels Writing to HDD)"
+                    trouble_events.append({
+                        "no": len(trouble_events) + 1,
+                        "start_time": rec_stop_s.strftime("%Y-%m-%d %H:%M:%S"),
+                        "end_time": "Ongoing",
+                        "duration": dur_str,
+                        "duration_minutes": float(dur_m),
+                        "category": "CCTV Recording",
+                        "metric": "recording",
+                        "date_str": rec_stop_s.strftime("%Y-%m-%d"),
+                        "day_downtime_minutes": float(dur_m),
+                        "title": rec_title,
+                        "description": "Communication between CPU and NVR is established, but CCTV video recording is inactive. No camera video stream is currently being written to storage.",
+                        "cause": "Recording service stopped or writing to HDD halted (0 channels writing)",
+                        "reason": "Recording service stopped or writing to HDD halted (0 channels writing)",
+                        "status": "Active",
+                        "telemetry_history_id": None,
+                        "_raw_dt": rec_stop_s,
+                        "epoch": rec_stop_s.timestamp(),
+                    })
 
         # If gateway has stopped sending telemetry (> GAP_THRESHOLD_SECONDS / 10m), ensure daily Active offline events exist
         now_wib_ev = datetime.now(timezone.utc).astimezone(WIB)
@@ -1335,7 +1396,38 @@ class SLACalculatorService:
                         })
                     cur_s = next_day_start
 
+        # Helper to deduplicate redundant 1m log snippets and sort chronologically descending
+        def _finalize_trouble_events(events_list):
+            active_windows = [
+                (ev.get("metric"), ev.get("epoch"))
+                for ev in events_list
+                if ev.get("status") == "Active" and ev.get("epoch")
+            ]
+            cleaned = []
+            for ev in events_list:
+                if ev.get("status") == "Resolved" and ev.get("duration") == "1m":
+                    ev_epoch = ev.get("epoch")
+                    ev_metric = ev.get("metric")
+                    if any(m == ev_metric and ev_epoch and ev_epoch >= act_epoch - 60.0 for m, act_epoch in active_windows):
+                        continue
+                cleaned.append(ev)
+
+            def _safe_sort_dt(item):
+                raw_dt = item.get("_raw_dt")
+                if raw_dt is None:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+                if hasattr(raw_dt, "tzinfo") and raw_dt.tzinfo is not None:
+                    return raw_dt.astimezone(timezone.utc)
+                return raw_dt.replace(tzinfo=timezone.utc)
+
+            cleaned.sort(key=_safe_sort_dt, reverse=True)
+            for idx, ev in enumerate(cleaned, 1):
+                ev["no"] = idx
+                ev.pop("_raw_dt", None)
+            return cleaned
+
         if not rows:
+            trouble_events = _finalize_trouble_events(trouble_events)
             obs_sec = max(3600, kernel_uptime_sec)
             m_ok, net_ok, dvr_ok, rec_ok = self.evaluate_record_status(live_payload)
 
@@ -1545,6 +1637,24 @@ class SLACalculatorService:
 
         # Collect trend points from real minute system logs or telemetry rows
         cpu_trend, ram_trend, sd_trend, health_stats = self._extract_minute_health_trends(rows=rows, live_payload=live_payload)
+
+        # Deduplicate: if an Active incident exists for a metric (e.g. recording),
+        # drop redundant 1-minute log snippet events that fall within the active outage window
+        active_windows = [
+            (ev.get("metric"), ev.get("epoch"))
+            for ev in trouble_events
+            if ev.get("status") == "Active" and ev.get("epoch")
+        ]
+        if active_windows:
+            cleaned_events = []
+            for ev in trouble_events:
+                if ev.get("status") == "Resolved" and ev.get("duration") == "1m":
+                    ev_epoch = ev.get("epoch")
+                    ev_metric = ev.get("metric")
+                    if any(m == ev_metric and ev_epoch and ev_epoch >= act_epoch - 60.0 for m, act_epoch in active_windows):
+                        continue
+                cleaned_events.append(ev)
+            trouble_events = cleaned_events
 
         # Urutkan trouble events secara kronologis menurun (kejadian terbaru nomor 1 di atas)
         def _safe_sort_dt(item):

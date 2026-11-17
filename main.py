@@ -103,4 +103,12 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG, app_dir=str(BASE_DIR))
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        reload_dirs=[str(BASE_DIR / "app")],
+        reload_excludes=["*.json", "*.db", "*.db-journal", "*.tmp", "*.log", "telemetry_cache.json", "whatsapp_session.db*"],
+        app_dir=str(BASE_DIR),
+    )
