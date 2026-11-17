@@ -603,3 +603,189 @@ def build_health_report_excel(
     wb.save(stream)
     stream.seek(0)
     return stream
+
+
+# ─── 4. Cellular Fleet Dashboard Excel Builder (Table View Matching UI) ────────
+
+def build_cellular_dashboard_excel(
+    gateways: List[Dict[str, Any]],
+    summary: Optional[Dict[str, Any]] = None,
+    filter_info: Optional[str] = None,
+) -> io.BytesIO:
+    """
+    Builds a formatted Excel workbook for Fleet Cellular Connectivity Dashboard matching the UI table:
+    - Headers: No., Gateway ID, Location, Client, Type, Modem, Provider, SIM Status, CPU - Modem, Status, Signal (RSRP), Signal Status, Last Telemetry Update
+    - Offline Gateways: Retains last known good telemetry (modem model, SIM provider, SIM status, RSRP, and signal quality).
+    """
+    import re
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Cellular Fleet"
+    ws.views.sheetView[0].showGridLines = True
+
+    kpis = []
+    if summary:
+        hitam = summary.get("smartbox_hitam", {})
+        putih = summary.get("smartbox_putih", {})
+        total_gw = summary.get("total_gateways", len(gateways))
+        online_gw = summary.get("online", 0)
+        offline_gw = summary.get("offline", 0)
+        online_pct = summary.get("online_percent", 0.0)
+        offline_pct = summary.get("offline_percent", 0.0)
+        kpis = [
+            ("Total Gateway", total_gw),
+            ("Online", f"{online_gw} ({online_pct}%)"),
+            ("Offline", f"{offline_gw} ({offline_pct}%)"),
+            ("SmartBox Hitam", f"{hitam.get('total', 0)} ({hitam.get('online', 0)} Online)"),
+            ("SmartBox Putih", f"{putih.get('total', 0)} ({putih.get('online', 0)} Online)"),
+        ]
+
+    start_row = _apply_title_block(
+        ws,
+        title="FLEET CELLULAR CONNECTIVITY",
+        date_range=filter_info or "Real-time Telemetry Snapshot",
+        total_records=len(gateways),
+        kpis=kpis,
+        include_brand=False,
+    )
+
+    r1 = start_row
+    ws.row_dimensions[r1].height = 26
+
+    headers = [
+        "No.",
+        "Gateway ID",
+        "Location",
+        "Client",
+        "Type",
+        "Modem",
+        "Provider",
+        "SIM Status",
+        "CPU – Modem",
+        "Status",
+        "Signal (RSRP)",
+        "Signal Status",
+        "Last Telemetry Update",
+    ]
+
+    for col_idx, text in enumerate(headers, 1):
+        cell = ws.cell(row=r1, column=col_idx, value=text)
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.border = BORDER_THIN
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    curr_row = r1 + 1
+    for idx, gw in enumerate(gateways, 1):
+        ws.row_dimensions[curr_row].height = 20
+        is_even = (idx % 2 == 0)
+        row_fill = ZEBRA_FILL if is_even else None
+
+        st = str(gw.get("status", "Online")).strip()
+        is_off = (st.lower() == "offline")
+
+        # Modem: preserve last known modem model
+        raw_modem = str(gw.get("modem") or "").strip()
+        if not raw_modem or raw_modem == "-" or "not detected" in raw_modem.lower() or "tidak" in raw_modem.lower():
+            modem_display = "Not Detected"
+        else:
+            modem_display = raw_modem
+
+        # Provider: preserve last known provider
+        raw_prov = str(gw.get("provider") or "").strip()
+        if not raw_prov or raw_prov in ["-", "No SIM", "N/A"]:
+            prov_display = "No SIM"
+        else:
+            prov_display = raw_prov
+
+        # SIM Status: preserve last known status
+        raw_sim = str(gw.get("sim_status") or "").strip()
+        if gw.get("is_quota_empty"):
+            sim_display = "No Quota"
+        elif any(k in raw_sim.lower() for k in ["ready", "aktif", "active", "inserted"]):
+            sim_display = "Ready"
+        elif raw_sim and raw_sim != "-":
+            sim_display = raw_sim
+        else:
+            sim_display = "Not Detected"
+
+        # CPU - Modem:
+        cpu_modem = str(gw.get("cpu_modem") or ("No Response" if is_off else "Connected"))
+
+        # Signal RSRP & Quality:
+        rsrp_val = str(gw.get("signal_rsrp") or "-").strip()
+        if rsrp_val and rsrp_val != "-":
+            m = re.search(r"-?\d+", rsrp_val)
+            num_rsrp = int(m.group(0)) if m else -99
+            rsrp_display = f"{num_rsrp} dBm"
+            if num_rsrp >= -70:
+                sig_quality = "Excellent"
+            elif num_rsrp >= -85:
+                sig_quality = "Good"
+            elif num_rsrp >= -100:
+                sig_quality = "Fair"
+            else:
+                sig_quality = "Poor"
+        else:
+            rsrp_display = "-"
+            sig_quality = "No Signal"
+
+        if is_off:
+            sig_status_display = f"{sig_quality} (Last Known)" if sig_quality != "No Signal" else "No Signal"
+        else:
+            if gw.get("is_quota_empty") or gw.get("data_status") == "No Internet":
+                sig_status_display = "No Internet"
+            else:
+                sig_status_display = sig_quality
+
+        row_values = [
+            idx,
+            gw.get("id", "-"),
+            gw.get("location", "-"),
+            gw.get("customer") or gw.get("client_name") or "-",
+            gw.get("type", "-"),
+            modem_display,
+            prov_display,
+            sim_display,
+            cpu_modem,
+            "Offline" if is_off else "Online",
+            rsrp_display,
+            sig_status_display,
+            gw.get("last_update", "-"),
+        ]
+
+        for col_idx, val in enumerate(row_values, 1):
+            cell = ws.cell(row=curr_row, column=col_idx, value=val)
+            cell.font = DATA_FONT
+            cell.border = BORDER_THIN
+            if row_fill:
+                cell.fill = row_fill
+
+            if col_idx in [1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 13]:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+            # Status styling
+            if col_idx == 10:
+                if is_off:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+                else:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_SUCCESS_TEXT)
+            elif col_idx == 9:
+                if "connected" in str(val).lower() and not is_off:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_SUCCESS_TEXT)
+                else:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+
+        curr_row += 1
+
+    _autofit_columns(ws)
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["B"].width = 16
+
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return stream

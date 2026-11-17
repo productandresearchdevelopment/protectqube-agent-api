@@ -94,6 +94,7 @@ class CellularDashboardData(BaseModel):
     charts: CellularCharts
     gateways: List[CellularGatewayItem]
     pagination: PaginationInfo
+    client_options: Optional[List[str]] = None
 
 
 class CellularDashboardResponse(BaseModel):

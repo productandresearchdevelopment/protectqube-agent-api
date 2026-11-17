@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import logging
 from typing import Dict, Any, List, Optional
@@ -757,6 +758,7 @@ class CellularService:
         status: Optional[str] = None,
         provider: Optional[str] = None,
         cpu_modem: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
@@ -780,14 +782,31 @@ class CellularService:
 
         filtered = items_list
 
-        if search:
+        if search and isinstance(search, str):
             query = search.strip().lower()
             filtered = [
                 g for g in filtered
-                if query in g["id"].lower() or query in g["location"].lower()
+                if (
+                    query in str(g.get("id", "")).lower()
+                    or query in str(g.get("location", "")).lower()
+                    or query in str(g.get("modem", "")).lower()
+                    or query in str(g.get("type", "")).lower()
+                    or query in str(g.get("provider", "")).lower()
+                    or query in str(g.get("customer", "")).lower()
+                    or query in str(g.get("client_name", "")).lower()
+                )
             ]
 
-        if gateway_type and gateway_type not in ("Semua Tipe", "All Types", "All", ""):
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            filtered = [
+                g for g in filtered
+                if c_low == str(g.get("customer", "")).lower()
+                or c_low == str(g.get("client_name", "")).lower()
+                or c_low in str(g.get("customer", "")).lower()
+            ]
+
+        if gateway_type and isinstance(gateway_type, str) and gateway_type not in ("Semua Tipe", "All Types", "All", ""):
             t_low = gateway_type.strip().lower()
             if "hitam" in t_low or "black" in t_low:
                 filtered = [
@@ -805,7 +824,7 @@ class CellularService:
                     if str(g.get("type", "")).lower() == t_low
                 ]
 
-        if status and status not in ("All Statuses", "Semua Status", "All"):
+        if status and isinstance(status, str) and status not in ("All Statuses", "Semua Status", "All"):
             st_query = status.strip().lower()
             if st_query in ("warning", "degraded"):
                 filtered = [
@@ -818,13 +837,13 @@ class CellularService:
                     if g.get("status", "").lower() == st_query
                 ]
 
-        if provider and provider != "Semua Provider":
+        if provider and isinstance(provider, str) and provider not in ("Semua Provider", "All", "All Providers"):
             filtered = [
                 g for g in filtered
-                if g["provider"].lower() == provider.strip().lower()
+                if str(g.get("provider", "")).lower() == provider.strip().lower()
             ]
 
-        if cpu_modem and cpu_modem not in ("All", "All CPU – Modem", "All CPU-Modem", "Semua Status", "All Statuses", "Semua"):
+        if cpu_modem and isinstance(cpu_modem, str) and cpu_modem not in ("All", "All CPU – Modem", "All CPU-Modem", "Semua Status", "All Statuses", "Semua"):
             cm_q = cpu_modem.strip().lower()
             filtered = [
                 g for g in filtered
@@ -832,6 +851,9 @@ class CellularService:
             ]
 
         filtered = self._apply_sorting(filtered, sort_by, sort_order)
+
+        page = page if isinstance(page, int) and page >= 1 else 1
+        page_size = page_size if isinstance(page_size, int) and page_size >= 1 else 5
 
         total_items = len(filtered)
         total_pages = max(1, (total_items + page_size - 1) // page_size)
@@ -858,6 +880,7 @@ class CellularService:
         status: Optional[str] = None,
         provider: Optional[str] = None,
         cpu_modem: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
@@ -870,18 +893,66 @@ class CellularService:
             status=status,
             provider=provider,
             cpu_modem=cpu_modem,
+            client=client,
             page=page,
             page_size=page_size,
             sort_by=sort_by,
             sort_order=sort_order,
         )
 
+        client_options = sorted(list({
+            str(g["item"].get("customer")).strip()
+            for g in self._live_gateways.values()
+            if g.get("item", {}).get("customer") and g["item"]["customer"] != "-"
+        }))
+
         return {
             "summary": self.get_summary_metrics(),
             "charts": self.get_charts(),
             "gateways": paged_gateways["items"],
             "pagination": paged_gateways["pagination"],
+            "client_options": client_options,
         }
+
+    def export_excel(
+        self,
+        search: Optional[str] = None,
+        gateway_type: Optional[str] = None,
+        status: Optional[str] = None,
+        provider: Optional[str] = None,
+        cpu_modem: Optional[str] = None,
+        client: Optional[str] = None,
+    ) -> io.BytesIO:
+        """Export real Cellular fleet dashboard telemetry to Excel matching UI table, retaining last known state for offline devices."""
+        from app.utils.export.excel_helper import build_cellular_dashboard_excel
+        paged = self.get_gateways_paged(
+            search=search,
+            gateway_type=gateway_type,
+            status=status,
+            provider=provider,
+            cpu_modem=cpu_modem,
+            client=client,
+            page=1,
+            page_size=5000,
+        )
+        summary = self.get_summary_metrics()
+
+        filter_parts = []
+        if client and client not in ["Semua Client", "All", "All Clients"]:
+            filter_parts.append(f"Client: {client}")
+        if gateway_type and gateway_type not in ["Semua Tipe", "All Types", "All"]:
+            filter_parts.append(f"Type: {gateway_type}")
+        if status and status not in ["All Statuses", "Semua Status", "All"]:
+            filter_parts.append(f"Status: {status}")
+        if search:
+            filter_parts.append(f"Search: '{search}'")
+        filter_info = "  |  ".join(filter_parts) if filter_parts else "All Fleet Telemetry"
+
+        return build_cellular_dashboard_excel(
+            gateways=paged.get("items", []),
+            summary=summary,
+            filter_info=filter_info,
+        )
 
     @staticmethod
     def _translate_log_to_en(text: str) -> str:

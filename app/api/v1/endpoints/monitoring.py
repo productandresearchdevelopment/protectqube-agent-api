@@ -141,6 +141,7 @@ def get_cellular_dashboard(
     status: Optional[str] = Query(None, description="Filter status gateway: Online, Degraded, Offline"),
     provider: Optional[str] = Query(None, description="Filter provider SIM card"),
     cpu_modem: Optional[str] = Query(None, description="Filter status komunikasi CPU-Modem: Connected, Not Connected, No Response"),
+    client: Optional[str] = Query(None, description="Filter client / customer: BCA, DANAMON, etc."),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
     sort_by: Optional[str] = Query(None, description="Kolom sorting"),
@@ -158,6 +159,7 @@ def get_cellular_dashboard(
         status=status,
         provider=provider,
         cpu_modem=cpu_modem,
+        client=client,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -167,6 +169,42 @@ def get_cellular_dashboard(
         "status": True,
         "data": dashboard_data,
     }
+
+
+@router.get("/cellular/export-excel")
+@router.get("/cellular-dashboard/export-excel")
+def export_cellular_dashboard_excel(
+    search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
+    gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
+    status: Optional[str] = Query(None, description="Filter status gateway: Online, Degraded, Offline"),
+    provider: Optional[str] = Query(None, description="Filter provider SIM card"),
+    cpu_modem: Optional[str] = Query(None, description="Filter status komunikasi CPU-Modem"),
+    client: Optional[str] = Query(None, description="Filter client / customer"),
+):
+    """
+    Exports fleet cellular telemetry data matching dashboard table to professional Excel (.xlsx) file,
+    retaining last known state for offline gateways.
+    """
+    try:
+        excel_stream = cellular_service.export_excel(
+            search=search,
+            gateway_type=gateway_type,
+            status=status,
+            provider=provider,
+            cpu_modem=cpu_modem,
+            client=client,
+        )
+        from datetime import datetime
+        date_str = datetime.now().strftime("%d%m%Y")
+        filename = f"CELLULAR_TELEMETRY_{date_str}.xlsx"
+        return Response(
+            content=excel_stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        logger.error(f"Error exporting Cellular dashboard Excel: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel export: {str(e)}")
 
 
 @router.get("/cellular/gateway/{gateway_id}/detail", response_model=CellularGatewayDetailResponse)
