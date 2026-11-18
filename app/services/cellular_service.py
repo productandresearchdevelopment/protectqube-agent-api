@@ -172,6 +172,13 @@ class CellularService:
         last_known_op = prev_net.get("operator") or prev_detail.get("provider") or prev_entry.get("item", {}).get("provider")
         resolved_provider = operator if (operator != "N/A" and operator != "No SIM") else (last_known_op if (last_known_op and last_known_op != "No SIM") else "No SIM")
 
+        uptime_val = (
+            nms_payload.get("gateway_system", {}).get("uptime")
+            or nms_payload.get("uptime")
+            or prev_entry.get("item", {}).get("uptime")
+            or "-"
+        )
+
         gw_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
@@ -190,6 +197,7 @@ class CellularService:
             "signal_bars": bars,
             "modem_temp": f"{temp_c}°C",
             "status": status,
+            "uptime": str(uptime_val) if uptime_val else "-",
             "last_update": clean_update,
             "is_quota_empty": is_quota_empty,
             "data_status": data_status_label,
@@ -409,6 +417,11 @@ class CellularService:
             detail = gdata.get("detail", {})
             raw = gdata.get("raw", {})
             modem_connected, sim_inserted, _, _ = self._parse_cellular_from_logs(raw)
+
+            if not item.get("uptime") or item.get("uptime") == "-":
+                raw_up = raw.get("gateway_system", {}).get("uptime") or raw.get("uptime")
+                if raw_up:
+                    item["uptime"] = str(raw_up)
             
             if age_sec > self.ONLINE_TIMEOUT_SECONDS:
                 # Gateway sudah tidak menerima data telemetri > 1 jam -> STATUS DEVICE OFFLINE
@@ -748,6 +761,28 @@ class CellularService:
                     return (2, rsrp)
                 return (1, rsrp)
             return sorted(items, key=sig_status_rank, reverse=is_desc)
+
+        if key == "uptime":
+            import re
+            def parse_uptime_sec(g: Dict[str, Any]) -> float:
+                raw = str(g.get("uptime", "")).strip().lower()
+                if not raw or raw == "-":
+                    return 0.0
+                days = re.search(r"(\d+)\s*d", raw)
+                hours = re.search(r"(\d+)\s*h", raw)
+                mins = re.search(r"(\d+)\s*m", raw)
+                secs = re.search(r"(\d+)\s*s", raw)
+                total = 0.0
+                if days:
+                    total += float(days.group(1)) * 86400
+                if hours:
+                    total += float(hours.group(1)) * 3600
+                if mins:
+                    total += float(mins.group(1)) * 60
+                if secs:
+                    total += float(secs.group(1))
+                return total
+            return sorted(items, key=parse_uptime_sec, reverse=is_desc)
 
         return items
 

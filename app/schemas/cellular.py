@@ -77,6 +77,7 @@ class CellularGatewayItem(BaseModel):
     signal_bars: int
     modem_temp: str
     status: str
+    uptime: Optional[str] = "-"
     last_update: str
 
 

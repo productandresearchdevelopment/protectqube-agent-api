@@ -666,6 +666,7 @@ def build_cellular_dashboard_excel(
         "Status",
         "Signal (RSRP)",
         "Signal Status",
+        "Uptime",
         "Last Telemetry Update",
     ]
 
@@ -739,6 +740,10 @@ def build_cellular_dashboard_excel(
             else:
                 sig_status_display = sig_quality
 
+        uptime_display = str(gw.get("uptime") or "-").strip()
+        if not uptime_display:
+            uptime_display = "-"
+
         row_values = [
             idx,
             gw.get("id", "-"),
@@ -752,6 +757,7 @@ def build_cellular_dashboard_excel(
             "Offline" if is_off else "Online",
             rsrp_display,
             sig_status_display,
+            uptime_display,
             gw.get("last_update", "-"),
         ]
 
@@ -762,7 +768,7 @@ def build_cellular_dashboard_excel(
             if row_fill:
                 cell.fill = row_fill
 
-            if col_idx in [1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 13]:
+            if col_idx in [1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
