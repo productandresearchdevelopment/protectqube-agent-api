@@ -17,6 +17,7 @@ class CellularService:
 
     def __init__(self):
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
+        self._device_locations: Dict[str, str] = {}
         self._load_persisted_telemetry()
 
     def _cache_path(self) -> str:
@@ -29,6 +30,9 @@ class CellularService:
         self._inactive_gateways = get_cached_inactive_gateways()
         payloads = get_initial_telemetry_payloads()
         for p in payloads:
+            dev_id = p.get("device_id")
+            if dev_id and p.get("location"):
+                self._device_locations[dev_id] = p["location"]
             self.update_from_telemetry(p, save_cache=False)
         self._hydrate_incident_counts()
         logger.info(f"CellularService: Hydrated {len(self._live_gateways)} gateway(s)")
@@ -65,6 +69,7 @@ class CellularService:
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states, reloads from PostgreSQL, and overwrites telemetry_cache.json with clean data."""
         self._live_gateways.clear()
+        self._device_locations.clear()
         self._load_persisted_telemetry()
         try:
             cache_file = self._cache_path()
@@ -125,13 +130,28 @@ class CellularService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
+        dev_loc = getattr(self, "_device_locations", {}).get(device_id)
+        if not dev_loc:
+            try:
+                from app.services.telemetry_loader import get_device_metadata_cache
+                dev_meta = get_device_metadata_cache().get(device_id)
+                if dev_meta and dev_meta.get("location"):
+                    dev_loc = dev_meta["location"]
+                    self._device_locations[device_id] = dev_loc
+            except Exception:
+                pass
+
         loc_name = (
-            nms_payload.get("location_name")
+            dev_loc
+            or nms_payload.get("location")
+            or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
             or f"Gateway {device_id}"
         )
+        if device_id and loc_name and not loc_name.startswith("Gateway "):
+            self._device_locations[device_id] = loc_name
 
         # Status gateway: Hanya 'Online' dan 'Offline' (tanpa status Warning)
         status = "Online"

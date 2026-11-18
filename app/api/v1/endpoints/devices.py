@@ -358,6 +358,31 @@ def update_device(
         dev_loc = dev.location or ""
         dev_prop = dev.property or {}
 
+        # 0. Update Centralized Telemetry Loader Cache
+        try:
+            from app.services.telemetry_loader import update_cached_device_metadata
+            update_cached_device_metadata(
+                device_name=dev_name,
+                device_uuid=dev_uuid_str,
+                location=dev_loc,
+                customer=client_name,
+                dev_prop=dev_prop,
+            )
+        except Exception as t_err:
+            logger.debug(f"Could not update telemetry loader metadata cache: {t_err}")
+
+        # Helper to apply authoritative location & client to raw payload
+        def _apply_meta_to_raw(p: dict) -> dict:
+            p["property"] = dev_prop
+            p["location"] = dev_loc
+            p["location_name"] = dev_loc
+            p["site_name"] = dev_loc
+            p["customer"] = client_name
+            if "site_info" in p and isinstance(p["site_info"], dict):
+                p["site_info"]["location_name"] = dev_loc
+                p["site_info"]["site_name"] = dev_loc
+            return p
+
         # 1. Update DVR Fleet Service
         if dvr_service:
             if hasattr(dvr_service, "_device_properties"):
@@ -368,10 +393,7 @@ def update_device(
                 dvr_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in dvr_service._live_gateways:
                 g = dvr_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 dvr_service.update_from_telemetry(raw_p, save_cache=False)
 
         # 2. Update DVR Report Service
@@ -379,12 +401,12 @@ def update_device(
             if hasattr(dvr_report_service, "_device_properties"):
                 dvr_report_service._device_properties[dev_name] = dev_prop
                 dvr_report_service._device_properties[dev_uuid_str] = dev_prop
+            if hasattr(dvr_report_service, "_device_locations"):
+                dvr_report_service._device_locations[dev_name] = dev_loc
+                dvr_report_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in dvr_report_service._live_gateways:
                 g = dvr_report_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 dvr_report_service.update_from_telemetry(raw_p)
 
         # 3. Update System Health Service
@@ -397,20 +419,17 @@ def update_device(
                 system_health_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in system_health_service._live_gateways:
                 g = system_health_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 system_health_service.update_from_telemetry(raw_p, save_cache=False)
 
         # 4. Update Health Report Service
         if health_report_service and hasattr(health_report_service, "_live_gateways"):
+            if hasattr(health_report_service, "_device_locations"):
+                health_report_service._device_locations[dev_name] = dev_loc
+                health_report_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in health_report_service._live_gateways:
                 g = health_report_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 health_report_service.update_from_telemetry(raw_p)
 
         # 5. Update Cellular Service
@@ -420,20 +439,17 @@ def update_device(
                 cellular_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in cellular_service._live_gateways:
                 g = cellular_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw") or {}))
                 cellular_service.update_from_telemetry(raw_p, save_cache=False)
 
         # 6. Update Cellular Report Service
         if cellular_report_service and hasattr(cellular_report_service, "_live_gateways"):
+            if hasattr(cellular_report_service, "_device_locations"):
+                cellular_report_service._device_locations[dev_name] = dev_loc
+                cellular_report_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in cellular_report_service._live_gateways:
                 g = cellular_report_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 cellular_report_service.update_from_telemetry(raw_p)
 
         # 7. Update SLA Report Service
@@ -443,10 +459,7 @@ def update_device(
                 sla_report_service._device_locations[dev_uuid_str] = dev_loc
             if dev_name in sla_report_service._live_gateways:
                 g = sla_report_service._live_gateways[dev_name]
-                raw_p = dict(g.get("raw_payload") or {})
-                raw_p["property"] = dev_prop
-                raw_p["location"] = dev_loc
-                raw_p["customer"] = client_name
+                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
                 sla_report_service.update_from_telemetry(raw_p)
     except Exception as e:
         logger.debug(f"Could not hot-update in-memory cache: {e}")

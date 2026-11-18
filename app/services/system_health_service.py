@@ -20,6 +20,7 @@ class SystemHealthService:
 
     def __init__(self):
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
+        self._device_locations: Dict[str, str] = {}
         self._load_persisted_telemetry()
 
     def _cache_path(self) -> str:
@@ -32,12 +33,16 @@ class SystemHealthService:
         self._inactive_gateways = get_cached_inactive_gateways()
         payloads = get_initial_telemetry_payloads()
         for p in payloads:
+            dev_id = p.get("device_id")
+            if dev_id and p.get("location"):
+                self._device_locations[dev_id] = p["location"]
             self.update_from_telemetry(p, compute_sla=False)
         logger.info(f"SystemHealthService: Hydrated {len(self._live_gateways)} gateway(s)")
 
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL (ignoring soft-deleted records)."""
         self._live_gateways.clear()
+        self._device_locations.clear()
         self._load_persisted_telemetry()
         logger.info(f"SystemHealthService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
@@ -160,13 +165,28 @@ class SystemHealthService:
         box_type = f"SmartBox {str(variant).capitalize()}" if variant else "SmartBox"
         model_name = hw.get("model") or hw.get("type") or "-"
 
+        dev_loc = getattr(self, "_device_locations", {}).get(device_id)
+        if not dev_loc:
+            try:
+                from app.services.telemetry_loader import get_device_metadata_cache
+                dev_meta = get_device_metadata_cache().get(device_id)
+                if dev_meta and dev_meta.get("location"):
+                    dev_loc = dev_meta["location"]
+                    self._device_locations[device_id] = dev_loc
+            except Exception:
+                pass
+
         loc_name = (
-            nms_payload.get("location_name")
+            dev_loc
+            or nms_payload.get("location")
+            or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
             or f"Gateway {device_id}"
         )
+        if device_id and loc_name and not loc_name.startswith("Gateway "):
+            self._device_locations[device_id] = loc_name
 
         cpu_pct = int(round(cpu.get("usage_percent", 25.0)))
         cpu_temp = float(cpu.get("temperature_c", 45.0))

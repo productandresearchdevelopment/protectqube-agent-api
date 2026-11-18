@@ -258,6 +258,30 @@ class GatewayAgentManager:
             payload = json.loads(payload_str)
             logger.info(f"Received MQTT Telemetry from topic: '{msg.topic}' (Device: {payload.get('device_id')})")
             
+            dev_id = payload.get("device_id")
+            if dev_id:
+                try:
+                    from app.services.telemetry_loader import get_device_metadata_cache
+                    dev_meta = get_device_metadata_cache().get(dev_id)
+                    if dev_meta:
+                        loc = dev_meta.get("location")
+                        if loc:
+                            payload["location"] = loc
+                            payload["location_name"] = loc
+                            payload["site_name"] = loc
+                            if "site_info" in payload and isinstance(payload["site_info"], dict):
+                                payload["site_info"]["location_name"] = loc
+                                payload["site_info"]["site_name"] = loc
+                        cust = dev_meta.get("customer")
+                        if cust and cust != "-":
+                            payload["customer"] = cust
+                        if dev_meta.get("property") and not payload.get("property"):
+                            payload["property"] = dev_meta["property"]
+                        if dev_meta.get("device_uuid"):
+                            payload["device_uuid"] = dev_meta["device_uuid"]
+                except Exception as meta_err:
+                    logger.debug(f"Could not stamp device metadata on MQTT payload: {meta_err}")
+
             if "gateway_system" in payload or "cellular_sim" in payload:
                 from datetime import datetime, timezone, timedelta
                 WIB = timezone(timedelta(hours=7))

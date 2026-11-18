@@ -62,14 +62,27 @@ class SLAReportService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
+        dev_loc = getattr(self, "_device_locations", {}).get(device_id)
+        if not dev_loc:
+            try:
+                from app.services.telemetry_loader import get_device_metadata_cache
+                dev_meta = get_device_metadata_cache().get(device_id)
+                if dev_meta and dev_meta.get("location"):
+                    dev_loc = dev_meta["location"]
+                    self._device_locations[device_id] = dev_loc
+            except Exception:
+                pass
+
         location_name = (
-            getattr(self, "_device_locations", {}).get(device_id)
-            or nms_payload.get("location_name")
+            dev_loc
             or nms_payload.get("location")
+            or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or f"Gateway {device_id}"
         )
+        if device_id and location_name and not location_name.startswith("Gateway "):
+            self._device_locations[device_id] = location_name
 
         last_update = nms_payload.get("datetime_utc7") or nms_payload.get("recorded_at") or "-"
         existing_cust = self._live_gateways.get(device_id, {}).get("customer")

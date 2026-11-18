@@ -115,14 +115,28 @@ class DVRService:
                     is_rec = True
                     break
 
+        dev_loc = getattr(self, "_device_locations", {}).get(device_id)
+        if not dev_loc:
+            try:
+                from app.services.telemetry_loader import get_device_metadata_cache
+                dev_meta = get_device_metadata_cache().get(device_id)
+                if dev_meta and dev_meta.get("location"):
+                    dev_loc = dev_meta["location"]
+                    self._device_locations[device_id] = dev_loc
+            except Exception:
+                pass
+
         loc_name = (
-            getattr(self, "_device_locations", {}).get(device_id)
+            dev_loc
+            or nms_payload.get("location")
             or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
             or f"Gateway {device_id}"
         )
+        if device_id and loc_name and not loc_name.startswith("Gateway "):
+            self._device_locations[device_id] = loc_name
 
         dvr_model = dev_info.get("model") or "Hikvision/HiLook NVR"
         nvr_endpoint = nvr.get("nvr_endpoint", "172.16.37.130:80")

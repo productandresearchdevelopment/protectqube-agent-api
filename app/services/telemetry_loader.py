@@ -8,6 +8,78 @@ logger = logging.getLogger("telemetry-loader")
 
 _CACHED_INITIAL_PAYLOADS: Optional[List[Dict[str, Any]]] = None
 _CACHED_INACTIVE_GATEWAYS: Optional[set] = None
+_CACHED_DEVICE_METADATA: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+def get_device_metadata_cache(force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+    """
+    Centralized dictionary mapping device_name and device_uuid to authoritative DB device metadata:
+    location, customer (client_name), property, is_active, hardware_model.
+    Ensures Device DB is the single source of truth across all 7 monitoring & report services.
+    """
+    global _CACHED_DEVICE_METADATA
+    if _CACHED_DEVICE_METADATA is not None and not force_refresh:
+        return _CACHED_DEVICE_METADATA
+
+    res: Dict[str, Dict[str, Any]] = {}
+    try:
+        from app.core.database import SessionLocal
+        from app.models.base_models import Device
+        db = SessionLocal()
+        try:
+            devs = db.query(Device).filter(Device.deleted_at.is_(None)).all()
+            for d in devs:
+                cust = d.client.name if (d.client and d.client.name) else "-"
+                info = {
+                    "device_name": d.name,
+                    "device_uuid": str(d.id),
+                    "location": d.location or f"Gateway {d.name}",
+                    "customer": cust,
+                    "property": d.property or {},
+                    "is_active": d.is_active,
+                    "hardware_model": d.hardware_model or "-",
+                }
+                res[d.name] = info
+                res[str(d.id)] = info
+            _CACHED_DEVICE_METADATA = res
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"Could not load device metadata cache from DB: {e}")
+        if _CACHED_DEVICE_METADATA is None:
+            _CACHED_DEVICE_METADATA = {}
+
+    return _CACHED_DEVICE_METADATA or {}
+
+
+def update_cached_device_metadata(
+    device_name: str,
+    device_uuid: Optional[str] = None,
+    location: Optional[str] = None,
+    customer: Optional[str] = None,
+    dev_prop: Optional[Dict[str, Any]] = None,
+):
+    """Updates in-memory device metadata cache immediately upon device edit in DB."""
+    global _CACHED_DEVICE_METADATA
+    cache = get_device_metadata_cache()
+    existing = cache.get(device_name) or (cache.get(device_uuid) if device_uuid else {})
+    updated = dict(existing)
+    updated["device_name"] = device_name
+    if device_uuid:
+        updated["device_uuid"] = device_uuid
+    if location is not None:
+        updated["location"] = location
+    if customer is not None:
+        updated["customer"] = customer
+    if dev_prop is not None:
+        updated["property"] = dev_prop
+
+    cache[device_name] = updated
+    if device_uuid:
+        cache[device_uuid] = updated
+    if updated.get("device_uuid"):
+        cache[updated["device_uuid"]] = updated
+    _CACHED_DEVICE_METADATA = cache
 
 
 def get_initial_telemetry_payloads() -> List[Dict[str, Any]]:
@@ -67,6 +139,10 @@ def get_initial_telemetry_payloads() -> List[Dict[str, Any]]:
                     if latest.device.location:
                         p["location"] = latest.device.location
                         p["location_name"] = latest.device.location
+                        p["site_name"] = latest.device.location
+                        if "site_info" in p and isinstance(p["site_info"], dict):
+                            p["site_info"]["location_name"] = latest.device.location
+                            p["site_info"]["site_name"] = latest.device.location
                 if latest.recorded_at:
                     t_wib = latest.recorded_at.replace(tzinfo=timezone.utc).astimezone(WIB) if latest.recorded_at.tzinfo is None else latest.recorded_at.astimezone(WIB)
                     p["recorded_at"] = t_wib.strftime("%Y-%m-%d %H:%M:%S")

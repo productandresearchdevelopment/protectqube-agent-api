@@ -23,6 +23,7 @@ class DVRReportService:
     def __init__(self):
         self._live_gateways: Dict[str, Dict[str, Any]] = {}
         self._device_properties: Dict[str, Dict[str, Any]] = {}
+        self._device_locations: Dict[str, str] = {}
         self._load_persisted_telemetry()
 
     def _cache_path(self) -> str:
@@ -36,8 +37,11 @@ class DVRReportService:
         payloads = get_initial_telemetry_payloads()
         for p in payloads:
             dev_id = p.get("device_id")
-            if dev_id and p.get("property"):
-                self._device_properties[dev_id] = p["property"]
+            if dev_id:
+                if p.get("location"):
+                    self._device_locations[dev_id] = p["location"]
+                if p.get("property"):
+                    self._device_properties[dev_id] = p["property"]
             self.update_from_telemetry(p, compute_sla=False)
         logger.info(f"DVRReportService: Hydrated {len(self._live_gateways)} gateway(s)")
 
@@ -45,6 +49,7 @@ class DVRReportService:
         """Flushes in-memory gateway states and reloads fresh telemetry from PostgreSQL."""
         self._live_gateways.clear()
         self._device_properties.clear()
+        self._device_locations.clear()
         self._load_persisted_telemetry()
         logger.info(f"DVRReportService: Telemetry reloaded. Active live gateways: {len(self._live_gateways)}")
 
@@ -172,14 +177,28 @@ class DVRReportService:
         from app.services.sla_calculator_service import sla_calculator_service
         box_type = sla_calculator_service.resolve_device_type(nms_payload, device_id)
 
+        dev_loc = getattr(self, "_device_locations", {}).get(device_id)
+        if not dev_loc:
+            try:
+                from app.services.telemetry_loader import get_device_metadata_cache
+                dev_meta = get_device_metadata_cache().get(device_id)
+                if dev_meta and dev_meta.get("location"):
+                    dev_loc = dev_meta["location"]
+                    self._device_locations[device_id] = dev_loc
+            except Exception:
+                pass
+
         loc_name = (
-            nms_payload.get("location_name")
+            dev_loc
             or nms_payload.get("location")
+            or nms_payload.get("location_name")
             or nms_payload.get("site_name")
             or nms_payload.get("site_info", {}).get("location_name")
             or nms_payload.get("site_info", {}).get("site_name")
             or f"Gateway {device_id}"
         )
+        if device_id and loc_name and not loc_name.startswith("Gateway "):
+            self._device_locations[device_id] = loc_name
 
         ts_str = nms_payload.get("datetime_utc7") or datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+7 / WIB)")
         clean_update = ts_str.split(" (")[0] if " (" in ts_str else ts_str[:16]
