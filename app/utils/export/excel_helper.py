@@ -667,6 +667,7 @@ def build_cellular_dashboard_excel(
         "Signal (RSRP)",
         "Signal Status",
         "Uptime",
+        "Incident History",
         "Last Telemetry Update",
     ]
 
@@ -744,6 +745,9 @@ def build_cellular_dashboard_excel(
         if not uptime_display:
             uptime_display = "-"
 
+        inc_count = gw.get("incident_count", gw.get("trouble_events_count", 0)) or 0
+        inc_display = f"{inc_count} event{'s' if inc_count != 1 else ''}"
+
         row_values = [
             idx,
             gw.get("id", "-"),
@@ -758,6 +762,7 @@ def build_cellular_dashboard_excel(
             rsrp_display,
             sig_status_display,
             uptime_display,
+            inc_display,
             gw.get("last_update", "-"),
         ]
 
@@ -768,7 +773,7 @@ def build_cellular_dashboard_excel(
             if row_fill:
                 cell.fill = row_fill
 
-            if col_idx in [1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14]:
+            if col_idx in [1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
@@ -783,6 +788,9 @@ def build_cellular_dashboard_excel(
                 if "connected" in str(val).lower() and not is_off:
                     cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_SUCCESS_TEXT)
                 else:
+                    cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
+            elif col_idx == 14:
+                if inc_count > 0:
                     cell.font = Font(name=FONT_FAMILY, size=10, bold=True, color=COLOR_DANGER_TEXT)
 
         curr_row += 1

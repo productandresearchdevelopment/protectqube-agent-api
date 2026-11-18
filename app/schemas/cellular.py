@@ -78,6 +78,8 @@ class CellularGatewayItem(BaseModel):
     modem_temp: str
     status: str
     uptime: Optional[str] = "-"
+    incident_count: Optional[int] = 0
+    trouble_events_count: Optional[int] = 0
     last_update: str
 
 
@@ -171,6 +173,8 @@ class CellularEventItem(BaseModel):
     status: str = "success"
     duration: Optional[str] = None
     category: Optional[str] = None
+    event_type: Optional[str] = "activity"
+    type: Optional[str] = None
     epoch: Optional[float] = None
 
 
@@ -194,6 +198,8 @@ class CellularGatewayDetailData(BaseModel):
     network_sim: NetworkSIMDetail
     modem_temperature: ModemTempDetail
     events: Optional[List[CellularEventItem]] = None
+    incident_events: Optional[List[CellularEventItem]] = None
+    activity_events: Optional[List[CellularEventItem]] = None
     last_incident: Optional[Dict[str, Any]] = None
     evidence: Optional[List[Dict[str, Any]]] = None
     evidence_badge: Optional[str] = None

@@ -30,8 +30,37 @@ class CellularService:
         payloads = get_initial_telemetry_payloads()
         for p in payloads:
             self.update_from_telemetry(p, save_cache=False)
+        self._hydrate_incident_counts()
         logger.info(f"CellularService: Hydrated {len(self._live_gateways)} gateway(s)")
         self._sync_freshness()
+
+    def _hydrate_incident_counts(self):
+        """Precomputes total CPU-Modem & Cellular/Network incident history for all fleet gateways."""
+        try:
+            from app.services.sla_calculator_service import sla_calculator_service
+            dev_ids = list(self._live_gateways.keys())
+            if not dev_ids:
+                return
+            preloaded_alerts = sla_calculator_service.preload_alerts_for_devices(dev_ids)
+            for dev_id, gdata in self._live_gateways.items():
+                raw = gdata.get("raw")
+                sla = sla_calculator_service.calculate_device_sla(
+                    device_id=dev_id,
+                    live_payload=raw,
+                    skip_history_rows=True,
+                    preloaded_alerts=preloaded_alerts.get(dev_id, []),
+                )
+                cell_events_r = [
+                    ev for ev in sla.get("trouble_events", [])
+                    if ev.get("metric") in ["cpu_modem", "cellular"]
+                    or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]
+                ]
+                cnt = len(cell_events_r)
+                item = gdata.get("item", {})
+                item["incident_count"] = cnt
+                item["trouble_events_count"] = cnt
+        except Exception as e:
+            logger.debug(f"Failed to hydrate incident counts: {e}")
 
     def reload_telemetry_cache(self):
         """Flushes in-memory gateway states, reloads from PostgreSQL, and overwrites telemetry_cache.json with clean data."""
@@ -179,6 +208,9 @@ class CellularService:
             or "-"
         )
 
+        prev_item = prev_entry.get("item", {})
+        inc_count = prev_item.get("incident_count", 0)
+
         gw_item = {
             "no": len(self._live_gateways) + 1,
             "id": device_id,
@@ -198,6 +230,8 @@ class CellularService:
             "modem_temp": f"{temp_c}°C",
             "status": status,
             "uptime": str(uptime_val) if uptime_val else "-",
+            "incident_count": inc_count,
+            "trouble_events_count": inc_count,
             "last_update": clean_update,
             "is_quota_empty": is_quota_empty,
             "data_status": data_status_label,
@@ -784,6 +818,11 @@ class CellularService:
                 return total
             return sorted(items, key=parse_uptime_sec, reverse=is_desc)
 
+        if key in ("incident_count", "trouble_events_count", "incident_history", "incident", "incidents"):
+            def incident_rank(g: Dict[str, Any]) -> int:
+                return int(g.get("incident_count") or g.get("trouble_events_count") or 0)
+            return sorted(items, key=incident_rank, reverse=is_desc)
+
         return items
 
     def get_gateways_paged(
@@ -895,6 +934,32 @@ class CellularService:
 
         start_index = (page - 1) * page_size
         items = filtered[start_index : start_index + page_size]
+
+        missing_devs = [g.get("id") for g in items if g.get("incident_count") is None]
+        if missing_devs:
+            try:
+                from app.services.sla_calculator_service import sla_calculator_service
+                preloaded = sla_calculator_service.preload_alerts_for_devices(missing_devs)
+                for g in items:
+                    dev_id = g.get("id")
+                    if g.get("incident_count") is None:
+                        raw = self._live_gateways.get(dev_id, {}).get("raw")
+                        sla = sla_calculator_service.calculate_device_sla(
+                            device_id=dev_id,
+                            live_payload=raw,
+                            skip_history_rows=True,
+                            preloaded_alerts=preloaded.get(dev_id, []),
+                        )
+                        cell_events_r = [
+                            ev for ev in sla.get("trouble_events", [])
+                            if ev.get("metric") in ["cpu_modem", "cellular"]
+                            or ev.get("category") in ["CPU - Modem", "Seluler / Network", "Cellular Network", "Cellular"]
+                        ]
+                        cnt = len(cell_events_r)
+                        g["incident_count"] = cnt
+                        g["trouble_events_count"] = cnt
+            except Exception as e:
+                logger.debug(f"Error populating missing page incident counts: {e}")
 
         return {
             "items": items,
@@ -1453,6 +1518,8 @@ class CellularService:
                         "status": "error" if ev.get("status") == "Active" else "warning",
                         "duration": ev.get("duration", "-"),
                         "category": ev.get("category", "CELLULAR"),
+                        "event_type": "incident",
+                        "type": "incident",
                         "epoch": ev_epoch,
                     })
         except Exception as e:
@@ -1495,6 +1562,8 @@ class CellularService:
                         "title": f"CPU – Modem Communication: {st}",
                         "time": ts,
                         "status": "success" if st == "OK" else "error",
+                        "event_type": "activity",
+                        "type": "activity",
                         "epoch": log_epoch,
                     })
                 if sim_m:
@@ -1505,6 +1574,8 @@ class CellularService:
                         "title": f"SIM & Cellular Signal: {sim_st}",
                         "time": ts,
                         "status": "error" if is_err else "success",
+                        "event_type": "activity",
+                        "type": "activity",
                         "epoch": log_epoch,
                     })
             elif any(k in line.lower() for k in ["modem", "cellular", "sim", "sinyal", "network", "csq", "rsrp", "operator", "ppp", "qmi", "disconnect"]):
@@ -1516,6 +1587,8 @@ class CellularService:
                     "title": self._translate_log_to_en(clean_text),
                     "time": ts,
                     "status": "warning" if "[WARN" in line else "error" if "[ERR" in line else "info",
+                    "event_type": "activity",
+                    "type": "activity",
                     "epoch": log_epoch,
                 })
 
@@ -1563,18 +1636,24 @@ class CellularService:
                 "title": f"CPU – Modem Communication: {c_status}",
                 "time": curr_time,
                 "status": "success" if c_status == "Connected" else "error",
+                "event_type": "activity",
+                "type": "activity",
             })
             real_events.append({
                 "id": "evt-live-sim",
                 "title": f"Cellular SIM Card: {sim_st} ({op})",
                 "time": curr_time,
                 "status": "success" if sim_st in ("Ready", "Active", "Aktif") else "warning",
+                "event_type": "activity",
+                "type": "activity",
             })
             real_events.append({
                 "id": "evt-live-sig",
                 "title": f"Radio Signal Strength: {rsrp} dBm ({net_type})",
                 "time": curr_time,
                 "status": "success" if rsrp >= -85 else ("warning" if rsrp >= -100 else "error"),
+                "event_type": "activity",
+                "type": "activity",
             })
 
         # If gateway is offline (> 1h without telemetry), prepend active offline alert to events:
@@ -1594,10 +1673,26 @@ class CellularService:
                 "status": "error",
                 "duration": dur_str,
                 "category": "CELLULAR",
+                "event_type": "incident",
+                "type": "incident",
                 "epoch": now_wib.timestamp() + 1000,
             })
 
         detail["events"] = real_events
+
+        # Split events into incident events and routine cellular activity events
+        detail["incident_events"] = [
+            e for e in real_events
+            if e.get("event_type") == "incident"
+            or str(e.get("id", "")).startswith("trouble-")
+            or str(e.get("id", "")) == "evt-offline-active"
+        ]
+        detail["activity_events"] = [
+            e for e in real_events
+            if e.get("event_type") == "activity"
+            or str(e.get("id", "")).startswith("log-")
+            or str(e.get("id", "")).startswith("evt-live-")
+        ]
 
         # 5. Ringkasan Insiden Terakhir untuk Dashboard
         if incident_alerts:
