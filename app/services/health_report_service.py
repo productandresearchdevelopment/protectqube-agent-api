@@ -622,21 +622,50 @@ class HealthReportService:
             
             # Use Gateway System incidents from sla_calculator_service (strictly device/system issues)
             gw_events = []
+            seen_gw_time = set()
             for ev in sla.get("trouble_events", []):
                 metric = str(ev.get("metric", "")).lower()
                 cat = str(ev.get("category", "")).lower()
                 desc = str(ev.get("description", "")).lower()
                 title = str(ev.get("title", "")).lower()
-                
-                # Exclude cellular, modem, dvr, camera, and recording incidents
+
+                # Check if this is a gateway offline / telemetry silence outage (primary gateway system downtime)
+                is_gw_offline = any(
+                    x in desc or x in title
+                    for x in ["gateway offline", "telemetry disconnected", "telemetry stopped", "device offline", "mati total", "blackout"]
+                )
+
+                if is_gw_offline:
+                    time_key = f"{ev.get('start_time')}|{ev.get('end_time')}"
+                    if time_key in seen_gw_time:
+                        continue
+                    seen_gw_time.add(time_key)
+
+                    ev_copy = dict(ev)
+                    ev_copy["metric"] = "gateway"
+                    ev_copy["category"] = "Gateway System"
+                    if not ev_copy.get("value"):
+                        ev_copy["value"] = ev_copy.get("duration", "-")
+                    gw_events.append(ev_copy)
+                    continue
+
+                # For subsystem incidents, only include hardware/environmental issues (power, temp, storage, lan)
+                # Exclude specific camera, NVR, modem serial, or SIM carrier signal drops
                 if any(x in metric for x in ["cellular", "cpu_modem", "modem", "dvr", "cpu_dvr", "recording", "camera"]):
                     continue
                 if any(x in cat for x in ["cellular", "modem", "dvr", "camera", "cctv"]):
                     continue
-                if any(x in desc or x in title for x in ["kamera", "camera", "nvr", "dvr", "cctv", "modem", "seluler", "cellular", "sim:", "rsrp"]):
+                if any(x in desc or x in title for x in ["kamera", "camera", "nvr", "dvr", "cctv", "modem", "seluler", "cellular", "sim:", "rsrp", "csq"]):
                     continue
 
+                time_key = f"{ev.get('start_time')}|{ev.get('end_time')}"
+                if time_key in seen_gw_time:
+                    continue
+                seen_gw_time.add(time_key)
+
                 ev_copy = dict(ev)
+                ev_copy["metric"] = ev_copy.get("metric") or "system"
+                ev_copy["category"] = "Gateway System"
                 if not ev_copy.get("value"):
                     ev_copy["value"] = ev_copy.get("duration", "-")
                 gw_events.append(ev_copy)
@@ -645,16 +674,42 @@ class HealthReportService:
             detail["daily_breakdown"] = list(sla.get("daily_breakdown", []))
             detail["daily_summary"] = sla.get("daily_summary")
             
-            is_offline = (detail.get("status") or "").lower() == "offline" or (target_gdata.get("status") or "").lower() == "offline"
+            # Sync real-time offline status from system_health_service
+            is_offline = False
+            try:
+                from app.services.system_health_service import system_health_service
+                system_health_service._sync_freshness()
+                lookup_keys = [target_gid, gateway_id, cleaned_id]
+                for k in lookup_keys:
+                    if k and k in system_health_service._live_gateways:
+                        live_h = system_health_service._live_gateways[k]
+                        sh_status = live_h.get("table_item", {}).get("status") or live_h.get("status")
+                        if sh_status and sh_status.lower() == "offline":
+                            is_offline = True
+                            break
+                if not is_offline:
+                    for k, v in system_health_service._live_gateways.items():
+                        if k.lower() == cleaned_id or (cleaned_id and cleaned_id in k.lower()):
+                            sh_status = v.get("table_item", {}).get("status") or v.get("status")
+                            if sh_status and sh_status.lower() == "offline":
+                                is_offline = True
+                                break
+            except Exception:
+                pass
+
+            if not is_offline and ((detail.get("status") or "").lower() == "offline" or (target_gdata.get("status") or "").lower() == "offline"):
+                is_offline = True
+
             detail["is_offline"] = is_offline
             detail["is_last_known"] = is_offline
-            if is_offline:
-                detail["status"] = "Offline"
+            detail["status"] = "Offline" if is_offline else "Online"
             return detail
 
         return {
             "id": gateway_id,
             "status": "Offline",
+            "is_offline": True,
+            "is_last_known": True,
             "location": f"Gateway {gateway_id}",
             "type": "SmartBox Hitam",
             "cpu_spec": "RK3328 (4-Core ARM Cortex-A53)",

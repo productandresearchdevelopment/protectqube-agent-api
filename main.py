@@ -60,6 +60,11 @@ async def lifespan(app: FastAPI):
         stop_worker()
     except Exception as e:
         logger.error(f"Worker stop error: {e}")
+    try:
+        from app.services.notification.whatsapp_session import whatsapp_session_manager
+        whatsapp_session_manager.stop_session()
+    except Exception as e:
+        logger.error(f"WhatsApp shutdown error: {e}")
 
 
 app = FastAPI(

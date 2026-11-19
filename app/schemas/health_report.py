@@ -97,6 +97,8 @@ class HealthTimelineTrack(BaseModel):
 class HealthReportGatewayDetail(BaseModel):
     id: str
     status: Optional[str] = "Online"
+    is_offline: Optional[bool] = False
+    is_last_known: Optional[bool] = False
     location: Optional[str] = "-"
     type: Optional[str] = "SmartBox Hitam"
     cpu_spec: Optional[str] = "-"

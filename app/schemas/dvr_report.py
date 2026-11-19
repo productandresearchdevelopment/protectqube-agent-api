@@ -89,6 +89,8 @@ class DVRTimelineTrack(BaseModel):
 class DVRReportGatewayDetail(BaseModel):
     id: str
     status: str
+    is_offline: Optional[bool] = False
+    is_last_known: Optional[bool] = False
     location: str
     type: str
     dvr_model: str

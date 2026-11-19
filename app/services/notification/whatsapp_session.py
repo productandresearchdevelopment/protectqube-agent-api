@@ -300,6 +300,21 @@ class WhatsAppSessionManager:
             logger.error(f"WhatsApp send error: {e}")
             return False, str(e), None
 
+    def stop_session(self):
+        with self._lock:
+            client = self._client
+            thread = self._thread
+            try:
+                if client:
+                    client.disconnect()
+            except Exception as e:
+                logger.warning(f"Error during session stop: {e}")
+            if thread and thread.is_alive():
+                thread.join(timeout=2.0)
+            self._client = None
+            self._thread = None
+            logger.info("WhatsApp session stopped (session database kept)")
+
     def disconnect(self) -> bool:
         try:
             if self._client and self._client.is_logged_in:

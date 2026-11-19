@@ -1045,6 +1045,61 @@ class DVRReportService:
                 detail["jumlah_event"] = len(dvr_events_d)
                 detail["daily_breakdown"] = sla.get("daily_breakdown", [])
                 detail["daily_summary"] = sla.get("daily_summary")
+
+                # Sync real-time offline status from system_health_service & dvr_service
+                is_offline = False
+                try:
+                    from app.services.system_health_service import system_health_service
+                    system_health_service._sync_freshness()
+                    lookup_keys = [gid, target_id_low]
+                    for k in lookup_keys:
+                        if k and k in system_health_service._live_gateways:
+                            live_h = system_health_service._live_gateways[k]
+                            sh_status = live_h.get("table_item", {}).get("status") or live_h.get("status")
+                            if sh_status and sh_status.lower() == "offline":
+                                is_offline = True
+                                break
+                    if not is_offline:
+                        for k, v in system_health_service._live_gateways.items():
+                            if k.lower() == target_id_low or target_id_low in k.lower():
+                                sh_status = v.get("table_item", {}).get("status") or v.get("status")
+                                if sh_status and sh_status.lower() == "offline":
+                                    is_offline = True
+                                    break
+                except Exception:
+                    pass
+
+                if not is_offline:
+                    try:
+                        from app.services.dvr_service import dvr_service
+                        dvr_service._sync_freshness()
+                        lookup_keys = [gid, target_id_low]
+                        for k in lookup_keys:
+                            if k and k in dvr_service._live_gateways:
+                                dvr_live = dvr_service._live_gateways[k]
+                                dvr_stat = dvr_live.get("table_item", {}).get("status") or dvr_live.get("status")
+                                if dvr_stat and dvr_stat.lower() == "offline":
+                                    is_offline = True
+                                    break
+                        if not is_offline:
+                            for k, v in dvr_service._live_gateways.items():
+                                if k.lower() == target_id_low or target_id_low in k.lower():
+                                    dvr_stat = v.get("table_item", {}).get("status") or v.get("status")
+                                    if dvr_stat and dvr_stat.lower() == "offline":
+                                        is_offline = True
+                                        break
+                    except Exception:
+                        pass
+
+                if is_offline or (detail.get("status") or "").lower() == "offline":
+                    detail["status"] = "Offline"
+                    detail["is_offline"] = True
+                    detail["is_last_known"] = True
+                else:
+                    detail["status"] = "Online"
+                    detail["is_offline"] = False
+                    detail["is_last_known"] = False
+
                 return detail
 
         if self._live_gateways:
@@ -1087,11 +1142,33 @@ class DVRReportService:
             detail["jumlah_event"] = len(dvr_events_d)
             detail["daily_breakdown"] = sla.get("daily_breakdown", [])
             detail["daily_summary"] = sla.get("daily_summary")
+
+            is_offline = False
+            try:
+                from app.services.system_health_service import system_health_service
+                system_health_service._sync_freshness()
+                live_h = system_health_service._live_gateways.get(first_gid, {})
+                sh_status = live_h.get("table_item", {}).get("status") or live_h.get("status")
+                if sh_status and sh_status.lower() == "offline":
+                    is_offline = True
+            except Exception:
+                pass
+            if is_offline or (detail.get("status") or "").lower() == "offline":
+                detail["status"] = "Offline"
+                detail["is_offline"] = True
+                detail["is_last_known"] = True
+            else:
+                detail["status"] = "Online"
+                detail["is_offline"] = False
+                detail["is_last_known"] = False
+
             return detail
 
         return {
             "id": gateway_id,
             "status": "Offline",
+            "is_offline": True,
+            "is_last_known": True,
             "location": "Tidak Diketahui",
             "type": "SmartBox Hitam",
             "dvr_model": "Tidak Ada Data",
