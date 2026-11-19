@@ -575,10 +575,59 @@ class DVRService:
                 detail_item["is_offline"] = False
                 detail_item["is_connected"] = is_conn
 
-    def get_summary(self) -> Dict[str, Any]:
-        """Calculates dynamic summary metrics from 100% real live gateways"""
+    def get_summary(
+        self,
+        search: Optional[str] = None,
+        gateway_type: Optional[str] = None,
+        client: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Calculates dynamic summary metrics from 100% real live gateways matching active filters"""
         self._sync_freshness()
-        total_gw = len(self._live_gateways)
+        gateways = list(self._live_gateways.values())
+
+        for g in gateways:
+            t_item = g.get("table_item", {})
+            if not t_item.get("customer") or t_item.get("customer") == "-":
+                try:
+                    from app.services.sla_report_service import sla_report_service
+                    s_cust = sla_report_service._live_gateways.get(t_item.get("id"), {}).get("customer")
+                    if s_cust and s_cust != "-":
+                        t_item["customer"] = s_cust
+                        t_item["client_name"] = s_cust
+                except Exception:
+                    pass
+
+        if search and isinstance(search, str):
+            q = search.lower().strip()
+            gateways = [
+                g for g in gateways
+                if (
+                    q in str(g.get("table_item", {}).get("id", "")).lower()
+                    or q in str(g.get("table_item", {}).get("location", "")).lower()
+                    or q in str(g.get("table_item", {}).get("dvr_model", "")).lower()
+                    or q in str(g.get("table_item", {}).get("type", "")).lower()
+                    or q in str(g.get("table_item", {}).get("ip_address", "")).lower()
+                    or q in str(g.get("table_item", {}).get("customer", "")).lower()
+                    or q in str(g.get("table_item", {}).get("client_name", "")).lower()
+                )
+            ]
+
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            gateways = [
+                g for g in gateways
+                if c_low == str(g.get("table_item", {}).get("customer", "")).lower()
+                or c_low == str(g.get("table_item", {}).get("client_name", "")).lower()
+                or c_low in str(g.get("table_item", {}).get("customer", "")).lower()
+            ]
+
+        if gateway_type and isinstance(gateway_type, str) and gateway_type not in ["Semua Tipe", "All"]:
+            gateways = [
+                g for g in gateways
+                if gateway_type.lower() in str(g.get("table_item", {}).get("type", "")).lower()
+            ]
+
+        total_gw = len(gateways)
         if total_gw == 0:
             return {
                 "total_gateways": 0,
@@ -605,45 +654,45 @@ class DVRService:
             }
 
         online_count = sum(
-            1 for g in self._live_gateways.values()
-            if g.get("status") == "Online" or g["table_item"].get("status") == "Online"
+            1 for g in gateways
+            if g.get("status") == "Online" or g.get("table_item", {}).get("status") == "Online"
         )
         offline_count = sum(
-            1 for g in self._live_gateways.values()
-            if g.get("status") == "Offline" or g["table_item"].get("status") == "Offline"
+            1 for g in gateways
+            if g.get("status") == "Offline" or g.get("table_item", {}).get("status") == "Offline"
         )
         online_percent = round((online_count / total_gw) * 100.0, 1) if total_gw else 0.0
         offline_percent = round((offline_count / total_gw) * 100.0, 1) if total_gw else 0.0
 
         rec_count = sum(
-            1 for g in self._live_gateways.values()
+            1 for g in gateways
             if g.get("is_connected", False)
-            and "0/" not in str(g["table_item"].get("recording_status", "0/"))
+            and "0/" not in str(g.get("table_item", {}).get("recording_status", "0/"))
         )
         issue_count = sum(
-            1 for g in self._live_gateways.values()
+            1 for g in gateways
             if g.get("is_connected", False)
-            and "0/" in str(g["table_item"].get("recording_status", "0/"))
+            and "0/" in str(g.get("table_item", {}).get("recording_status", "0/"))
         )
 
         total_cams = sum(
-            g["table_item"]["total_kamera"] for g in self._live_gateways.values()
-            if isinstance(g["table_item"].get("total_kamera"), (int, float))
+            g.get("table_item", {}).get("total_kamera", 0) for g in gateways
+            if isinstance(g.get("table_item", {}).get("total_kamera"), (int, float))
         )
         online_cams = sum(
-            g["table_item"]["kamera_online"] for g in self._live_gateways.values()
-            if isinstance(g["table_item"].get("kamera_online"), (int, float))
+            g.get("table_item", {}).get("kamera_online", 0) for g in gateways
+            if isinstance(g.get("table_item", {}).get("kamera_online"), (int, float))
         )
         no_video_cams = sum(
-            g["table_item"]["kamera_no_video"] for g in self._live_gateways.values()
-            if isinstance(g["table_item"].get("kamera_no_video"), (int, float))
+            g.get("table_item", {}).get("kamera_no_video", 0) for g in gateways
+            if isinstance(g.get("table_item", {}).get("kamera_no_video"), (int, float))
         )
         offline_cams = max(0, total_cams - online_cams - no_video_cams)
 
-        total_storage_tb = round(sum(g.get("cap_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("cap_gb"), (int, float))) / 1024.0, 1)
-        used_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("used_gb"), (int, float))) / 1024.0, 1)
-        warn_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 80) / 1024.0, 1)
-        crit_storage_tb = round(sum(g.get("used_gb", 0) for g in self._live_gateways.values() if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 90) / 1024.0, 1)
+        total_storage_tb = round(sum(g.get("cap_gb", 0) for g in gateways if isinstance(g.get("cap_gb"), (int, float))) / 1024.0, 1)
+        used_storage_tb = round(sum(g.get("used_gb", 0) for g in gateways if isinstance(g.get("used_gb"), (int, float))) / 1024.0, 1)
+        warn_storage_tb = round(sum(g.get("used_gb", 0) for g in gateways if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 80) / 1024.0, 1)
+        crit_storage_tb = round(sum(g.get("used_gb", 0) for g in gateways if isinstance(g.get("storage_pct"), (int, float)) and g["storage_pct"] > 90) / 1024.0, 1)
 
         return {
             "total_gateways": total_gw,
@@ -994,7 +1043,11 @@ class DVRService:
         sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Unified dashboard payload for frontend consumer"""
-        summary = self.get_summary()
+        summary = self.get_summary(
+            search=search,
+            gateway_type=gateway_type,
+            client=client,
+        )
         charts = self.get_charts()
         gw_result = self.get_gateways(
             search=search,

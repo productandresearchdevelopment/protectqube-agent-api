@@ -527,10 +527,85 @@ class CellularService:
 
 
 
-    def get_summary_metrics(self) -> Dict[str, Any]:
-        """Calculates summary cards directly from real gateways"""
+    def get_summary_metrics(
+        self,
+        search: Optional[str] = None,
+        gateway_type: Optional[str] = None,
+        provider: Optional[str] = None,
+        cpu_modem: Optional[str] = None,
+        client: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Calculates summary cards directly from real gateways matching active filters"""
         self._sync_freshness()
         gateways = [g["item"] for g in self._live_gateways.values()]
+
+        for g in gateways:
+            if not g.get("customer") or g.get("customer") == "-":
+                try:
+                    from app.services.sla_report_service import sla_report_service
+                    s_cust = sla_report_service._live_gateways.get(g["id"], {}).get("customer")
+                    if s_cust and s_cust != "-":
+                        g["customer"] = s_cust
+                        g["client_name"] = s_cust
+                except Exception:
+                    pass
+
+        if search and isinstance(search, str):
+            query = search.strip().lower()
+            gateways = [
+                g for g in gateways
+                if (
+                    query in str(g.get("id", "")).lower()
+                    or query in str(g.get("location", "")).lower()
+                    or query in str(g.get("modem", "")).lower()
+                    or query in str(g.get("type", "")).lower()
+                    or query in str(g.get("provider", "")).lower()
+                    or query in str(g.get("customer", "")).lower()
+                    or query in str(g.get("client_name", "")).lower()
+                )
+            ]
+
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            gateways = [
+                g for g in gateways
+                if c_low == str(g.get("customer", "")).lower()
+                or c_low == str(g.get("client_name", "")).lower()
+                or c_low in str(g.get("customer", "")).lower()
+            ]
+
+        if gateway_type and isinstance(gateway_type, str) and gateway_type not in ("Semua Tipe", "All Types", "All", ""):
+            t_low = gateway_type.strip().lower()
+            if "hitam" in t_low or "black" in t_low:
+                gateways = [
+                    g for g in gateways
+                    if "hitam" in str(g.get("type", "")).lower() or "black" in str(g.get("type", "")).lower()
+                ]
+            elif "putih" in t_low or "white" in t_low:
+                gateways = [
+                    g for g in gateways
+                    if "putih" in str(g.get("type", "")).lower() or "white" in str(g.get("type", "")).lower()
+                ]
+            else:
+                gateways = [
+                    g for g in gateways
+                    if str(g.get("type", "")).lower() == t_low
+                ]
+
+        if provider and isinstance(provider, str) and provider not in ("Semua Provider", "All"):
+            p_low = provider.strip().lower()
+            gateways = [
+                g for g in gateways
+                if p_low in str(g.get("provider", "")).lower()
+            ]
+
+        if cpu_modem and isinstance(cpu_modem, str) and cpu_modem not in ("All Statuses", "Semua Status", "All"):
+            cm_low = cpu_modem.strip().lower()
+            gateways = [
+                g for g in gateways
+                if cm_low in str(g.get("cpu_modem", "")).lower()
+            ]
+
         total = len(gateways)
 
         if total == 0:
@@ -548,14 +623,14 @@ class CellularService:
                 "smartbox_putih": {"name": "SmartBox Putih", "model": "Rockchip RK3328", "total": 0, "online": 0, "offline": 0, "degraded": 0, "warning": 0},
             }
 
-        online = sum(1 for g in gateways if g["status"] == "Online")
-        offline = sum(1 for g in gateways if g["status"] == "Offline")
-        warning = sum(1 for g in gateways if g["status"] in ("Warning", "Degraded"))
+        online = sum(1 for g in gateways if g.get("status") == "Online")
+        offline = sum(1 for g in gateways if g.get("status") == "Offline")
+        warning = sum(1 for g in gateways if g.get("status") in ("Warning", "Degraded"))
 
-        hitam_total = sum(1 for g in gateways if "Hitam" in g["type"])
-        hitam_online = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] == "Online")
-        hitam_offline = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] == "Offline")
-        hitam_warning = sum(1 for g in gateways if "Hitam" in g["type"] and g["status"] in ("Warning", "Degraded"))
+        hitam_total = sum(1 for g in gateways if "Hitam" in g.get("type", ""))
+        hitam_online = sum(1 for g in gateways if "Hitam" in g.get("type", "") and g.get("status") == "Online")
+        hitam_offline = sum(1 for g in gateways if "Hitam" in g.get("type", "") and g.get("status") == "Offline")
+        hitam_warning = sum(1 for g in gateways if "Hitam" in g.get("type", "") and g.get("status") in ("Warning", "Degraded"))
 
         putih_total = total - hitam_total
         putih_online = online - hitam_online
@@ -583,7 +658,7 @@ class CellularService:
             },
             "smartbox_putih": {
                 "name": "SmartBox Putih",
-                "model": "Dusun DSGW-210",
+                "model": "Rockchip RK3328",
                 "total": putih_total,
                 "online": putih_online,
                 "offline": putih_offline,
@@ -1027,7 +1102,13 @@ class CellularService:
         }))
 
         return {
-            "summary": self.get_summary_metrics(),
+            "summary": self.get_summary_metrics(
+                search=search,
+                gateway_type=gateway_type,
+                provider=provider,
+                cpu_modem=cpu_modem,
+                client=client,
+            ),
             "charts": self.get_charts(),
             "gateways": paged_gateways["items"],
             "pagination": paged_gateways["pagination"],
@@ -1055,7 +1136,13 @@ class CellularService:
             page=1,
             page_size=5000,
         )
-        summary = self.get_summary_metrics()
+        summary = self.get_summary_metrics(
+            search=search,
+            gateway_type=gateway_type,
+            provider=provider,
+            cpu_modem=cpu_modem,
+            client=client,
+        )
 
         filter_parts = []
         if client and client not in ["Semua Client", "All", "All Clients"]:

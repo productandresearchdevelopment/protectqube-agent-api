@@ -76,6 +76,7 @@ class SLAReportData(BaseModel):
     gateways: List[SLAReportItem]
     summary: SLAReportSummary
     pagination: ReportPaginationInfo
+    client_options: Optional[List[str]] = None
 
 
 class SLAReportResponse(BaseModel):

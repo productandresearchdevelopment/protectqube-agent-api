@@ -19,6 +19,40 @@ logger = logging.getLogger(__name__)
 
 dispatch_pool = ThreadPoolExecutor(max_workers=5, thread_name_prefix="notif-dispatch")
 
+RECOVERY_COUNTERPARTS = {
+    "gateway_online": "gateway_offline",
+    "gateway_cellular_recovered": "gateway_cellular_down",
+    "gateway_modem_reconnected": "gateway_modem_disconnected",
+    "gateway_dvr_recovered": "gateway_dvr_offline",
+    "gateway_camera_recovered": "gateway_camera_loss",
+    "gateway_recording_resumed": "gateway_recording_stopped",
+    "gateway_power_recovered": "gateway_power_drop",
+    "gateway_storage_recovered": "gateway_storage_critical",
+    "gateway_lan_reconnected": "gateway_lan_disconnected",
+    "gateway_temp_normal": "gateway_high_temp",
+    "gateway_signal_normal": "gateway_weak_signal",
+    "gateway_sla_recovered": "gateway_sla_breach",
+}
+
+
+def _to_utc_naive(dt: Optional[datetime]) -> datetime:
+    if not dt:
+        return datetime.utcnow()
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _is_uuid(val: Any) -> bool:
+    if not val:
+        return False
+    try:
+        import uuid
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
 
 class NotificationService:
     def __init__(self):
@@ -35,6 +69,8 @@ class NotificationService:
     ):
         if not payload or not isinstance(payload, dict):
             return
+
+        rec_dt = _to_utc_naive(rec_dt)
 
         # 0. Recover gateway_offline outage if telemetry resumes
         self._handle_module_recovery(
@@ -399,6 +435,7 @@ class NotificationService:
         rec_dt: datetime,
         reason: str,
     ):
+        rec_dt = _to_utc_naive(rec_dt)
         outage_key = f"{dev_id}:{metric}"
         if outage_key not in self._active_outages:
             self._active_outages[outage_key] = {
@@ -431,10 +468,11 @@ class NotificationService:
         rec_dt: datetime,
         sim_info: Optional[str] = None,
     ):
+        rec_dt = _to_utc_naive(rec_dt)
         outage_key = f"{dev_id}:{metric}"
         if outage_key in self._active_outages:
             outage = self._active_outages.pop(outage_key)
-            st = outage.get("start_time") or rec_dt
+            st = _to_utc_naive(outage.get("start_time")) or rec_dt
             diff_sec = max(60.0, (rec_dt - st).total_seconds())
             dur_m = max(1, round(diff_sec / 60.0))
             if dur_m >= 60:
@@ -452,6 +490,62 @@ class NotificationService:
                 duration_str=dur_str,
                 sim_info=sim_info,
             )
+            return
+
+        # Gateway recovery fallback: if not in _active_outages (e.g. server restarted or silence gap)
+        if metric == "gateway":
+            try:
+                from app.services.system_health_service import system_health_service
+                old_gw = system_health_service._live_gateways.get(dev_id)
+                old_last_seen = old_gw.get("last_seen_epoch") if old_gw else None
+                rec_ts = rec_dt.timestamp()
+
+                is_previously_down = False
+                diff_sec = 0.0
+                if old_gw and (old_gw.get("status") == "Offline" or (old_last_seen and (rec_ts - old_last_seen) >= 3600)):
+                    is_previously_down = True
+                    diff_sec = max(60.0, rec_ts - old_last_seen) if old_last_seen else 3600.0
+                else:
+                    from app.models.gateway_models import Device, GatewayTelemetryHistory
+                    dev_filter = (Device.id == dev_id) if _is_uuid(dev_id) else (Device.name == dev_id)
+                    dev_row = db.query(Device).filter(dev_filter).first()
+                    if dev_row:
+                        prev_hist = (
+                            db.query(GatewayTelemetryHistory.recorded_at)
+                            .filter(
+                                GatewayTelemetryHistory.device_id == dev_row.id,
+                                GatewayTelemetryHistory.recorded_at < rec_dt,
+                                GatewayTelemetryHistory.deleted_at.is_(None),
+                            )
+                            .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                            .first()
+                        )
+                        if prev_hist and prev_hist[0]:
+                            prev_dt = _to_utc_naive(prev_hist[0])
+                            gap = (rec_dt - prev_dt).total_seconds()
+                            if gap >= 3600:
+                                is_previously_down = True
+                                diff_sec = max(60.0, gap)
+
+                if is_previously_down:
+                    dur_m = max(1, round(diff_sec / 60.0))
+                    if dur_m >= 60:
+                        dur_str = f"{dur_m // 60} Jam {dur_m % 60} Menit" if dur_m % 60 else f"{dur_m // 60} Jam"
+                    else:
+                        dur_str = f"{dur_m} Menit"
+
+                    self.dispatch_module_event(
+                        db=db,
+                        dev_id=dev_id,
+                        loc_name=loc_name or (old_gw.get("table_item") or {}).get("location") or "",
+                        metric=metric,
+                        is_recovered=True,
+                        rec_dt=rec_dt,
+                        duration_str=dur_str,
+                        sim_info=sim_info,
+                    )
+            except Exception as e:
+                logger.debug(f"[NotificationService] Gateway recovery fallback check error: {e}")
 
     def dispatch_module_event(
         self,
@@ -466,19 +560,23 @@ class NotificationService:
         sim_info: Optional[str] = None,
     ):
         try:
-            # Synchronize location strictly from database Device table if available
+            # Synchronize location and ensure dev_id is name from database Device table
             if db and dev_id:
                 try:
                     from app.models.gateway_models import Device
-                    dev_row = db.query(Device).filter(Device.name == dev_id).first()
-                    if dev_row and dev_row.location and dev_row.location.strip() and not dev_row.location.startswith("Gateway "):
-                        loc_name = dev_row.location
+                    dev_filter = (Device.id == dev_id) if _is_uuid(dev_id) else (Device.name == dev_id)
+                    dev_row = db.query(Device).filter(dev_filter).first()
+                    if dev_row:
+                        dev_id = dev_row.name
+                        if dev_row.location and dev_row.location.strip() and not dev_row.location.startswith("Gateway "):
+                            loc_name = dev_row.location
                 except Exception:
                     pass
 
+            rec_dt = _to_utc_naive(rec_dt)
             dur = duration_str or "1 Menit"
             wib = timezone(timedelta(hours=7))
-            t_wib = rec_dt.replace(tzinfo=timezone.utc).astimezone(wib) if rec_dt.tzinfo is None else rec_dt.astimezone(wib)
+            t_wib = rec_dt.replace(tzinfo=timezone.utc).astimezone(wib)
             ts_wib = t_wib.strftime("%Y-%m-%d %H:%M:%S (WIB)")
 
             if metric == "cellular":
@@ -646,12 +744,23 @@ class NotificationService:
                 severity = "INFO" if is_recovered else "WARNING"
 
             event_record = db.query(NotificationEvent).filter(NotificationEvent.event_code == event_code).first()
-            if not event_record:
-                return
+            configured_channels = (event_record.channels or []) if event_record else []
 
-            configured_channels = event_record.channels or []
+            # Check counterpart for recovery events if channels are not configured or inactive
+            down_code = RECOVERY_COUNTERPARTS.get(event_code)
+            if is_recovered and down_code:
+                has_active = any(
+                    (c.get("is_enabled", True) if isinstance(c, dict) else True)
+                    for c in configured_channels
+                )
+                if not configured_channels or not has_active:
+                    down_record = db.query(NotificationEvent).filter(NotificationEvent.event_code == down_code).first()
+                    if down_record and down_record.channels:
+                        configured_channels = down_record.channels
+
             if not configured_channels:
-                return
+                # Default to in_app channel so system recovery is recorded in notification center
+                configured_channels = [{"channel_type": "in_app", "is_enabled": True}]
 
             norm_channels = []
             for c in configured_channels:
@@ -662,7 +771,8 @@ class NotificationService:
 
             active_configured = [c for c in norm_channels if c.get("is_enabled", True)]
             if not active_configured:
-                return
+                # Keep in-app active for recovery so notifications are visible in the app
+                active_configured = [{"channel_type": "in_app", "is_enabled": True}]
 
             in_app_entry = next((c for c in active_configured if c.get("channel_type") == "in_app"), None)
             in_app_enabled = bool(in_app_entry)
@@ -734,7 +844,7 @@ class NotificationService:
         try:
             from app.services.system_health_service import system_health_service
             now_epoch = time.time()
-            now_dt = datetime.now(timezone.utc)
+            now_dt = _to_utc_naive(datetime.utcnow())
             timeout_sec = getattr(system_health_service, "ONLINE_TIMEOUT_SECONDS", 3600)
 
             for dev_id, entry in list(system_health_service._live_gateways.items()):
@@ -761,7 +871,7 @@ class NotificationService:
         try:
             from app.services.sla_calculator_service import sla_calculator_service
             from app.services.system_health_service import system_health_service
-            now_dt = datetime.now(timezone.utc)
+            now_dt = _to_utc_naive(datetime.utcnow())
             for cache_key, cached in list(getattr(sla_calculator_service, "_summary_cache", {}).items()):
                 if not isinstance(cached, dict):
                     continue
@@ -801,10 +911,23 @@ class NotificationService:
         is_recovered = event_type.upper() in ["RESOLVED", "RECOVERED"]
         dur = incident.duration_str or (f"{int(incident.duration_minutes)} Menit" if incident.duration_minutes else "1 Menit")
         target_dt = incident.end_time if is_recovered and incident.end_time else (incident.start_time or datetime.utcnow())
+
+        dev_id = str(incident.device_id)
+        loc_name = ""
+        try:
+            from app.models.gateway_models import Device
+            dev_filter = (Device.id == incident.device_id) if _is_uuid(incident.device_id) else (Device.name == incident.device_id)
+            dev_row = db.query(Device).filter(dev_filter).first()
+            if dev_row:
+                dev_id = dev_row.name
+                loc_name = dev_row.location or ""
+        except Exception:
+            pass
+
         self.dispatch_module_event(
             db=db,
-            dev_id=incident.device_id,
-            loc_name="",
+            dev_id=dev_id,
+            loc_name=loc_name,
             metric=incident.metric,
             is_recovered=is_recovered,
             rec_dt=target_dt,

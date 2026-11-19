@@ -90,6 +90,7 @@ class SystemHealthDashboardData(BaseModel):
     charts: SystemHealthCharts
     gateways: List[GatewayItem]
     pagination: PaginationInfo
+    client_options: Optional[List[str]] = None
 
 
 class SystemHealthDashboardResponse(BaseModel):

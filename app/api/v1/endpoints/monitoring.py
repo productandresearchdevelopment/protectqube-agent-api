@@ -95,6 +95,7 @@ def get_system_health_dashboard(
     search: Optional[str] = Query(None, description="Cari Gateway ID atau Lokasi"),
     gateway_type: Optional[str] = Query(None, description="Filter tipe SmartBox"),
     status: Optional[str] = Query(None, description="Filter status gateway"),
+    client: Optional[str] = Query(None, description="Filter client / customer"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(5, ge=1, le=100, description="Jumlah item per halaman"),
     sort_by: Optional[str] = Query(None, description="Kolom sorting"),
@@ -111,6 +112,7 @@ def get_system_health_dashboard(
         search=search,
         gateway_type=gateway_type,
         status=status,
+        client=client,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -639,6 +641,7 @@ def get_sla_report(
     type: Optional[str] = Query(None, description="Filter tipe SmartBox (SmartBox Hitam / SmartBox Putih)"),
     sla_status: Optional[str] = Query(None, description="Filter status SLA (meet / breach)"),
     date_range: Optional[str] = Query(None, description="Rentang tanggal (e.g. 2026-11-01 to 2026-11-10)"),
+    client: Optional[str] = Query(None, description="Filter client / customer"),
     page: int = Query(1, ge=1, description="Nomor halaman"),
     page_size: int = Query(50, ge=1, le=5000, description="Jumlah data per halaman"),
 ):
@@ -650,6 +653,7 @@ def get_sla_report(
         gateway_type=type,
         sla_status=sla_status,
         date_range=date_range,
+        client=client,
         page=page,
         page_size=page_size,
     )
@@ -665,6 +669,7 @@ def export_sla_report_excel(
     type: Optional[str] = Query(None),
     sla_status: Optional[str] = Query(None),
     date_range: Optional[str] = Query(None),
+    client: Optional[str] = Query(None),
 ):
     """
     Export fleet SLA compliance report to professional Excel spreadsheet (.xlsx).
@@ -676,6 +681,7 @@ def export_sla_report_excel(
             gateway_type=type,
             sla_status=sla_status,
             date_range=date_range,
+            client=client,
         )
         date_str = datetime.now().strftime("%d%m%Y")
         filename = f"SLA_REPORT_{date_str}.xlsx"

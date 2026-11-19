@@ -410,6 +410,11 @@ class IncidentAlertService:
                     oa.duration_str = f"{int(round(dur_m))}m"
                     oa.status = "RESOLVED"
                     changed = True
+                    try:
+                        from app.services.notification.notification_service import notification_service
+                        notification_service.dispatch_incident_event(db, oa, "RESOLVED")
+                    except Exception as nie:
+                        logger.debug(f"[IncidentAlertService] Failed to dispatch resolution notification: {nie}")
 
             prev_row = (
                 db.query(GatewayTelemetryHistory.recorded_at)

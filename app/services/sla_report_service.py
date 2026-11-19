@@ -107,6 +107,7 @@ class SLAReportService:
         gateway_type: Optional[str] = None,
         sla_status: Optional[str] = None,
         date_range: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> Dict[str, Any]:
@@ -129,12 +130,25 @@ class SLAReportService:
             # Search filter
             if search:
                 s_lower = search.lower().strip()
-                if s_lower not in g["location"].lower() and s_lower not in g["device_id"].lower():
+                if (
+                    s_lower not in g.get("location", "").lower()
+                    and s_lower not in g.get("device_id", "").lower()
+                    and s_lower not in str(g.get("customer", "")).lower()
+                    and s_lower not in str(g.get("client_name", "")).lower()
+                ):
                     continue
 
             # Type filter
             if gateway_type and gateway_type.lower() not in ["all", "all types"]:
                 if gateway_type.lower() not in g["type"].lower():
+                    continue
+
+            # Client filter
+            if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+                c_low = client.lower().strip()
+                cust = str(g.get("customer", "")).lower()
+                cl_name = str(g.get("client_name", "")).lower()
+                if c_low != cust and c_low != cl_name and c_low not in cust:
                     continue
 
             filtered.append(g)
@@ -389,15 +403,17 @@ class SLAReportService:
 
             db = SessionLocal()
             try:
-                tot_incidents = db.query(func.count(GatewayIncidentAlert.id)).filter(
+                base_q = db.query(GatewayIncidentAlert).filter(
                     GatewayIncidentAlert.start_time >= s_utc,
-                    GatewayIncidentAlert.start_time <= e_utc
-                ).scalar() or 0
+                    GatewayIncidentAlert.start_time <= e_utc,
+                )
+                if filtered_dev_ids:
+                    base_q = base_q.filter(GatewayIncidentAlert.device_id.in_(filtered_dev_ids))
+                elif len(filtered) == 0:
+                    base_q = base_q.filter(False)
 
-                tot_downtime_minutes = db.query(func.sum(GatewayIncidentAlert.duration_minutes)).filter(
-                    GatewayIncidentAlert.start_time >= s_utc,
-                    GatewayIncidentAlert.start_time <= e_utc
-                ).scalar() or 0.0
+                tot_incidents = base_q.with_entities(func.count(GatewayIncidentAlert.id)).scalar() or 0
+                tot_downtime_minutes = base_q.with_entities(func.sum(GatewayIncidentAlert.duration_minutes)).scalar() or 0.0
             finally:
                 db.close()
         except Exception as dbe:
@@ -454,10 +470,17 @@ class SLAReportService:
             "showing_end": end_idx,
         }
 
+        client_options = sorted(list({
+            str(g.get("customer")).strip()
+            for g in self._live_gateways.values()
+            if g.get("customer") and g["customer"] != "-"
+        }))
+
         return {
             "gateways": report_gateways,
             "summary": summary,
             "pagination": pagination,
+            "client_options": client_options,
         }
 
     def get_gateway_detail(self, gateway_id: str, date_range: Optional[str] = None) -> Dict[str, Any]:
@@ -622,6 +645,7 @@ class SLAReportService:
         gateway_type: Optional[str] = None,
         sla_status: Optional[str] = None,
         date_range: Optional[str] = None,
+        client: Optional[str] = None,
     ) -> io.BytesIO:
         """Exports SLA compliance report to professional Excel spreadsheet (.xlsx) matching client visual spec"""
         import openpyxl
@@ -632,6 +656,7 @@ class SLAReportService:
             gateway_type=gateway_type,
             sla_status=sla_status,
             date_range=date_range,
+            client=client,
             page=1,
             page_size=5000,
         )

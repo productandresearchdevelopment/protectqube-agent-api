@@ -664,10 +664,42 @@ class SystemHealthService:
                     d_item["status"] = "Online"
                     d_item["service_status"] = "Running"
 
-    def get_summary_metrics(self) -> Dict[str, Any]:
-        """Calculates dynamic fleet summary metrics from 100% real live gateways"""
+    def get_summary_metrics(
+        self,
+        search: Optional[str] = None,
+        gateway_type: Optional[str] = None,
+        client: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Calculates dynamic fleet summary metrics from 100% real live gateways filtered by search/type/client"""
         self._sync_freshness()
-        total = len(self._live_gateways)
+        gateways = list(self._live_gateways.values())
+
+        if search and isinstance(search, str):
+            query = search.strip().lower()
+            gateways = [
+                g for g in gateways
+                if query in str(g.get("table_item", {}).get("id", "")).lower()
+                or query in str(g.get("table_item", {}).get("location", "")).lower()
+                or query in str(g.get("table_item", {}).get("customer", "")).lower()
+                or query in str(g.get("table_item", {}).get("client_name", "")).lower()
+            ]
+
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            gateways = [
+                g for g in gateways
+                if c_low == str(g.get("table_item", {}).get("customer", "")).lower()
+                or c_low == str(g.get("table_item", {}).get("client_name", "")).lower()
+                or c_low in str(g.get("table_item", {}).get("customer", "")).lower()
+            ]
+
+        if gateway_type and isinstance(gateway_type, str) and gateway_type not in ["Semua Tipe", "All"]:
+            gateways = [
+                g for g in gateways
+                if gateway_type.strip().lower() in str(g.get("type", "")).lower()
+            ]
+
+        total = len(gateways)
         if total == 0:
             return {
                 "total_gateways": 0,
@@ -685,18 +717,18 @@ class SystemHealthService:
                 "smartbox_putih": {"name": "SmartBox Putih", "model": "Rockchip RK3328", "total": 0, "online": 0, "offline": 0, "healthy": 0, "warning": 0, "critical": 0},
             }
 
-        online_cnt = sum(1 for g in self._live_gateways.values() if g["status"] == "Online")
-        offline_cnt = sum(1 for g in self._live_gateways.values() if g["status"] == "Offline")
+        online_cnt = sum(1 for g in gateways if g.get("status") == "Online")
+        offline_cnt = sum(1 for g in gateways if g.get("status") == "Offline")
 
-        hitam_gws = [g for g in self._live_gateways.values() if "hitam" in g["type"].lower()]
+        hitam_gws = [g for g in gateways if "hitam" in str(g.get("type", "")).lower()]
         hitam_total = len(hitam_gws)
-        hitam_online = sum(1 for g in hitam_gws if g["status"] == "Online")
-        hitam_offline = sum(1 for g in hitam_gws if g["status"] == "Offline")
+        hitam_online = sum(1 for g in hitam_gws if g.get("status") == "Online")
+        hitam_offline = sum(1 for g in hitam_gws if g.get("status") == "Offline")
 
-        putih_gws = [g for g in self._live_gateways.values() if "putih" in g["type"].lower()]
+        putih_gws = [g for g in gateways if "putih" in str(g.get("type", "")).lower()]
         putih_total = len(putih_gws)
-        putih_online = sum(1 for g in putih_gws if g["status"] == "Online")
-        putih_offline = sum(1 for g in putih_gws if g["status"] == "Offline")
+        putih_online = sum(1 for g in putih_gws if g.get("status") == "Online")
+        putih_offline = sum(1 for g in putih_gws if g.get("status") == "Offline")
 
         return {
             "total_gateways": total,
@@ -890,6 +922,7 @@ class SystemHealthService:
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
         status: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
@@ -917,7 +950,19 @@ class SystemHealthService:
             query = search.strip().lower()
             filtered = [
                 g for g in filtered
-                if query in g["id"].lower() or query in g["location"].lower()
+                if query in g["id"].lower()
+                or query in g["location"].lower()
+                or query in str(g.get("customer", "")).lower()
+                or query in str(g.get("client_name", "")).lower()
+            ]
+
+        if client and isinstance(client, str) and client not in ["Semua Client", "All", "All Clients"]:
+            c_low = client.lower().strip()
+            filtered = [
+                g for g in filtered
+                if c_low == str(g.get("customer", "")).lower()
+                or c_low == str(g.get("client_name", "")).lower()
+                or c_low in str(g.get("customer", "")).lower()
             ]
 
         if gateway_type and gateway_type not in ["Semua Tipe", "All"]:
@@ -962,29 +1007,42 @@ class SystemHealthService:
         search: Optional[str] = None,
         gateway_type: Optional[str] = None,
         status: Optional[str] = None,
+        client: Optional[str] = None,
         page: int = 1,
         page_size: int = 5,
         sort_by: Optional[str] = None,
         sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Unified fleet dashboard telemetry response"""
-        summary = self.get_summary_metrics()
+        summary = self.get_summary_metrics(
+            search=search,
+            gateway_type=gateway_type,
+            client=client,
+        )
         charts = self.get_chart_telemetry()
         gateways_data = self.get_gateways_paged(
             search=search,
             gateway_type=gateway_type,
             status=status,
+            client=client,
             page=page,
             page_size=page_size,
             sort_by=sort_by,
             sort_order=sort_order,
         )
 
+        client_options = sorted(list({
+            str(g["table_item"].get("customer")).strip()
+            for g in self._live_gateways.values()
+            if g.get("table_item", {}).get("customer") and g["table_item"]["customer"] != "-"
+        }))
+
         return {
             "summary": summary,
             "charts": charts,
             "gateways": gateways_data["items"],
             "pagination": gateways_data["pagination"],
+            "client_options": client_options,
         }
 
     @staticmethod
