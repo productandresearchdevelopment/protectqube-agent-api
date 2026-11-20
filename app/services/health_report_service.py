@@ -674,42 +674,16 @@ class HealthReportService:
             detail["daily_breakdown"] = list(sla.get("daily_breakdown", []))
             detail["daily_summary"] = sla.get("daily_summary")
             
-            # Sync real-time offline status from system_health_service
-            is_offline = False
-            try:
-                from app.services.system_health_service import system_health_service
-                system_health_service._sync_freshness()
-                lookup_keys = [target_gid, gateway_id, cleaned_id]
-                for k in lookup_keys:
-                    if k and k in system_health_service._live_gateways:
-                        live_h = system_health_service._live_gateways[k]
-                        sh_status = live_h.get("table_item", {}).get("status") or live_h.get("status")
-                        if sh_status and sh_status.lower() == "offline":
-                            is_offline = True
-                            break
-                if not is_offline:
-                    for k, v in system_health_service._live_gateways.items():
-                        if k.lower() == cleaned_id or (cleaned_id and cleaned_id in k.lower()):
-                            sh_status = v.get("table_item", {}).get("status") or v.get("status")
-                            if sh_status and sh_status.lower() == "offline":
-                                is_offline = True
-                                break
-            except Exception:
-                pass
-
-            if not is_offline and ((detail.get("status") or "").lower() == "offline" or (target_gdata.get("status") or "").lower() == "offline"):
-                is_offline = True
-
+            is_offline = (detail.get("status") or "").lower() == "offline" or (target_gdata.get("status") or "").lower() == "offline"
             detail["is_offline"] = is_offline
             detail["is_last_known"] = is_offline
-            detail["status"] = "Offline" if is_offline else "Online"
+            if is_offline:
+                detail["status"] = "Offline"
             return detail
 
         return {
             "id": gateway_id,
             "status": "Offline",
-            "is_offline": True,
-            "is_last_known": True,
             "location": f"Gateway {gateway_id}",
             "type": "SmartBox Hitam",
             "cpu_spec": "RK3328 (4-Core ARM Cortex-A53)",
