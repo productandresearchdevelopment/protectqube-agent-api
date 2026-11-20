@@ -358,9 +358,9 @@ def update_device(
         dev_loc = dev.location or ""
         dev_prop = dev.property or {}
 
-        # 0. Update Centralized Telemetry Loader Cache
+        # 0. Update Centralized Telemetry Loader Cache (metadata & active status)
         try:
-            from app.services.telemetry_loader import update_cached_device_metadata
+            from app.services.telemetry_loader import update_cached_device_metadata, set_device_active_status
             update_cached_device_metadata(
                 device_name=dev_name,
                 device_uuid=dev_uuid_str,
@@ -368,8 +368,23 @@ def update_device(
                 customer=client_name,
                 dev_prop=dev_prop,
             )
+            set_device_active_status(
+                device_name=dev_name,
+                device_uuid=dev_uuid_str,
+                is_active=dev.is_active,
+            )
         except Exception as t_err:
-            logger.debug(f"Could not update telemetry loader metadata cache: {t_err}")
+            logger.debug(f"Could not update telemetry loader metadata/active cache: {t_err}")
+
+        all_services = [
+            dvr_service,
+            dvr_report_service,
+            system_health_service,
+            health_report_service,
+            cellular_service,
+            cellular_report_service,
+            sla_report_service,
+        ]
 
         # Helper to apply authoritative location & client to raw payload
         def _apply_meta_to_raw(p: dict) -> dict:
@@ -383,84 +398,85 @@ def update_device(
                 p["site_info"]["site_name"] = dev_loc
             return p
 
-        # 1. Update DVR Fleet Service
-        if dvr_service:
-            if hasattr(dvr_service, "_device_properties"):
-                dvr_service._device_properties[dev_name] = dev_prop
-                dvr_service._device_properties[dev_uuid_str] = dev_prop
-            if hasattr(dvr_service, "_device_locations"):
-                dvr_service._device_locations[dev_name] = dev_loc
-                dvr_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in dvr_service._live_gateways:
-                g = dvr_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                dvr_service.update_from_telemetry(raw_p, save_cache=False)
+        if not dev.is_active:
+            # =====================================================================
+            # DEVICE INACTIVE: Immediately evict from live fleet across all services
+            # =====================================================================
+            for svc in all_services:
+                if svc is not None:
+                    if hasattr(svc, "_inactive_gateways"):
+                        svc._inactive_gateways.add(dev_name)
+                        svc._inactive_gateways.add(dev_uuid_str)
+                    if hasattr(svc, "_live_gateways"):
+                        svc._live_gateways.pop(dev_name, None)
+                        svc._live_gateways.pop(dev_uuid_str, None)
+                        # Also purge any entry matching dev_name or dev_uuid_str in its payload/item
+                        keys_to_del = [
+                            k for k, v in svc._live_gateways.items()
+                            if k in (dev_name, dev_uuid_str)
+                            or (isinstance(v, dict) and (
+                                v.get("item", {}).get("id") in (dev_name, dev_uuid_str)
+                                or v.get("item", {}).get("device_uuid") in (dev_name, dev_uuid_str)
+                                or v.get("device_id") in (dev_name, dev_uuid_str)
+                                or v.get("device_uuid") in (dev_name, dev_uuid_str)
+                            ))
+                        ]
+                        for k in keys_to_del:
+                            svc._live_gateways.pop(k, None)
+                    if hasattr(svc, "_device_locations"):
+                        svc._device_locations.pop(dev_name, None)
+                        svc._device_locations.pop(dev_uuid_str, None)
+        else:
+            # =====================================================================
+            # DEVICE ACTIVE: Restore from inactive & immediately hydrate into live fleet
+            # =====================================================================
+            for svc in all_services:
+                if svc is not None:
+                    if hasattr(svc, "_inactive_gateways"):
+                        svc._inactive_gateways.discard(dev_name)
+                        svc._inactive_gateways.discard(dev_uuid_str)
+                    if hasattr(svc, "_device_properties"):
+                        svc._device_properties[dev_name] = dev_prop
+                        svc._device_properties[dev_uuid_str] = dev_prop
+                    if hasattr(svc, "_device_locations"):
+                        svc._device_locations[dev_name] = dev_loc
+                        svc._device_locations[dev_uuid_str] = dev_loc
 
-        # 2. Update DVR Report Service
-        if dvr_report_service:
-            if hasattr(dvr_report_service, "_device_properties"):
-                dvr_report_service._device_properties[dev_name] = dev_prop
-                dvr_report_service._device_properties[dev_uuid_str] = dev_prop
-            if hasattr(dvr_report_service, "_device_locations"):
-                dvr_report_service._device_locations[dev_name] = dev_loc
-                dvr_report_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in dvr_report_service._live_gateways:
-                g = dvr_report_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                dvr_report_service.update_from_telemetry(raw_p)
+            # Find latest telemetry history in DB to hydrate into services
+            latest_hist = (
+                db.query(GatewayTelemetryHistory)
+                .filter(
+                    or_(
+                        GatewayTelemetryHistory.device_id == dev.id,
+                        GatewayTelemetryHistory.location == dev.name,
+                    )
+                )
+                .order_by(GatewayTelemetryHistory.recorded_at.desc())
+                .first()
+            )
 
-        # 3. Update System Health Service
-        if system_health_service:
-            if hasattr(system_health_service, "_device_properties"):
-                system_health_service._device_properties[dev_name] = dev_prop
-                system_health_service._device_properties[dev_uuid_str] = dev_prop
-            if hasattr(system_health_service, "_device_locations"):
-                system_health_service._device_locations[dev_name] = dev_loc
-                system_health_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in system_health_service._live_gateways:
-                g = system_health_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                system_health_service.update_from_telemetry(raw_p, save_cache=False)
+            base_raw = (
+                dict(latest_hist.raw_payload)
+                if (latest_hist and latest_hist.raw_payload)
+                else {
+                    "device_id": dev_name,
+                    "device_uuid": dev_uuid_str,
+                    "type": dev.hardware_model or "SmartBox Hitam",
+                    "location": dev_loc,
+                    "status": "Online",
+                }
+            )
+            raw_p = _apply_meta_to_raw(base_raw)
 
-        # 4. Update Health Report Service
-        if health_report_service and hasattr(health_report_service, "_live_gateways"):
-            if hasattr(health_report_service, "_device_locations"):
-                health_report_service._device_locations[dev_name] = dev_loc
-                health_report_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in health_report_service._live_gateways:
-                g = health_report_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                health_report_service.update_from_telemetry(raw_p)
-
-        # 5. Update Cellular Service
-        if cellular_service:
-            if hasattr(cellular_service, "_device_locations"):
-                cellular_service._device_locations[dev_name] = dev_loc
-                cellular_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in cellular_service._live_gateways:
-                g = cellular_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw") or {}))
-                cellular_service.update_from_telemetry(raw_p, save_cache=False)
-
-        # 6. Update Cellular Report Service
-        if cellular_report_service and hasattr(cellular_report_service, "_live_gateways"):
-            if hasattr(cellular_report_service, "_device_locations"):
-                cellular_report_service._device_locations[dev_name] = dev_loc
-                cellular_report_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in cellular_report_service._live_gateways:
-                g = cellular_report_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                cellular_report_service.update_from_telemetry(raw_p)
-
-        # 7. Update SLA Report Service
-        if sla_report_service:
-            if hasattr(sla_report_service, "_device_locations"):
-                sla_report_service._device_locations[dev_name] = dev_loc
-                sla_report_service._device_locations[dev_uuid_str] = dev_loc
-            if dev_name in sla_report_service._live_gateways:
-                g = sla_report_service._live_gateways[dev_name]
-                raw_p = _apply_meta_to_raw(dict(g.get("raw_payload") or {}))
-                sla_report_service.update_from_telemetry(raw_p)
+            for svc in all_services:
+                if svc is not None and hasattr(svc, "update_from_telemetry"):
+                    try:
+                        svc.update_from_telemetry(raw_p, save_cache=False)
+                    except TypeError:
+                        try:
+                            svc.update_from_telemetry(raw_p)
+                        except Exception as te:
+                            logger.debug(f"Service hydration error: {te}")
     except Exception as e:
         logger.debug(f"Could not hot-update in-memory cache: {e}")
 

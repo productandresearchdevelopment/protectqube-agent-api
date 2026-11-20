@@ -104,10 +104,15 @@ def get_initial_telemetry_payloads() -> List[Dict[str, Any]]:
         try:
             # 1. Fetch inactive / soft-deleted devices
             try:
-                inactive_rows = db.query(Device.name).filter(
+                inactive_rows = db.query(Device.name, Device.id).filter(
                     (Device.is_active.is_(False)) | (Device.deleted_at.isnot(None))
                 ).all()
-                inactive_gateways = {r[0] for r in inactive_rows if r[0]}
+                inactive_gateways = set()
+                for r in inactive_rows:
+                    if r[0]:
+                        inactive_gateways.add(str(r[0]))
+                    if r[1]:
+                        inactive_gateways.add(str(r[1]))
                 _CACHED_INACTIVE_GATEWAYS = inactive_gateways
             except Exception as ie:
                 logger.debug(f"Could not query inactive devices: {ie}")
@@ -166,9 +171,18 @@ def get_initial_telemetry_payloads() -> List[Dict[str, Any]]:
                 with open(cache_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, list):
-                    payloads = [item for item in data if isinstance(item, dict)]
+                    payloads = [
+                        item for item in data
+                        if isinstance(item, dict)
+                        and item.get("device_id") not in inactive_gateways
+                        and str(item.get("device_uuid", "")) not in inactive_gateways
+                    ]
                 elif isinstance(data, dict):
-                    payloads = [data]
+                    if (
+                        data.get("device_id") not in inactive_gateways
+                        and str(data.get("device_uuid", "")) not in inactive_gateways
+                    ):
+                        payloads = [data]
                 logger.info(f"TelemetryLoader: Loaded {len(payloads)} gateways from disk cache fallback: {cache_file}")
             except Exception as fe:
                 logger.warning(f"TelemetryLoader: Disk cache load error: {fe}")
@@ -182,3 +196,27 @@ def get_cached_inactive_gateways() -> set:
     if _CACHED_INACTIVE_GATEWAYS is None:
         get_initial_telemetry_payloads()
     return _CACHED_INACTIVE_GATEWAYS or set()
+
+
+def set_device_active_status(device_name: str, device_uuid: Optional[str] = None, is_active: bool = True):
+    """Immediately updates inactive gateway cache and device metadata when a device's is_active changes."""
+    global _CACHED_INACTIVE_GATEWAYS, _CACHED_DEVICE_METADATA
+    if _CACHED_INACTIVE_GATEWAYS is None:
+        _CACHED_INACTIVE_GATEWAYS = set()
+
+    if is_active:
+        _CACHED_INACTIVE_GATEWAYS.discard(device_name)
+        if device_uuid:
+            _CACHED_INACTIVE_GATEWAYS.discard(device_uuid)
+    else:
+        _CACHED_INACTIVE_GATEWAYS.add(device_name)
+        if device_uuid:
+            _CACHED_INACTIVE_GATEWAYS.add(device_uuid)
+
+    cache = get_device_metadata_cache()
+    if device_name in cache:
+        cache[device_name]["is_active"] = is_active
+    if device_uuid and device_uuid in cache:
+        cache[device_uuid]["is_active"] = is_active
+    _CACHED_DEVICE_METADATA = cache
+

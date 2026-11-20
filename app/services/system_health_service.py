@@ -144,7 +144,9 @@ class SystemHealthService:
         device_id = nms_payload.get("device_id")
         if not device_id:
             return
-        if getattr(self, "_inactive_gateways", None) and device_id in self._inactive_gateways:
+        dev_uuid = str(nms_payload.get("device_uuid", ""))
+        inactives = getattr(self, "_inactive_gateways", None)
+        if inactives and (device_id in inactives or (dev_uuid and dev_uuid in inactives)):
             return
 
         gw_sys = nms_payload.get("gateway_system", {})
