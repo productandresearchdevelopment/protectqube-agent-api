@@ -55,7 +55,16 @@ async def lifespan(app: FastAPI):
             whatsapp_session_manager.start_session()
     except Exception as e:
         logger.error(f"WhatsApp background start error: {e}")
+    backup_scheduler_task = None
+    try:
+        import asyncio
+        from app.services.backup_service import run_backup_scheduler
+        backup_scheduler_task = asyncio.create_task(run_backup_scheduler())
+    except Exception as e:
+        logger.error(f"Backup scheduler start error: {e}")
     yield
+    if backup_scheduler_task:
+        backup_scheduler_task.cancel()
     try:
         stop_worker()
     except Exception as e:
