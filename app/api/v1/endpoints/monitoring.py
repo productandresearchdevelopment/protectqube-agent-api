@@ -839,5 +839,179 @@ def get_incident_analytics(
     return data
 
 
+def _check_raw_mqtt_export_permission(current_user: User, db: Session, required_route: str) -> None:
+    """Enforce RoleModule permission for Raw MQTT export per menu route."""
+    from app.core.rbac import is_privileged_role
+    from app.models.base_models import RoleModule, Module
+
+    if is_privileged_role(current_user.role):
+        return
+    if not current_user.role_id:
+        raise HTTPException(status_code=403, detail="Anda tidak memiliki izin untuk export Raw MQTT.")
+
+    allowed = (
+        db.query(RoleModule.id)
+        .join(Module, RoleModule.module_id == Module.id)
+        .filter(
+            RoleModule.role_id == current_user.role_id,
+            RoleModule.checked.is_(True),
+            RoleModule.deleted_at.is_(None),
+            Module.deleted_at.is_(None),
+            Module.route == required_route,
+        )
+        .first()
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Role Anda tidak memiliki izin untuk export Raw MQTT pada menu ini.",
+        )
+
+
+def _stream_gateway_raw_mqtt_json(gateway_id: str, scope: str, db: Session):
+    """Streams all historical raw MQTT payloads + timestamps for a device from first record to latest."""
+    import json
+    import uuid
+    from datetime import datetime, timezone, timedelta
+    from fastapi.responses import StreamingResponse
+    from sqlalchemy import func
+    from app.models.gateway_models import Device, GatewayTelemetryHistory
+
+    WIB = timezone(timedelta(hours=7))
+
+    is_uuid = False
+    try:
+        uuid.UUID(str(gateway_id))
+        is_uuid = True
+    except ValueError:
+        is_uuid = False
+
+    if is_uuid:
+        device = db.query(Device).filter((Device.id == gateway_id) | (Device.name.ilike(gateway_id))).first()
+    else:
+        device = db.query(Device).filter(Device.name.ilike(gateway_id)).first()
+
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device '{gateway_id}' tidak ditemukan.")
+
+    stats = (
+        db.query(
+            func.count(GatewayTelemetryHistory.id),
+            func.min(GatewayTelemetryHistory.recorded_at),
+            func.max(GatewayTelemetryHistory.recorded_at),
+        )
+        .filter(GatewayTelemetryHistory.device_id == device.id)
+        .first()
+    )
+    total_records = int(stats[0] or 0) if stats else 0
+
+    def _fmt_wib(dt: Optional[datetime]) -> Optional[str]:
+        if not dt:
+            return None
+        dt_wib = dt.astimezone(WIB) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(WIB)
+        return dt_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
+
+    first_wib = _fmt_wib(stats[1]) if stats else None
+    last_wib = _fmt_wib(stats[2]) if stats else None
+    exported_at_wib = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+    dev_id_str = str(device.id)
+    dev_name = device.name
+    dev_loc = device.location or "-"
+
+    def generate():
+        from app.core.database import SessionLocal
+        header_meta = {
+            "device_id": dev_name,
+            "location": dev_loc,
+            "scope": scope,
+            "exported_at_wib": exported_at_wib,
+            "total_records": total_records,
+            "first_record_wib": first_wib,
+            "last_record_wib": last_wib,
+        }
+        meta_json = json.dumps(header_meta, ensure_ascii=False)
+        yield meta_json[:-1] + ',\n  "records": [\n'
+
+        stream_db = SessionLocal()
+        try:
+            q = (
+                stream_db.query(
+                    GatewayTelemetryHistory.recorded_at,
+                    GatewayTelemetryHistory.raw_payload,
+                )
+                .filter(GatewayTelemetryHistory.device_id == dev_id_str)
+                .order_by(GatewayTelemetryHistory.recorded_at.asc())
+                .yield_per(500)
+            )
+            first_item = True
+            for rec_at, raw_p in q:
+                if isinstance(raw_p, str):
+                    try:
+                        raw_p = json.loads(raw_p)
+                    except Exception:
+                        pass
+                item_obj = {
+                    "timestamp_wib": _fmt_wib(rec_at),
+                    "recorded_at_utc": rec_at.isoformat() if rec_at else None,
+                    "raw_payload": raw_p,
+                }
+                prefix = "    " if first_item else ",\n    "
+                first_item = False
+                yield prefix + json.dumps(item_obj, ensure_ascii=False, default=str)
+        finally:
+            stream_db.close()
+
+        yield "\n  ]\n}\n"
+
+    date_str = datetime.now(WIB).strftime("%Y%m%d")
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", dev_name)
+    filename = f"RAW_MQTT_{safe_name}_{scope}_{date_str}.json"
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/system-health/gateway/{gateway_id}/export-raw-mqtt")
+def export_system_health_raw_mqtt(
+    gateway_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export all raw MQTT telemetry payloads + timestamps for a device as JSON (System Health Detail)."""
+    _check_raw_mqtt_export_permission(
+        current_user, db, "/api/v1/monitoring/system-health/gateway/:id/export-raw-mqtt"
+    )
+    return _stream_gateway_raw_mqtt_json(gateway_id, "system_health", db)
+
+
+@router.get("/cellular/gateway/{gateway_id}/export-raw-mqtt")
+def export_cellular_raw_mqtt(
+    gateway_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export all raw MQTT telemetry payloads + timestamps for a device as JSON (Cellular Detail)."""
+    _check_raw_mqtt_export_permission(
+        current_user, db, "/api/v1/monitoring/cellular/gateway/:id/export-raw-mqtt"
+    )
+    return _stream_gateway_raw_mqtt_json(gateway_id, "cellular", db)
+
+
+@router.get("/dvr/gateway/{gateway_id}/export-raw-mqtt")
+def export_dvr_raw_mqtt(
+    gateway_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export all raw MQTT telemetry payloads + timestamps for a device as JSON (DVR & Recording Detail)."""
+    _check_raw_mqtt_export_permission(
+        current_user, db, "/api/v1/monitoring/dvr/gateway/:id/export-raw-mqtt"
+    )
+    return _stream_gateway_raw_mqtt_json(gateway_id, "dvr", db)
+
+
 
 
