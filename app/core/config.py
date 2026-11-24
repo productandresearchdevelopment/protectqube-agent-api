@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     DVR_PORT: int = 80
     DVR_RTSP_PORT: int = 554
 
+    ENVIRONMENT: str = "production"
+
+    MINIO_ENDPOINT: str = "minio.protectqube.ai"
+    MINIO_PORT: int = 443
+    MINIO_USE_SSL: bool = True
+    MINIO_ACCESS_KEY: str = "devel"
+    MINIO_SECRET_KEY: str = "password"
+    MINIO_BUCKET_NAME: str = "protectqube-agent"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
