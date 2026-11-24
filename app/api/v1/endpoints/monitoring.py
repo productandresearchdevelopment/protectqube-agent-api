@@ -17,6 +17,7 @@ from app.services.cellular_report_service import cellular_report_service
 from app.services.dvr_report_service import dvr_report_service
 from app.services.health_report_service import health_report_service
 from app.services.sla_report_service import sla_report_service
+from app.services.analytics_service import analytics_service
 from app.schemas.system_health import SystemHealthDashboardResponse, GatewayDetailResponse
 from app.schemas.cellular import CellularDashboardResponse, CellularGatewayDetailResponse
 
@@ -806,6 +807,37 @@ def reload_telemetry_cache(current_user: User = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Failed to reload telemetry cache: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to reload telemetry cache: {str(e)}")
+
+
+@router.get("/analytics/incidents")
+def get_incident_analytics(
+    month: Optional[str] = Query(None, description="Month format YYYY-MM (e.g. 2026-11)"),
+    date: Optional[str] = Query(None, description="Date format YYYY-MM-DD (e.g. 2026-11-20)"),
+    client: Optional[str] = Query(None, description="Client filter"),
+    search: Optional[str] = Query(None, description="Search keyword"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Returns unified Incident & Outage Analytics:
+    - Monthly trend (daily failure frequency per metric)
+    - Top root causes per day and per month
+    - Offline / impacted gateways with primary root causes
+    - High-level KPIs and incident stream
+    """
+    data = analytics_service.get_incident_analytics(
+        db=db,
+        month=month,
+        selected_date=date,
+        client_name=client,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+    return data
+
 
 
 

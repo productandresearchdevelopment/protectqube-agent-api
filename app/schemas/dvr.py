@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 
 
@@ -81,6 +81,12 @@ class DVRGatewayItem(BaseModel):
     storage_usage_percent: Optional[Union[int, float, str]] = None
     dvr_health: str
     last_update: str
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Dict[str, Any]] = None
+
+    class Config:
+        extra = "allow"
 
 
 class PaginationInfo(BaseModel):
@@ -185,6 +191,12 @@ class DVRGatewayDetailData(BaseModel):
     serial_number: Optional[str] = None
     device_type: Optional[str] = None
     events: Optional[List[DVREventItem]] = None
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+
+    class Config:
+        extra = "allow"
 
 
 class DVRGatewayDetailResponse(BaseModel):

@@ -309,8 +309,6 @@ def build_dvr_report_excel(
     return stream
 
 
-# ─── 2. Cellular Report Excel Builder (2-Tier Header with Merged Groups) ──────
-
 def build_cellular_report_excel(
     gateways: List[Dict[str, Any]],
     summary: Optional[Dict[str, Any]] = None,
@@ -452,8 +450,6 @@ def build_cellular_report_excel(
     stream.seek(0)
     return stream
 
-
-# ─── 3. Health Report Excel Builder (2-Tier Header with Merged Groups) ────────
 
 def build_health_report_excel(
     gateways: List[Dict[str, Any]],
@@ -604,8 +600,6 @@ def build_health_report_excel(
     stream.seek(0)
     return stream
 
-
-# ─── 4. Cellular Fleet Dashboard Excel Builder (Table View Matching UI) ────────
 
 def build_cellular_dashboard_excel(
     gateways: List[Dict[str, Any]],

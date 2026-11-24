@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import time
+from app.services.aiops_diagnostics_service import aiops_diagnostics_service
 
 logger = logging.getLogger("dvr-service")
 
@@ -493,6 +494,10 @@ class DVRService:
                 "device_type": dev_info.get("device_type") or "Surveillance NVR / IPC Hub",
             }
 
+        is_dvr_online = (gw_item.get("status") == "Online")
+        aiops_diagnostics_service.enrich_gateway(gw_item, nms_payload, is_online=is_dvr_online, box_type=box_type)
+        aiops_diagnostics_service.enrich_gateway(detail_obj, nms_payload, is_online=is_dvr_online, box_type=box_type)
+
         last_seen_epoch = self._parse_payload_epoch(nms_payload)
         self._live_gateways[device_id] = {
             "table_item": gw_item,
@@ -576,6 +581,13 @@ class DVRService:
                 detail_item["service_status"] = "Running"
                 detail_item["is_offline"] = False
                 detail_item["is_connected"] = is_conn
+
+            is_fresh_online = (g.get("status") == "Online" or table_item.get("status") == "Online")
+            raw_pl = g.get("raw_payload", {})
+            if isinstance(table_item, dict):
+                aiops_diagnostics_service.enrich_gateway(table_item, raw_pl, is_online=is_fresh_online, box_type=table_item.get("type", "SmartBox"))
+            if isinstance(detail_item, dict):
+                aiops_diagnostics_service.enrich_gateway(detail_item, raw_pl, is_online=is_fresh_online, box_type=table_item.get("type", "SmartBox"))
 
     def get_summary(
         self,
@@ -1646,6 +1658,15 @@ class DVRService:
             detail["status"] = "Online"
             detail["service_status"] = "Running"
             detail["is_offline"] = False
+
+        aiops = aiops_diagnostics_service.get_diagnostics(
+            payload=raw_payload,
+            is_online=(detail.get("status") == "Online"),
+            box_type=detail.get("type", "SmartBox")
+        )
+        detail["reason"] = aiops["reason"]
+        detail["reason_desc"] = aiops["reason_desc"]
+        detail["evidence"] = aiops["evidence"]
 
         return detail
 

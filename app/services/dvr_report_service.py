@@ -67,7 +67,23 @@ class DVRReportService:
         gw_sys = nms_payload.get("gateway_system", {})
         hw = gw_sys.get("hardware", {})
 
-        nvr_reachable = nvr.get("connected", False) or nvr.get("nvr_reachable", False) or (nvr.get("status") in ["GOOD", "WARNING", "OK"])
+        logs = nms_payload.get("recent_system_logs", [])
+        if isinstance(logs, str):
+            logs = [logs]
+        is_cpu_dvr_ok = None
+        for line in reversed(logs):
+            if "[NVR-CPU:" in line or "NVR:" in line:
+                if "[NVR-CPU: OK]" in line or "NVR: OK" in line:
+                    is_cpu_dvr_ok = True
+                    break
+                elif any(bad in line for bad in ["TERPUTUS", "LEPAS", "TIMEOUT", "ERROR", "DOWN", "OFFLINE"]):
+                    is_cpu_dvr_ok = False
+                    break
+
+        if is_cpu_dvr_ok is not None:
+            nvr_reachable = is_cpu_dvr_ok
+        else:
+            nvr_reachable = nvr.get("connected", False) or nvr.get("nvr_reachable", False) or (nvr.get("status") in ["GOOD", "WARNING", "OK"])
         dev_info = nvr.get("device_info", {})
         dvr_model = dev_info.get("model") or ("Hikvision DS-7204HUHI-K2" if nvr_reachable else "NVR Offline")
 
@@ -620,6 +636,10 @@ class DVRReportService:
                     from app.services.dvr_service import dvr_service
                     dvr_d = dvr_service.get_gateway_detail(gid)
                     if dvr_d:
+                        if dvr_d.get("cpu_dvr", {}).get("status"):
+                            detail["cpu_dvr_status"] = dvr_d["cpu_dvr"]["status"]
+                        is_cpu_dvr_down = detail.get("cpu_dvr_status") in ("Not Connected", "No Response", "Terputus") or detail.get("status") == "Offline"
+
                         dvr_cams_map = {str(c.get("channel")): c for c in dvr_d.get("cameras", [])}
                         if not raw_cams and dvr_d.get("cameras"):
                             raw_cams = [
@@ -652,6 +672,13 @@ class DVRReportService:
                                         rc["is_online"] = False
                                     elif dc.get("status") == "Online":
                                         rc["is_online"] = True
+
+                        if is_cpu_dvr_down:
+                            for rc in raw_cams:
+                                rc["is_online"] = False
+                                rc["recording_status"] = "NOT_RECORD"
+                                rc["is_writing_to_hdd"] = False
+                                rc["recording_note"] = "NVR Disconnected ([NVR-CPU: TERPUTUS])"
 
                         logs = raw_payload.get("recent_system_logs", [])
                         for line in reversed(logs):

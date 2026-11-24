@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 import time
 from app.services.sla_calculator_service import sla_calculator_service, get_default_period_str, WIB
+from app.services.aiops_diagnostics_service import aiops_diagnostics_service
 
 logger = logging.getLogger("system-health-service")
 
@@ -581,6 +582,10 @@ class SystemHealthService:
                     "status": "Resolved",
                 })
 
+        is_gw_online = (status_label != "Offline")
+        aiops_diagnostics_service.enrich_gateway(table_item, nms_payload, is_online=is_gw_online, box_type=box_type)
+        aiops_diagnostics_service.enrich_gateway(detail_item, nms_payload, is_online=is_gw_online, box_type=box_type)
+
         self._live_gateways[device_id] = {
             "table_item": table_item,
             "detail_item": detail_item,
@@ -665,6 +670,13 @@ class SystemHealthService:
                 if isinstance(d_item, dict):
                     d_item["status"] = "Online"
                     d_item["service_status"] = "Running"
+
+            is_fresh_online = (g.get("status") == "Online" or (isinstance(t_item, dict) and t_item.get("status") == "Online"))
+            raw_pl = g.get("raw_payload", {})
+            if isinstance(t_item, dict):
+                aiops_diagnostics_service.enrich_gateway(t_item, raw_pl, is_online=is_fresh_online, box_type=g.get("type", "SmartBox"))
+            if isinstance(d_item, dict):
+                aiops_diagnostics_service.enrich_gateway(d_item, raw_pl, is_online=is_fresh_online, box_type=g.get("type", "SmartBox"))
 
     def get_summary_metrics(
         self,
@@ -1794,6 +1806,14 @@ class SystemHealthService:
         real_events = clean_events
 
         detail["events"] = real_events
+        aiops = aiops_diagnostics_service.get_diagnostics(
+            payload=raw_payload,
+            is_online=(detail.get("status") == "Online" or detail.get("status") == "Healthy"),
+            box_type=detail.get("type", "SmartBox")
+        )
+        detail["reason"] = aiops["reason"]
+        detail["reason_desc"] = aiops["reason_desc"]
+        detail["evidence"] = aiops["evidence"]
         return detail
 
     def get_gateway_detail(self, gateway_id: str) -> Dict[str, Any]:

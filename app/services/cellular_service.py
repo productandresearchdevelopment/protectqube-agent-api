@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import time
+from app.services.aiops_diagnostics_service import aiops_diagnostics_service
 
 logger = logging.getLogger("cellular-service")
 
@@ -380,6 +381,10 @@ class CellularService:
             },
         }
 
+        is_gw_online = (status == "Online")
+        aiops_diagnostics_service.enrich_gateway(gw_item, nms_payload, is_online=is_gw_online, box_type=box_type)
+        aiops_diagnostics_service.enrich_gateway(detail_obj, nms_payload, is_online=is_gw_online, box_type=box_type)
+
         last_seen_epoch = self._parse_payload_epoch(nms_payload)
 
         self._live_gateways[device_id] = {
@@ -526,6 +531,11 @@ class CellularService:
                     detail["cpu_modem"]["status"] = "Connected" if modem_connected else "Not Connected"
                     if not modem_connected:
                         detail["cpu_modem"]["message"] = "Communication with modem lost (USB port disconnected)"
+
+            is_fresh_online = (item.get("status") == "Online")
+            aiops_diagnostics_service.enrich_gateway(item, raw, is_online=is_fresh_online, box_type=item.get("type", "SmartBox"))
+            if isinstance(detail, dict):
+                aiops_diagnostics_service.enrich_gateway(detail, raw, is_online=is_fresh_online, box_type=item.get("type", "SmartBox"))
 
 
 
@@ -2100,7 +2110,15 @@ class CellularService:
                 },
             ]
 
-        detail["evidence"] = evidence_items
+        detail["evidence_items"] = evidence_items
+        aiops = aiops_diagnostics_service.get_diagnostics(
+            payload=raw_payload,
+            is_online=(detail.get("status") == "Online"),
+            box_type=detail.get("type", "SmartBox")
+        )
+        detail["reason"] = aiops["reason"]
+        detail["reason_desc"] = aiops["reason_desc"]
+        detail["evidence"] = aiops["evidence"]
         detail["evidence_badge"] = evidence_badge
         detail["evidence_verdict"] = evidence_verdict
 
@@ -2195,6 +2213,15 @@ class CellularService:
                 "min_temp": "0°C",
                 "avg_temp": "0°C",
                 "sparkline": [0.0, 0.0],
+            },
+            "reason": "Mati Mendadak (Silent Cut / Sakelar Off)",
+            "reason_desc": "Perangkat kehilangan daya mendadak tanpa panic log (MCB/sakelar toko dimatikan).",
+            "evidence": {
+                "badge": "Mati Mendadak (MCB Off)",
+                "badge_color": "slate",
+                "metrics": "Power: Kehilangan Daya Tiba-tiba",
+                "snippet": "Perangkat kehilangan daya mendadak tanpa panic log.",
+                "evidence_ts": datetime.now().strftime("%d %b %H:%M WIB"),
             },
         }
 

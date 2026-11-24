@@ -74,6 +74,12 @@ class GatewayItem(BaseModel):
     battery_percent: Optional[Union[int, float, str]] = None
     is_power_drop: Optional[bool] = False
     voltage: Optional[str] = None
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Dict[str, Any]] = None
+
+    class Config:
+        extra = "allow"
 
 
 class PaginationInfo(BaseModel):
@@ -177,6 +183,12 @@ class GatewayDetailData(BaseModel):
     status: Optional[str] = "Healthy"
     daily_uptime: Optional[Dict[str, Any]] = None
     power_info: Optional[Dict[str, Any]] = None
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+
+    class Config:
+        extra = "allow"
 
 
 class GatewayDetailResponse(BaseModel):

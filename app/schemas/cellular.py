@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 
 
@@ -81,6 +81,12 @@ class CellularGatewayItem(BaseModel):
     incident_count: Optional[int] = 0
     trouble_events_count: Optional[int] = 0
     last_update: str
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Dict[str, Any]] = None
+
+    class Config:
+        extra = "allow"
 
 
 class PaginationInfo(BaseModel):
@@ -201,7 +207,9 @@ class CellularGatewayDetailData(BaseModel):
     incident_events: Optional[List[CellularEventItem]] = None
     activity_events: Optional[List[CellularEventItem]] = None
     last_incident: Optional[Dict[str, Any]] = None
-    evidence: Optional[List[Dict[str, Any]]] = None
+    reason: Optional[str] = None
+    reason_desc: Optional[str] = None
+    evidence: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     evidence_badge: Optional[str] = None
     evidence_verdict: Optional[str] = None
 
