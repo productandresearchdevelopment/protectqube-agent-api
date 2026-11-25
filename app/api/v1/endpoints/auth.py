@@ -13,8 +13,31 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 def get_user_permissions(user: User, db: Session) -> List[str]:
-    """Retrieve allowed module route paths and names for user's role."""
-    if is_privileged_role(user.role):
+    """Retrieve allowed module route paths and names for user's role strictly from RoleModule."""
+    if not user.role_id:
+        if is_privileged_role(user.role):
+            all_modules = db.query(Module).filter(Module.deleted_at.is_(None)).all()
+            perms = set()
+            for m in all_modules:
+                if m.route:
+                    perms.add(m.route)
+                if m.name:
+                    perms.add(m.name)
+            perms.add("*")
+            return list(perms)
+        return []
+
+    # Check if this role has any RoleModule configuration rows at all
+    has_any_config = (
+        db.query(RoleModule.id)
+        .filter(
+            RoleModule.role_id == user.role_id,
+            RoleModule.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not has_any_config and is_privileged_role(user.role):
+        # Fallback for unseeded fresh DB so privileged role is not locked out
         all_modules = db.query(Module).filter(Module.deleted_at.is_(None)).all()
         perms = set()
         for m in all_modules:
@@ -24,9 +47,6 @@ def get_user_permissions(user: User, db: Session) -> List[str]:
                 perms.add(m.name)
         perms.add("*")
         return list(perms)
-
-    if not user.role_id:
-        return []
 
     role_modules = (
         db.query(RoleModule)

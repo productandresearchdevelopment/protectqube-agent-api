@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, time
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 
 from app.core.database import get_db
@@ -112,7 +112,7 @@ def list_devices(
     client_id: Optional[str] = Query(None, description="Filter by client UUID ('unassigned' for null)"),
     is_active: Optional[str] = Query(None, description="Filter by active status ('true', 'false', 'all')"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=500),
+    page_size: int = Query(25, ge=1, le=2000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -163,7 +163,13 @@ def list_devices(
 
     total = query.count()
     offset = (page_num - 1) * page_size_num
-    devices = query.order_by(Device.name.asc()).offset(offset).limit(page_size_num).all()
+    devices = (
+        query.options(joinedload(Device.client))
+        .order_by(Device.name.asc())
+        .offset(offset)
+        .limit(page_size_num)
+        .all()
+    )
 
     results = []
     for d in devices:
@@ -197,6 +203,448 @@ def list_devices(
         "page": page,
         "page_size": page_size,
     }
+
+
+from pydantic import BaseModel as _PydanticBaseModel
+
+
+class BulkRawMqttExportRequest(_PydanticBaseModel):
+    device_ids: Optional[List[str]] = None
+    search: Optional[str] = None
+    client_id: Optional[str] = None
+    is_active: Optional[str] = None
+    start_date: Optional[str] = None  # YYYY-MM-DD (WIB)
+    end_date: Optional[str] = None    # YYYY-MM-DD (WIB)
+
+
+def _check_device_export_permission(current_user: User, db: Session) -> None:
+    from app.core.rbac import is_privileged_role
+    from app.models.base_models import RoleModule, Module
+
+    if not current_user.role_id:
+        if is_privileged_role(current_user.role):
+            return
+        raise HTTPException(status_code=403, detail="Anda tidak memiliki izin untuk export Raw MQTT.")
+
+    has_any_config = (
+        db.query(RoleModule.id)
+        .filter(RoleModule.role_id == current_user.role_id, RoleModule.deleted_at.is_(None))
+        .first()
+    )
+    if not has_any_config and is_privileged_role(current_user.role):
+        return
+
+    allowed = (
+        db.query(RoleModule.id)
+        .join(Module, RoleModule.module_id == Module.id)
+        .filter(
+            RoleModule.role_id == current_user.role_id,
+            RoleModule.checked.is_(True),
+            RoleModule.deleted_at.is_(None),
+            Module.deleted_at.is_(None),
+            Module.route == "/api/v1/devices/export-raw-mqtt",
+        )
+        .first()
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Role Anda tidak memiliki izin untuk export Raw MQTT pada halaman Devices.",
+        )
+
+
+def _iter_device_raw_mqtt_json_chunks(
+    dev_id_str: str,
+    dev_name: str,
+    dev_loc: str,
+    stats_override: Optional[tuple] = None,
+    shared_db: Optional[Session] = None,
+    start_utc: Optional[datetime] = None,
+    end_utc: Optional[datetime] = None,
+    date_range_label: str = "All Time",
+):
+    """
+    High-speed streaming generator yielding UTF-8 JSON chunks for a single device.
+    Reads raw_payload::text directly from PostgreSQL to bypass Python json.loads/json.dumps overhead.
+    """
+    import json
+    from datetime import timezone, timedelta
+    from sqlalchemy import func, cast, Text
+    from app.core.database import SessionLocal
+
+    WIB = timezone(timedelta(hours=7))
+
+    def _fmt_wib(dt: Optional[datetime]) -> Optional[str]:
+        if not dt:
+            return None
+        dt_wib = dt.astimezone(WIB) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(WIB)
+        return dt_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
+
+    owns_db = shared_db is None
+    stream_db = shared_db if shared_db is not None else SessionLocal()
+    try:
+        if stats_override is not None:
+            total_records, first_dt, last_dt = stats_override
+        else:
+            sq = stream_db.query(
+                func.count(GatewayTelemetryHistory.id),
+                func.min(GatewayTelemetryHistory.recorded_at),
+                func.max(GatewayTelemetryHistory.recorded_at),
+            ).filter(GatewayTelemetryHistory.device_id == dev_id_str)
+            if start_utc is not None:
+                sq = sq.filter(GatewayTelemetryHistory.recorded_at >= start_utc)
+            if end_utc is not None:
+                sq = sq.filter(GatewayTelemetryHistory.recorded_at <= end_utc)
+            stats = sq.first()
+            total_records = int(stats[0] or 0) if stats else 0
+            first_dt = stats[1] if stats else None
+            last_dt = stats[2] if stats else None
+
+        header_meta = {
+            "device_id": dev_name,
+            "location": dev_loc,
+            "date_range": date_range_label,
+            "exported_at_wib": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB"),
+            "total_records": int(total_records or 0),
+            "first_record_wib": _fmt_wib(first_dt),
+            "last_record_wib": _fmt_wib(last_dt),
+        }
+        meta_json = json.dumps(header_meta, ensure_ascii=False)
+        yield meta_json[:-1] + ',\n  "records": [\n'
+
+        q = stream_db.query(
+            GatewayTelemetryHistory.recorded_at,
+            cast(GatewayTelemetryHistory.raw_payload, Text),
+        ).filter(GatewayTelemetryHistory.device_id == dev_id_str)
+        if start_utc is not None:
+            q = q.filter(GatewayTelemetryHistory.recorded_at >= start_utc)
+        if end_utc is not None:
+            q = q.filter(GatewayTelemetryHistory.recorded_at <= end_utc)
+        q = q.order_by(GatewayTelemetryHistory.recorded_at.asc()).yield_per(2000)
+
+        first_item = True
+        buf: List[str] = []
+        for rec_at, raw_text in q:
+            ts_wib = _fmt_wib(rec_at)
+            ts_wib_json = f'"{ts_wib}"' if ts_wib else "null"
+            ts_utc_json = f'"{rec_at.isoformat()}"' if rec_at else "null"
+            payload_json = raw_text if raw_text else "null"
+            prefix = "    " if first_item else ",\n    "
+            first_item = False
+            buf.append(
+                f'{prefix}{{"timestamp_wib": {ts_wib_json}, "recorded_at_utc": {ts_utc_json}, "raw_payload": {payload_json}}}'
+            )
+            if len(buf) >= 200:
+                yield "".join(buf)
+                buf.clear()
+
+        if buf:
+            yield "".join(buf)
+            buf.clear()
+
+        yield "\n  ]\n}\n"
+    finally:
+        if owns_db:
+            stream_db.close()
+
+
+@router.post("/export-raw-mqtt")
+def export_devices_raw_mqtt(
+    payload: BulkRawMqttExportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Bulk or single export of raw MQTT JSON telemetry from Devices Configuration:
+    - 1 device selected/matched -> returns direct .json file
+    - Multiple devices selected/matched -> returns .zip archive containing one .json file per device
+    """
+    import os
+    import re
+    import tempfile
+    import zipfile
+    from datetime import timezone, timedelta
+    from fastapi.responses import StreamingResponse
+
+    _check_device_export_permission(current_user, db)
+
+    WIB = timezone(timedelta(hours=7))
+    date_str = datetime.now(WIB).strftime("%Y%m%d")
+
+    # Parse optional WIB date range -> naive UTC for PostgreSQL recorded_at comparison
+    start_utc: Optional[datetime] = None
+    end_utc: Optional[datetime] = None
+    date_range_label = "All Time"
+    range_suffix = date_str
+
+    try:
+        if payload.start_date and payload.start_date.strip():
+            s_wib = datetime.strptime(payload.start_date.strip()[:10], "%Y-%m-%d").replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=WIB
+            )
+            start_utc = s_wib.astimezone(timezone.utc).replace(tzinfo=None)
+        if payload.end_date and payload.end_date.strip():
+            e_wib = datetime.strptime(payload.end_date.strip()[:10], "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=WIB
+            )
+            end_utc = e_wib.astimezone(timezone.utc).replace(tzinfo=None)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Format tanggal harus YYYY-MM-DD.")
+
+    if start_utc and end_utc and start_utc > end_utc:
+        raise HTTPException(status_code=400, detail="Start date tidak boleh lebih besar dari end date.")
+
+    if payload.start_date and payload.end_date:
+        date_range_label = f"{payload.start_date[:10]} to {payload.end_date[:10]} (WIB)"
+        range_suffix = f"{payload.start_date[:10].replace('-', '')}_{payload.end_date[:10].replace('-', '')}"
+    elif payload.start_date:
+        date_range_label = f"From {payload.start_date[:10]} (WIB)"
+        range_suffix = f"from_{payload.start_date[:10].replace('-', '')}"
+    elif payload.end_date:
+        date_range_label = f"Until {payload.end_date[:10]} (WIB)"
+        range_suffix = f"until_{payload.end_date[:10].replace('-', '')}"
+
+    query = db.query(Device).filter(Device.deleted_at.is_(None))
+
+    if payload.device_ids and len(payload.device_ids) > 0:
+        valid_uuids = []
+        raw_names = []
+        for did in payload.device_ids:
+            try:
+                valid_uuids.append(uuid.UUID(str(did)))
+            except ValueError:
+                raw_names.append(str(did))
+        conds = []
+        if valid_uuids:
+            conds.append(Device.id.in_(valid_uuids))
+        if raw_names:
+            conds.append(Device.name.in_(raw_names))
+        if conds:
+            query = query.filter(or_(*conds))
+    else:
+        if payload.is_active is not None:
+            if str(payload.is_active).lower() in ["true", "1", "yes", "active"]:
+                query = query.filter(Device.is_active.is_(True))
+            elif str(payload.is_active).lower() in ["false", "0", "no", "inactive"]:
+                query = query.filter(Device.is_active.is_(False))
+
+        if payload.client_id and payload.client_id.strip() and payload.client_id.strip().lower() != "all":
+            c_val = payload.client_id.strip()
+            if c_val.lower() in ["unassigned", "none", "null"]:
+                query = query.filter(Device.client_id.is_(None))
+            else:
+                try:
+                    query = query.filter(Device.client_id == uuid.UUID(c_val))
+                except ValueError:
+                    pass
+
+        if payload.search and payload.search.strip():
+            term = f"%{payload.search.strip()}%"
+            query = query.join(Client, Device.client_id == Client.id, isouter=True).filter(
+                or_(
+                    Device.name.ilike(term),
+                    Device.location.ilike(term),
+                    Device.hardware_model.ilike(term),
+                    Client.name.ilike(term),
+                )
+            )
+
+    devices = query.order_by(Device.name.asc()).all()
+    if not devices:
+        raise HTTPException(status_code=404, detail="Tidak ada device yang ditemukan untuk di-export.")
+
+    # Single device -> direct .json download
+    if len(devices) == 1:
+        dev = devices[0]
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", dev.name)
+        filename = f"RAW_MQTT_{safe_name}_{range_suffix}.json"
+        return StreamingResponse(
+            _iter_device_raw_mqtt_json_chunks(
+                str(dev.id),
+                dev.name,
+                dev.location or "-",
+                start_utc=start_utc,
+                end_utc=end_utc,
+                date_range_label=date_range_label,
+            ),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # Multiple devices -> ultra-fast .zip (compresslevel=1) using 1 batch stats query + 1 single streaming data query
+    import json as _json
+    from sqlalchemy import func as _sql_func, cast as _sql_cast, Text as _SqlText
+    from app.core.database import SessionLocal as _SessionLocal
+
+    def _fmt_wib_dt(dt: Optional[datetime]) -> Optional[str]:
+        if not dt:
+            return None
+        dt_wib = dt.astimezone(WIB) if dt.tzinfo else dt.replace(tzinfo=timezone.utc).astimezone(WIB)
+        return dt_wib.strftime("%Y-%m-%d %H:%M:%S WIB")
+
+    dev_uuids = [dev.id for dev in devices]
+    stats_q = db.query(
+        GatewayTelemetryHistory.device_id,
+        _sql_func.count(GatewayTelemetryHistory.id),
+        _sql_func.min(GatewayTelemetryHistory.recorded_at),
+        _sql_func.max(GatewayTelemetryHistory.recorded_at),
+    ).filter(GatewayTelemetryHistory.device_id.in_(dev_uuids))
+    if start_utc is not None:
+        stats_q = stats_q.filter(GatewayTelemetryHistory.recorded_at >= start_utc)
+    if end_utc is not None:
+        stats_q = stats_q.filter(GatewayTelemetryHistory.recorded_at <= end_utc)
+    stats_rows = stats_q.group_by(GatewayTelemetryHistory.device_id).all()
+    stats_map = {str(r[0]): (int(r[1] or 0), r[2], r[3]) for r in stats_rows}
+
+    # Pre-compute unique archive filenames for each device
+    used_arcnames = set()
+    dev_info_map: Dict[str, tuple] = {}
+    for dev in devices:
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", dev.name)
+        safe_loc = re.sub(r"[^a-zA-Z0-9_-]", "_", (dev.location or "").strip())[:40].strip("_")
+        base_arc = f"{safe_name}_{safe_loc}" if safe_loc else safe_name
+        arcname = f"{base_arc}.json"
+        counter = 2
+        while arcname in used_arcnames:
+            arcname = f"{base_arc}_{counter}.json"
+            counter += 1
+        used_arcnames.add(arcname)
+        dev_info_map[str(dev.id)] = (dev.name, dev.location or "-", arcname)
+
+    exported_at_wib = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+
+    def _build_header_prefix(dev_id_str: str) -> bytes:
+        d_name, d_loc, _ = dev_info_map[dev_id_str]
+        tot, f_dt, l_dt = stats_map.get(dev_id_str, (0, None, None))
+        header_meta = {
+            "device_id": d_name,
+            "location": d_loc,
+            "date_range": date_range_label,
+            "exported_at_wib": exported_at_wib,
+            "total_records": int(tot or 0),
+            "first_record_wib": _fmt_wib_dt(f_dt),
+            "last_record_wib": _fmt_wib_dt(l_dt),
+        }
+        return (_json.dumps(header_meta, ensure_ascii=False)[:-1] + ',\n  "records": [\n').encode("utf-8")
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp_path = tmp.name
+    tmp.close()
+
+    shared_db = _SessionLocal()
+    try:
+        written_dev_ids = set()
+        with zipfile.ZipFile(
+            tmp_path,
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=1,
+            allowZip64=True,
+        ) as zf:
+            # 1 single streaming query for all devices that actually have records in this date range
+            active_dev_uuids = [dev.id for dev in devices if stats_map.get(str(dev.id), (0,))[0] > 0]
+            if active_dev_uuids:
+                data_q = shared_db.query(
+                    GatewayTelemetryHistory.device_id,
+                    GatewayTelemetryHistory.recorded_at,
+                    _sql_cast(GatewayTelemetryHistory.raw_payload, _SqlText),
+                ).filter(GatewayTelemetryHistory.device_id.in_(active_dev_uuids))
+                if start_utc is not None:
+                    data_q = data_q.filter(GatewayTelemetryHistory.recorded_at >= start_utc)
+                if end_utc is not None:
+                    data_q = data_q.filter(GatewayTelemetryHistory.recorded_at <= end_utc)
+                data_q = data_q.order_by(
+                    GatewayTelemetryHistory.device_id.asc(),
+                    GatewayTelemetryHistory.recorded_at.asc(),
+                ).yield_per(2000)
+
+                current_dev_id: Optional[str] = None
+                current_zentry = None
+                first_item = True
+                buf: List[str] = []
+
+                try:
+                    for row_dev_id, rec_at, raw_text in data_q:
+                        d_key = str(row_dev_id)
+                        if d_key != current_dev_id:
+                            if current_zentry is not None:
+                                if buf:
+                                    current_zentry.write("".join(buf).encode("utf-8"))
+                                    buf.clear()
+                                current_zentry.write(b"\n  ]\n}\n")
+                                current_zentry.close()
+                            current_dev_id = d_key
+                            written_dev_ids.add(d_key)
+                            _, _, arcname = dev_info_map[d_key]
+                            current_zentry = zf.open(arcname, mode="w")
+                            current_zentry.write(_build_header_prefix(d_key))
+                            first_item = True
+
+                        ts_wib = _fmt_wib_dt(rec_at)
+                        ts_wib_json = f'"{ts_wib}"' if ts_wib else "null"
+                        ts_utc_json = f'"{rec_at.isoformat()}"' if rec_at else "null"
+                        payload_json = raw_text if raw_text else "null"
+                        prefix = "    " if first_item else ",\n    "
+                        first_item = False
+                        buf.append(
+                            f'{prefix}{{"timestamp_wib": {ts_wib_json}, "recorded_at_utc": {ts_utc_json}, "raw_payload": {payload_json}}}'
+                        )
+                        if len(buf) >= 200:
+                            current_zentry.write("".join(buf).encode("utf-8"))
+                            buf.clear()
+
+                    if current_zentry is not None:
+                        if buf:
+                            current_zentry.write("".join(buf).encode("utf-8"))
+                            buf.clear()
+                        current_zentry.write(b"\n  ]\n}\n")
+                        current_zentry.close()
+                        current_zentry = None
+                finally:
+                    if current_zentry is not None:
+                        try:
+                            current_zentry.close()
+                        except Exception:
+                            pass
+
+            # Write empty JSON stubs for devices with 0 records in the selected range (no DB query needed)
+            for dev in devices:
+                d_key = str(dev.id)
+                if d_key not in written_dev_ids:
+                    _, _, arcname = dev_info_map[d_key]
+                    with zf.open(arcname, mode="w") as zentry:
+                        zentry.write(_build_header_prefix(d_key))
+                        zentry.write(b"  ]\n}\n")
+    except Exception as e:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        logger.error(f"Bulk raw MQTT ZIP export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Gagal membuat arsip ZIP Raw MQTT: {str(e)}")
+    finally:
+        shared_db.close()
+
+    def iter_zip_and_cleanup():
+        try:
+            with open(tmp_path, "rb") as f:
+                while True:
+                    buf = f.read(1024 * 256)
+                    if not buf:
+                        break
+                    yield buf
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+    zip_filename = f"RAW_MQTT_BULK_{len(devices)}_DEVICES_{range_suffix}.zip"
+    return StreamingResponse(
+        iter_zip_and_cleanup(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+    )
 
 
 @router.get("/{device_id}")

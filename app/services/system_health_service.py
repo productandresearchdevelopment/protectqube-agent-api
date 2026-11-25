@@ -622,8 +622,11 @@ class SystemHealthService:
         return time.time()
 
     def _sync_freshness(self):
-        """Maintains timestamp bookkeeping for live gateway telemetry."""
+        """Maintains timestamp bookkeeping for live gateway telemetry (throttled to 5s to keep detail clicks instant)."""
         now = time.time()
+        if now - getattr(self, "_last_sync_freshness_ts", 0.0) < 5.0:
+            return
+        self._last_sync_freshness_ts = now
         for dev_id, g in self._live_gateways.items():
             last_seen = g.get("last_seen_epoch")
             if not last_seen:
