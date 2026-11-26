@@ -128,6 +128,7 @@ def init_db():
 
         # Real System Modules
         route_menu_id = type_map["route menu"]
+        route_hidden_id = type_map["route hidden"]
         service_api_id = type_map["service api"]
         label_menu_id = type_map["label menu"]
 
@@ -136,7 +137,20 @@ def init_db():
             {"name": "Overview", "route": "/", "icon": "LayoutDashboard", "type_id": route_menu_id, "description": "Dashboard overview and real-time summary"},
             {"name": "System Health", "route": "/system-health", "icon": "Cpu", "type_id": route_menu_id, "description": "CPU, RAM, SD card, and host metrics"},
             {"name": "Cellular", "route": "/cellular", "icon": "Radio", "type_id": route_menu_id, "description": "Cellular connection, signal, and operator status"},
+            {"name": "Cellular - Overview", "route": "/cellular/overview", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab Overview pada detail Cellular"},
+            {"name": "Cellular - CPU – Modem", "route": "/cellular/cpu-modem", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab CPU & Modem telemetry pada detail Cellular"},
+            {"name": "Cellular - Modem & SIM", "route": "/cellular/modem-sim", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab Modem & SIM status pada detail Cellular"},
+            {"name": "Cellular - Signal & Network", "route": "/cellular/signal-network", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab Signal & Network quality pada detail Cellular"},
+            {"name": "Cellular - Event Log", "route": "/cellular/event-log", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab Event Log pada detail Cellular"},
+            {"name": "Cellular - System Logs", "route": "/cellular/system-logs", "type_id": route_hidden_id, "parent_name": "Cellular", "description": "Tab System Logs (telemetri per-menit) pada detail Cellular"},
             {"name": "DVR & Recording", "route": "/dvr-recording", "icon": "Video", "type_id": route_menu_id, "description": "NVR/DVR connectivity and video recording status"},
+
+            # Analytics Group
+            {"name": "Analytics", "route": "/analytics", "icon": "BarChart3", "type_id": route_menu_id, "description": "Incident analytics, monthly outage trends, and root cause distributions"},
+            {"name": "Incident Analytics", "route": "/analytics/incidents", "type_id": route_hidden_id, "parent_name": "Analytics", "description": "Daily gateway incident metrics and failure frequency analysis"},
+            {"name": "Monthly Incident Trend", "route": "/analytics/monthly-trend", "type_id": route_hidden_id, "parent_name": "Analytics", "description": "Monthly incident trend comparison, daily occurrences, and uptime metrics"},
+            {"name": "Root Cause & Offline Analysis", "route": "/analytics/root-causes", "type_id": route_hidden_id, "parent_name": "Analytics", "description": "Top incident categories, affected components, and offline device analysis"},
+            {"name": "Get Analytics Incidents API", "route": "/api/v1/monitoring/analytics/incidents", "type_id": service_api_id, "parent_name": "Analytics", "description": "API service endpoint for querying incident metrics and trends"},
             
             # Reports Group
             {"name": "Reports", "route": "/reports", "icon": "FileText", "type_id": route_menu_id, "description": "System historical data and export reports"},
@@ -188,6 +202,7 @@ def init_db():
             {"name": "Devices Management", "route": "/configuration/devices", "icon": "Cpu", "type_id": route_menu_id, "parent_name": "Configuration", "description": "Manage master devices, hardware specs and properties"},
             {"name": "Device Get All", "route": "/api/v1/devices", "type_id": service_api_id, "parent_name": "Devices Management", "description": "Retrieve all devices"},
             {"name": "Device Update", "route": "/api/v1/devices/:id", "type_id": service_api_id, "parent_name": "Devices Management", "description": "Update device client assignment and properties"},
+            {"name": "Device Export Raw MQTT", "route": "/api/v1/devices/export-raw-mqtt", "type_id": service_api_id, "parent_name": "Devices Management", "description": "Bulk or single export of Raw MQTT telemetry JSON/ZIP with date range"},
         ]
 
         for m_data in modules_to_seed:
